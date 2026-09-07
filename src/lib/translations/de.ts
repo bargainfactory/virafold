@@ -67,10 +67,10 @@ export const de: Record<string, string> = {
   "hiw.step3Desc": "Die KI schneidet automatisch optimale Kurzform-Clips mit perfekten Anfangs- und Endpunkten.",
   "hiw.step4Title": "Visuelles Design",
   "hiw.step4Desc": "Untertitel, B-Roll, Motion Graphics und gebrandete Vorlagen werden automatisch angewendet.",
-  "hiw.step5Title": "Überprüfen und Freigeben",
-  "hiw.step5Desc": "Alle Inhalte in deinem Dashboard in der Vorschau ansehen. Revisionen anfordern oder mit einem Klick freigeben.",
+  "hiw.step5Title": "Du prüfst & gibst frei",
+  "hiw.step5Desc": "Sieh dir jedes Asset im Dashboard an. Generiere neu, was dir nicht gefällt — nichts geht raus, bevor du es freigibst.",
   "hiw.step6Title": "Automatische Veröffentlichung",
-  "hiw.step6Desc": "Freigegebene Inhalte werden über Zapier-Hooks auf allen Plattformen geplant und veröffentlicht.",
+  "hiw.step6Desc": "Von dir freigegebene Inhalte werden automatisch geplant und auf deinen verbundenen Plattformen veröffentlicht.",
 
   // Pricing
   "pricing.title1": "Kostenlos Starten.",

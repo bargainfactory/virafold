@@ -67,10 +67,10 @@ export const fr: Record<string, string> = {
   "hiw.step3Desc": "L'IA coupe automatiquement les clips courts les plus pertinents avec des points de début et de fin parfaits.",
   "hiw.step4Title": "Création Visuelle",
   "hiw.step4Desc": "Sous-titres, B-roll, motion design et modèles brandés appliqués automatiquement.",
-  "hiw.step5Title": "Réviser et Approuver",
-  "hiw.step5Desc": "Prévisualisez tous les contenus dans votre tableau de bord. Demandez des révisions ou approuvez en un clic.",
+  "hiw.step5Title": "Vous validez tout",
+  "hiw.step5Desc": "Prévisualisez chaque contenu dans votre tableau de bord. Régénérez ce qui ne vous plaît pas — rien n'est publié sans votre approbation.",
   "hiw.step6Title": "Publication Automatique",
-  "hiw.step6Desc": "Le contenu approuvé est planifié et publié via des hooks Zapier sur toutes les plateformes.",
+  "hiw.step6Desc": "Le contenu que vous avez approuvé est programmé et publié automatiquement sur vos plateformes connectées.",
 
   // Pricing
   "pricing.title1": "Commencez Gratuitement.",

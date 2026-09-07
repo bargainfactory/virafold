@@ -20,16 +20,17 @@ import {
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 
-const STEP_MS = 3400;
+// Slow enough to actually read a title + two sentences before the step turns.
+const STEP_MS = 7000;
 const TICK_MS = 40;
 
 const STEPS = [
-  { icon: Upload, titleKey: "hiw.step1Title", descKey: "hiw.step1Desc", detail: "MP4, MOV, MP3, WAV — up to 4 hours" },
+  { icon: Upload, titleKey: "hiw.step1Title", descKey: "hiw.step1Desc", detail: "MP4, MOV, MP3, WAV" },
   { icon: Brain, titleKey: "hiw.step2Title", descKey: "hiw.step2Desc", detail: "AI content scoring & hook detection" },
   { icon: Scissors, titleKey: "hiw.step3Title", descKey: "hiw.step3Desc", detail: "Retention-optimized cuts" },
-  { icon: Palette, titleKey: "hiw.step4Title", descKey: "hiw.step4Desc", detail: "AI voiceover + B-roll overlay" },
-  { icon: CheckCircle, titleKey: "hiw.step5Title", descKey: "hiw.step5Desc", detail: "Human-reviewed before it ships" },
-  { icon: Rocket, titleKey: "hiw.step6Title", descKey: "hiw.step6Desc", detail: "TikTok, YouTube, LinkedIn, Instagram, X" },
+  { icon: Palette, titleKey: "hiw.step4Title", descKey: "hiw.step4Desc", detail: "Captions, AI voiceover & thumbnails" },
+  { icon: CheckCircle, titleKey: "hiw.step5Title", descKey: "hiw.step5Desc", detail: "You approve — nothing ships without you" },
+  { icon: Rocket, titleKey: "hiw.step6Title", descKey: "hiw.step6Desc", detail: "TikTok, YouTube, LinkedIn, X" },
 ];
 
 export default function DemoModal({

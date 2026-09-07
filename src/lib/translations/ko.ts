@@ -67,10 +67,10 @@ export const ko: Record<string, string> = {
   "hiw.step3Desc": "AI가 완벽한 시작/종료 지점으로 최적의 단편 클립을 자동 편집합니다.",
   "hiw.step4Title": "비주얼 디자인",
   "hiw.step4Desc": "자막, B-롤, 모션 그래픽, 브랜드 템플릿이 자동으로 적용됩니다.",
-  "hiw.step5Title": "검토 및 승인",
-  "hiw.step5Desc": "대시보드에서 모든 에셋을 미리보기하세요. 수정 요청 또는 원클릭 승인.",
+  "hiw.step5Title": "검토와 승인은 직접",
+  "hiw.step5Desc": "대시보드에서 모든 에셋을 미리 보세요. 마음에 안 들면 다시 생성 — 승인하기 전에는 아무것도 게시되지 않습니다.",
   "hiw.step6Title": "자동 게시",
-  "hiw.step6Desc": "승인된 콘텐츠가 Zapier 훅을 통해 모든 플랫폼에 예약 및 게시됩니다.",
+  "hiw.step6Desc": "회원님이 승인한 콘텐츠만 자동으로 예약되어 연결된 플랫폼에 게시됩니다.",
 
   // Pricing
   "pricing.title1": "무료로 시작.",

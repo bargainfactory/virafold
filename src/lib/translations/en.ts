@@ -80,10 +80,10 @@ export const en: Record<string, string> = {
   "hiw.step3Desc": "AI automatically cuts optimal short-form clips with perfect start/end points.",
   "hiw.step4Title": "Visual Design",
   "hiw.step4Desc": "Captions, B-roll, motion graphics, and branded templates applied automatically.",
-  "hiw.step5Title": "Review & Approve",
-  "hiw.step5Desc": "Preview all assets in your dashboard. Request revisions or approve with one click.",
+  "hiw.step5Title": "You Review & Approve",
+  "hiw.step5Desc": "Preview every asset in your dashboard. Regenerate anything you don't like — nothing ships until you approve it.",
   "hiw.step6Title": "Auto-Publish",
-  "hiw.step6Desc": "Approved content is scheduled and delivered to your connected platforms automatically.",
+  "hiw.step6Desc": "The content you approved is scheduled and delivered to your connected platforms automatically.",
 
   // Pricing
   "pricing.title1": "Start Free.",
