@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, Globe, Video, Camera, Briefcase } from "lucide-react";
+import { Youtube } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 
+// Only profiles that actually exist — placeholders pointed at platform
+// homepages cost more trust than no icon. Add X/TikTok/LinkedIn here as
+// their real handles get claimed.
 const socials = [
-  { icon: Globe, href: "https://x.com", label: "Twitter" },
-  { icon: Video, href: "https://youtube.com", label: "YouTube" },
-  { icon: Camera, href: "https://instagram.com", label: "Instagram" },
-  { icon: Briefcase, href: "https://linkedin.com", label: "LinkedIn" },
+  { icon: Youtube, href: "https://www.youtube.com/@virafold", label: "YouTube" },
 ];
 
 export default function Footer() {
