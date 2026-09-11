@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Youtube } from "lucide-react";
+import { Video } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 
 // Only profiles that actually exist — placeholders pointed at platform
 // homepages cost more trust than no icon. Add X/TikTok/LinkedIn here as
 // their real handles get claimed.
 const socials = [
-  { icon: Youtube, href: "https://www.youtube.com/@virafold", label: "YouTube" },
+  { icon: Video, href: "https://www.youtube.com/@virafold", label: "YouTube" },
 ];
 
 export default function Footer() {
