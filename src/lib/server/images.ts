@@ -1,8 +1,8 @@
 /**
  * AI image generation for thumbnails and cover art. Provider chain mirrors
- * the LLM one: xAI (grok-2-image) first, then OpenAI (dall-e-3). The model
- * paints a text-free background; ffmpeg overlays the title in the brand's
- * caption style, because image models still butcher typography.
+ * the LLM one: xAI (grok-imagine-image-2.0) first, then OpenAI (dall-e-3).
+ * The model paints a text-free background; ffmpeg overlays the title in the
+ * brand's caption style, because image models still butcher typography.
  */
 
 import fs from "node:fs";
@@ -22,7 +22,7 @@ export async function generateBackground(prompt: string): Promise<Buffer | null>
           Authorization: `Bearer ${xaiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ model: "grok-2-image", prompt, response_format: "b64_json" }),
+        body: JSON.stringify({ model: "grok-imagine-image-2.0", prompt, response_format: "b64_json" }),
       });
       if (resp.ok) {
         const data = await resp.json();
