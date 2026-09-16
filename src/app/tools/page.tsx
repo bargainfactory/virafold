@@ -50,6 +50,12 @@ const TOOLS = [
     desc: "Transcript in — chapters, show notes, and quotes out.",
   },
   {
+    href: "/tools/website-score",
+    icon: Gauge,
+    name: "Website Content Score",
+    desc: "Your site graded /100 — depth, headlines, AI findability.",
+  },
+  {
     href: "/tools/hook-analyzer",
     icon: Type,
     name: "Hook & Title Analyzer",

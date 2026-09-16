@@ -13,3 +13,10 @@ export function publicOrigin(req: NextRequest): string {
   if (process.env.NODE_ENV === "production") return CANONICAL;
   return req.nextUrl.origin;
 }
+
+/** Same resolution for contexts with no request (workers, scheduled jobs). */
+export function publicOriginStatic(): string {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL;
+  if (process.env.NODE_ENV === "production") return CANONICAL;
+  return "http://localhost:3000";
+}

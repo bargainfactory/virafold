@@ -40,6 +40,7 @@ import {
 } from "./db";
 import { deliverPost, deliverVideo, freshToken } from "./connect";
 import { kickRenderWorker } from "./render";
+import { kickSiteAuditWorker } from "./site-audit";
 import { sendEmail, emailConfigured } from "./email";
 import { resolveField } from "./integrations";
 
@@ -355,6 +356,11 @@ export function startScheduler(): void {
       kickRenderWorker();
     } catch {
       /* render worker is best-effort */
+    }
+    try {
+      kickSiteAuditWorker();
+    } catch {
+      /* audit worker is best-effort */
     }
     if (tick % METRICS_EVERY_TICKS === 0) {
       ingestMetrics().catch(() => {});

@@ -26,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/tools/thumbnail-tester`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/tools/video-ideas`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/tools/podcast-chapters`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/tools/website-score`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/tools/hook-analyzer`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/tools/engagement-calculator`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/tools/hashtag-generator`, changeFrequency: "monthly", priority: 0.8 },

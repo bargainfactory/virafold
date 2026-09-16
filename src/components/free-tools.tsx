@@ -919,6 +919,203 @@ function ChaptersTool() {
   );
 }
 
+/* ---------- 11. Website Content Score ---------- */
+interface WsSection {
+  key: string;
+  label: string;
+  score: number;
+  notes: string[];
+}
+interface WsReport {
+  url: string;
+  fetchedPages: number;
+  hasSitemap: boolean;
+  hasLlmsTxt: boolean;
+  hasRss: boolean;
+  sections: WsSection[];
+  total: number;
+  grade: string;
+  trappedPosts: number;
+  trappedAssets: number;
+}
+
+function WebsiteScoreTool() {
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [report, setReport] = useState<WsReport | null>(null);
+  const [auditBusy, setAuditBusy] = useState(false);
+  const [auditMsg, setAuditMsg] = useState<string | null>(null);
+
+  async function run() {
+    if (!url.trim() || loading) return;
+    setLoading(true);
+    setError(null);
+    setReport(null);
+    setAuditMsg(null);
+    try {
+      const res = await fetch("/api/tools/website-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) setError(String(data?.error ?? "Something went wrong — try again"));
+      else {
+        setReport(data.report);
+        track("tool_website_score");
+      }
+    } catch {
+      setError("Something went wrong — try again");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startAudit() {
+    if (!report || auditBusy) return;
+    setAuditBusy(true);
+    setAuditMsg(null);
+    try {
+      const res = await fetch("/api/site-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: report.url }),
+      });
+      if (res.status === 401) {
+        window.location.href = "/signup";
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      if (data?.operator && data?.id) {
+        window.location.href = `/site-audit/${data.id}`;
+        return;
+      }
+      if (data?.demo) {
+        setAuditMsg(
+          "Payments aren't live quite yet. Create a free account and you'll be first to know when the Complete Audit opens — the free score above is yours to keep either way."
+        );
+        return;
+      }
+      setAuditMsg(String(data?.error ?? "Could not start the audit — try again shortly"));
+    } catch {
+      setAuditMsg("Could not start the audit — try again shortly");
+    } finally {
+      setAuditBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className={cardCls}>
+        <label className="block text-sm text-cyber-muted mb-2">Your website</label>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            className={inputCls}
+            placeholder="yourdomain.com"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && run()}
+          />
+          <button className={btnCls} onClick={run} disabled={loading || !url.trim()}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {loading ? "Reading your site…" : "Score my site"}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-cyber-muted">
+          We fetch up to 8 public pages (sitemap first) and grade them with named, deterministic
+          checks — no AI guesswork in the score. Takes ~15 seconds.
+        </p>
+        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      </div>
+
+      {report && (
+        <>
+          <div className={cardCls}>
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="text-center">
+                <p className={`text-5xl font-bold ${gradeColor(report.total)}`}>{report.grade}</p>
+                <p className="text-sm text-cyber-muted mt-1">{report.total}/100</p>
+              </div>
+              <div className="flex-1 min-w-[220px]">
+                <p className="text-sm text-foreground font-medium break-all">{report.url}</p>
+                <p className="text-xs text-cyber-muted mt-1">
+                  {report.fetchedPages} pages scanned · sitemap {report.hasSitemap ? "✓" : "✗"} · RSS{" "}
+                  {report.hasRss ? "✓" : "✗"} · llms.txt {report.hasLlmsTxt ? "✓" : "✗"}
+                </p>
+                {report.trappedPosts > 0 && (
+                  <p className="mt-2 text-sm text-neon-purple">
+                    ≈{report.trappedAssets} social assets are trapped in {report.trappedPosts}{" "}
+                    substantial pages — threads, carousels, newsletters, and short scripts nobody
+                    has seen yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {report.sections.map((s) => (
+              <div key={s.key} className={cardCls}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-foreground">{s.label}</p>
+                  <p className={`text-sm font-bold ${gradeColor(s.score * 5)}`}>{s.score}/20</p>
+                </div>
+                <div className="h-1.5 rounded-full bg-cyber-border mb-3">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-neon-purple to-electric-blue"
+                    style={{ width: `${(s.score / 20) * 100}%` }}
+                  />
+                </div>
+                <ul className="space-y-1.5">
+                  {s.notes.map((n, i) => (
+                    <li key={i} className="text-xs text-cyber-muted leading-relaxed">
+                      {n}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-gradient-to-r from-neon-purple/10 to-electric-blue/10 border border-neon-purple/30 rounded-xl p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Sparkles className="w-6 h-6 text-neon-purple shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Complete Content Audit — $49
+                </p>
+                <p className="text-sm text-cyber-muted mt-1">
+                  This free score reads 8 pages. The complete audit crawls your whole site (up to
+                  120 pages), adds AI page-by-page verdicts and headline rewrites, maps your
+                  content gaps, and delivers a prioritized 30-day repurposing plan to your inbox.
+                  Fully automated — and the $49 is credited toward your first month if you
+                  subscribe within 30 days.
+                </p>
+              </div>
+              <button onClick={startAudit} disabled={auditBusy} className={btnCls}>
+                {auditBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                Get the full audit
+              </button>
+            </div>
+            {auditMsg && <p className="mt-3 text-sm text-warning">{auditMsg}</p>}
+          </div>
+
+          <UpgradeCard
+            text="Prefer to just start shipping? Paste any post's URL into Virafold and it becomes a thread, carousel, and newsletter in one run — free plan included."
+            href="/signup"
+            cta="Start free"
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function FreeToolClient({ tool }: { tool: string }) {
   switch (tool) {
     case "hook-analyzer":
@@ -941,6 +1138,8 @@ export default function FreeToolClient({ tool }: { tool: string }) {
       return <IdeasTool />;
     case "podcast-chapters":
       return <ChaptersTool />;
+    case "website-score":
+      return <WebsiteScoreTool />;
     default:
       return null;
   }

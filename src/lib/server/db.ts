@@ -267,6 +267,18 @@ export function getDb(): DatabaseSync {
       path       TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS site_audits (
+      id           TEXT PRIMARY KEY,
+      user_email   TEXT NOT NULL,
+      url          TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'pending_payment',
+      paid         INTEGER NOT NULL DEFAULT 0,
+      score        INTEGER,
+      report       TEXT,
+      error        TEXT,
+      created_at   TEXT NOT NULL,
+      completed_at TEXT
+    );
     CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_email);
     CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_email);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_email);
@@ -1630,6 +1642,7 @@ export function deleteAccount(email: string): { files: string[] } {
   }
   conn.prepare("DELETE FROM managed_accounts WHERE manager_email = ? OR client_email = ?").run(e, e);
   conn.prepare("DELETE FROM reset_tokens WHERE user_email = ?").run(e);
+  conn.prepare("DELETE FROM site_audits WHERE user_email = ?").run(e);
   conn.prepare("DELETE FROM users WHERE email = ?").run(e);
   return { files };
 }
@@ -2800,4 +2813,113 @@ export function seedUser(email: string): void {
         defaultNotifications.length - i
       );
   });
+}
+
+// --- Paid site audits (the Complete Content Audit product) ---
+
+export interface SiteAuditRow {
+  id: string;
+  userEmail: string;
+  url: string;
+  status: string; // pending_payment | queued | running | ready | failed
+  paid: boolean;
+  score: number | null;
+  report: string | null; // JSON blob
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToSiteAudit(r: any): SiteAuditRow {
+  return {
+    id: r.id,
+    userEmail: r.user_email,
+    url: r.url,
+    status: r.status,
+    paid: Boolean(r.paid),
+    score: r.score ?? null,
+    report: r.report ?? null,
+    error: r.error ?? null,
+    createdAt: r.created_at,
+    completedAt: r.completed_at ?? null,
+  };
+}
+
+export function insertSiteAudit(
+  email: string,
+  id: string,
+  url: string,
+  opts: { paid?: boolean } = {}
+): void {
+  const paid = opts.paid ? 1 : 0;
+  getDb()
+    .prepare(
+      `INSERT INTO site_audits (id, user_email, url, status, paid, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      id,
+      email.toLowerCase(),
+      url,
+      paid ? "queued" : "pending_payment",
+      paid,
+      new Date().toISOString()
+    );
+}
+
+export function getSiteAudit(email: string, id: string): SiteAuditRow | null {
+  const r = getDb()
+    .prepare("SELECT * FROM site_audits WHERE id = ? AND user_email = ?")
+    .get(id, email.toLowerCase());
+  return r ? rowToSiteAudit(r) : null;
+}
+
+export function getSiteAuditById(id: string): SiteAuditRow | null {
+  const r = getDb().prepare("SELECT * FROM site_audits WHERE id = ?").get(id);
+  return r ? rowToSiteAudit(r) : null;
+}
+
+export function listQueuedSiteAudits(): SiteAuditRow[] {
+  return (
+    getDb()
+      .prepare("SELECT * FROM site_audits WHERE status = 'queued' ORDER BY created_at")
+      .all() as unknown[]
+  ).map(rowToSiteAudit);
+}
+
+export function listSiteAudits(email: string): SiteAuditRow[] {
+  return (
+    getDb()
+      .prepare(
+        "SELECT * FROM site_audits WHERE user_email = ? ORDER BY created_at DESC LIMIT 20"
+      )
+      .all(email.toLowerCase()) as unknown[]
+  ).map(rowToSiteAudit);
+}
+
+export function updateSiteAudit(
+  id: string,
+  fields: { status?: string; score?: number; report?: string; error?: string | null; completedAt?: string }
+): void {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  if (fields.status !== undefined) { sets.push("status = ?"); vals.push(fields.status); }
+  if (fields.score !== undefined) { sets.push("score = ?"); vals.push(fields.score); }
+  if (fields.report !== undefined) { sets.push("report = ?"); vals.push(fields.report); }
+  if (fields.error !== undefined) { sets.push("error = ?"); vals.push(fields.error); }
+  if (fields.completedAt !== undefined) { sets.push("completed_at = ?"); vals.push(fields.completedAt); }
+  if (!sets.length) return;
+  vals.push(id);
+  getDb().prepare(`UPDATE site_audits SET ${sets.join(", ")} WHERE id = ?`).run(...(vals as never[]));
+}
+
+/** Payment confirmed (Stripe webhook): unlock and queue the crawl. */
+export function markSiteAuditPaid(id: string): SiteAuditRow | null {
+  getDb()
+    .prepare(
+      "UPDATE site_audits SET paid = 1, status = 'queued' WHERE id = ? AND status = 'pending_payment'"
+    )
+    .run(id);
+  return getSiteAuditById(id);
 }

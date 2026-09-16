@@ -97,6 +97,18 @@ export async function POST(req: NextRequest) {
     const priceId = String(obj.metadata?.priceId ?? obj.client_reference_id ?? "");
     const plan = PRICE_ID_TO_PLAN[priceId];
     if (email && plan) applyPlan(email, plan, "checkout.session.completed");
+
+    // One-off Complete Content Audit: payment unlocks and queues the crawl.
+    const siteAuditId = String(obj.metadata?.siteAuditId ?? "");
+    if (siteAuditId) {
+      const { markSiteAuditPaid } = await import("@/lib/server/db");
+      const { kickSiteAuditWorker } = await import("@/lib/server/site-audit");
+      const audit = markSiteAuditPaid(siteAuditId);
+      if (audit) {
+        insertAudit("stripe-webhook", "site_audit.paid", `${siteAuditId} ${audit.url}`);
+        kickSiteAuditWorker();
+      }
+    }
   } else if (type === "customer.subscription.deleted") {
     // The subscription object carries a customer id, not an email — resolve it.
     const secretKey = resolveField("stripe", "secretKey");

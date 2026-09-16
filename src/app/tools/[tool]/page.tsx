@@ -211,6 +211,29 @@ TOOLS["podcast-chapters"] = {
     },
   ],
 };
+TOOLS["website-score"] = {
+  name: "Website Content Score",
+  h1: "Free Website Content Score",
+  sub: "Enter your domain and get a grade out of 100 across content depth, headline strength, discovery basics, AI findability, and repurposing potential — every point traced to a named check. No signup.",
+  faq: [
+    {
+      q: "What exactly gets checked?",
+      a: "We fetch up to 8 public pages (sitemap first) and run deterministic checks: word counts and freshness, headline scoring on your titles and H1s, meta/OG/sitemap/RSS basics, llms.txt and structured data for AI assistants, and how much long-form content you have to repurpose. The report names every factor.",
+    },
+    {
+      q: "Is this an SEO audit?",
+      a: "It overlaps on the basics, but the focus is different: how well your content works for discovery — including by AI assistants — and how much finished social content is sitting unused in your existing pages.",
+    },
+    {
+      q: "What's in the paid Complete Audit?",
+      a: "The same analysis across your whole site (up to 120 pages), plus AI page-by-page verdicts, headline rewrites, content-gap mapping, and a prioritized 30-day repurposing plan — $49, fully automated, credited toward your first month if you subscribe.",
+    },
+    {
+      q: "Will you crawl my site aggressively?",
+      a: "No — a handful of pages, four at a time, with timeouts, and we identify ourselves as VirafoldBot. If your site blocks bots we say we couldn't read it rather than inventing a score.",
+    },
+  ],
+};
 
 export function generateStaticParams() {
   return Object.keys(TOOLS).map((tool) => ({ tool }));
