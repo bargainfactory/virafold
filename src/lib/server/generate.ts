@@ -402,6 +402,25 @@ export interface LlmOpts {
   context?: string;
 }
 
+/**
+ * Anthropic structured outputs require `additionalProperties: false` on every
+ * object in the schema — without it the API 400s, which silently knocked the
+ * whole flagship tier down to the next provider. Applied recursively so no
+ * call site has to remember.
+ */
+function strictSchema(s: unknown): unknown {
+  if (Array.isArray(s)) return s.map(strictSchema);
+  if (s && typeof s === "object") {
+    const o: Record<string, unknown> = { ...(s as Record<string, unknown>) };
+    for (const k of Object.keys(o)) o[k] = strictSchema(o[k]);
+    if (o.type === "object" && o.properties && o.additionalProperties === undefined) {
+      o.additionalProperties = false;
+    }
+    return o;
+  }
+  return s;
+}
+
 const TIER_DEFAULTS: Record<LlmTier, { route: string; maxTokens: number }> = {
   flagship: { route: "anthropic:claude-opus-4-8", maxTokens: 32000 },
   standard: { route: "xai:grok-4.6", maxTokens: 8192 },
@@ -483,7 +502,7 @@ export async function llmComplete(
           max_tokens: maxTokens,
           ...(tier === "flagship" ? { thinking: { type: "adaptive" } } : {}),
           system,
-          output_config: { format: { type: "json_schema", schema } },
+          output_config: { format: { type: "json_schema", schema: strictSchema(schema) } },
           messages: [{ role: "user", content }],
         } as never);
         const res = await stream.finalMessage();

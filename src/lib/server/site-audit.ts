@@ -90,6 +90,7 @@ async function coachAudit(
     "You are a direct, specific content strategist for creators and small businesses. " +
     "You are given a deterministic site score and excerpts of the site's deepest pages. " +
     "Advise in second person, concretely, with zero hype. Never invent facts about pages you were not shown. " +
+    "Your JSON object MUST contain exactly these six keys, all populated: summary, pageAdvice, contentGaps, plan, pageFixes, llmsTxt. " +
     'Respond ONLY with JSON: {"summary": string (3-5 sentences on the site\'s biggest content opportunity), ' +
     '"pageAdvice": [{"url", "verdict" (1-2 blunt sentences), "headlineRewrite" (a stronger title for that page)}] for each page shown, ' +
     '"contentGaps": [3-5 specific topics/formats this site is missing], ' +
