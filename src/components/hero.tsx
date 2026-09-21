@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, BadgeCheck, Fingerprint, Play, ShieldCheck, Sparkles } from "lucide-react";
+import { BadgeCheck, Fingerprint, Play, ShieldCheck, Sparkles } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import DemoModal from "@/components/demo-modal";
 import AuditTeaser from "@/components/audit-teaser";
+import WebsiteScoreTeaser from "@/components/website-score-teaser";
 import TransformationVisual from "@/components/transformation-visual";
 import { track } from "@/lib/track";
 
@@ -88,32 +89,25 @@ export default function Hero() {
           </div>
         </motion.div>
 
-        {/* Instant proof: the free audit, one slot below the promise */}
+        {/* Instant proof, twin widgets: website score first, channel audit
+            below it — same frame, same rhythm, two doors into the funnel. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
           className="max-w-3xl mx-auto mt-12"
+        >
+          <WebsiteScoreTeaser />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.25 }}
+          className="max-w-3xl mx-auto mt-8"
           id="audit"
         >
           <AuditTeaser embedded />
-
-          {/* Standout companion: the website score for creators whose home
-              base is a blog/site rather than a channel. English marketing
-              surface, like the tool itself. */}
-          <div className="mt-4 flex justify-center">
-            <Link
-              href="/tools/website-score"
-              onClick={() => track("cta_website_score")}
-              className="group relative inline-flex items-center gap-3 px-6 py-3 rounded-full bg-gradient-to-r from-fuchsia-500 via-neon-purple to-electric-blue text-white text-sm font-semibold shadow-lg shadow-neon-purple/40 hover:brightness-110 hover:shadow-neon-purple/60 transition-all"
-            >
-              <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold tracking-widest uppercase">
-                New
-              </span>
-              Got a website instead? Score it free
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </div>
         </motion.div>
 
         {/* Show, don't tell: one recording → the month of content */}
