@@ -6,7 +6,7 @@
  * costs nothing; only the hook analyzer and channel compare touch the server.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -947,8 +947,9 @@ function WebsiteScoreTool() {
   const [auditBusy, setAuditBusy] = useState(false);
   const [auditMsg, setAuditMsg] = useState<string | null>(null);
 
-  async function run() {
-    if (!url.trim() || loading) return;
+  async function run(target?: string) {
+    const u = (target ?? url).trim();
+    if (!u || loading) return;
     setLoading(true);
     setError(null);
     setReport(null);
@@ -957,7 +958,7 @@ function WebsiteScoreTool() {
       const res = await fetch("/api/tools/website-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: u }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) setError(String(data?.error ?? "Something went wrong — try again"));
@@ -971,6 +972,21 @@ function WebsiteScoreTool() {
       setLoading(false);
     }
   }
+
+  // Arriving with ?url= (hero teaser, sales page, a cancelled checkout):
+  // prefill and score immediately — never make someone retype their domain.
+  useEffect(() => {
+    try {
+      const fromQuery = new URLSearchParams(window.location.search).get("url");
+      if (fromQuery && fromQuery.trim()) {
+        setUrl(fromQuery.trim());
+        run(fromQuery);
+      }
+    } catch {
+      /* no query support — fresh start */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startAudit() {
     if (!report || auditBusy) return;
@@ -1021,7 +1037,7 @@ function WebsiteScoreTool() {
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && run()}
           />
-          <button className={btnCls} onClick={run} disabled={loading || !url.trim()}>
+          <button className={btnCls} onClick={() => run()} disabled={loading || !url.trim()}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {loading ? "Reading your site…" : "Score my site"}
           </button>

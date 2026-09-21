@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     mode: "payment",
     customer_email: user.email,
     success_url: `${origin}/site-audit/${id}`,
-    cancel_url: `${origin}/tools/website-score`,
+    cancel_url: `${origin}/tools/website-score?url=${encodeURIComponent(url)}`,
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "usd",
     "line_items[0][price_data][unit_amount]": String(AUDIT_PRICE_CENTS),

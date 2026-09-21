@@ -81,7 +81,15 @@ const DELIVERABLES = [
   },
 ];
 
-export default function SiteAuditLanding() {
+export default async function SiteAuditLanding({
+  searchParams,
+}: {
+  searchParams: Promise<{ url?: string }>;
+}) {
+  const { url } = await searchParams;
+  const freeToolHref = url
+    ? `/tools/website-score?url=${encodeURIComponent(url)}`
+    : "/tools/website-score";
   return (
     <>
       <script
@@ -154,7 +162,7 @@ export default function SiteAuditLanding() {
 
           <p className="text-center text-sm text-cyber-muted">
             Just want the free score first?{" "}
-            <Link href="/tools/website-score" className="text-neon-purple hover:underline">
+            <Link href={freeToolHref} className="text-neon-purple hover:underline">
               Run it here
             </Link>{" "}
             — no signup.
