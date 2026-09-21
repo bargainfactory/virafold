@@ -80,6 +80,16 @@ function normalizeUrl(raw: string): URL | null {
 }
 
 async function fetchText(url: URL, timeoutMs = PAGE_TIMEOUT_MS): Promise<string | null> {
+  return (await fetchPage(url, timeoutMs))?.html ?? null;
+}
+
+/** Fetch returning the FINAL post-redirect URL — a site that redirects to its
+ *  www. host must be crawled at that host, or its whole sitemap gets filtered
+ *  out as "cross-origin" (the bug that scored an 807-page site on 1 page). */
+async function fetchPage(
+  url: URL,
+  timeoutMs = PAGE_TIMEOUT_MS
+): Promise<{ html: string; finalUrl: URL } | null> {
   if (!/^https?:$/.test(url.protocol) || isBlockedHost(url.hostname)) return null;
   try {
     const ctrl = new AbortController();
@@ -91,11 +101,28 @@ async function fetchText(url: URL, timeoutMs = PAGE_TIMEOUT_MS): Promise<string 
     });
     clearTimeout(timer);
     if (!resp.ok) return null;
+    let finalUrl: URL;
+    try {
+      finalUrl = new URL(resp.url || url.href);
+    } catch {
+      finalUrl = url;
+    }
+    if (isBlockedHost(finalUrl.hostname)) return null;
     const text = await resp.text();
-    return text.length > MAX_HTML_BYTES ? text.slice(0, MAX_HTML_BYTES) : text;
+    return {
+      html: text.length > MAX_HTML_BYTES ? text.slice(0, MAX_HTML_BYTES) : text,
+      finalUrl,
+    };
   } catch {
     return null;
   }
+}
+
+/** www.-insensitive host equality: www.example.com and example.com are the
+ *  same site for crawling purposes. */
+function sameSite(a: string, b: string): boolean {
+  const norm = (h: string) => h.toLowerCase().replace(/^www\./, "");
+  return norm(a) === norm(b);
 }
 
 function extract(url: string, html: string): PageCheck {
@@ -148,14 +175,18 @@ async function discoverPages(
   let hasSitemap = false;
   let lastmod: string | null = null;
 
+  const POOL_MAX = 600; // rank the whole sitemap, then pick — never first-N
+
   const add = (raw: string) => {
+    if (urls.length >= POOL_MAX) return;
     try {
       const u = new URL(raw, origin);
-      if (u.origin !== origin.origin) return;
+      if (!/^https?:$/.test(u.protocol) || !sameSite(u.hostname, origin.hostname)) return;
       u.hash = "";
       if (/\.(png|jpe?g|gif|svg|webp|ico|css|js|pdf|zip|mp4|mp3|xml|woff2?)$/i.test(u.pathname)) return;
-      if (seen.has(u.href)) return;
-      seen.add(u.href);
+      const key = u.pathname + u.search;
+      if (seen.has(key)) return;
+      seen.add(key);
       urls.push(u.href);
     } catch {
       /* skip malformed */
@@ -165,39 +196,56 @@ async function discoverPages(
   const sitemapXml = await fetchText(new URL("/sitemap.xml", origin), 6000);
   if (sitemapXml && /<(urlset|sitemapindex)/i.test(sitemapXml)) {
     hasSitemap = true;
-    // A sitemap index points at child sitemaps — read the first one.
-    let xml = sitemapXml;
+    // A sitemap index points at child sitemaps — read up to three of them.
+    const xmls: string[] = [];
     if (/<sitemapindex/i.test(sitemapXml)) {
-      const child = /<loc>\s*([^<\s]+)\s*<\/loc>/i.exec(sitemapXml)?.[1];
-      if (child) {
+      const children = [...sitemapXml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)]
+        .map((m) => m[1])
+        .slice(0, 3);
+      for (const child of children) {
         const childUrl = normalizeUrl(child);
-        const childXml = childUrl && childUrl.origin === origin.origin ? await fetchText(childUrl, 6000) : null;
-        if (childXml) xml = childXml;
+        const childXml =
+          childUrl && sameSite(childUrl.hostname, origin.hostname)
+            ? await fetchText(childUrl, 6000)
+            : null;
+        if (childXml) xmls.push(childXml);
       }
+    } else {
+      xmls.push(sitemapXml);
     }
-    for (const m of xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)) {
-      if (urls.length >= cap * 3) break;
-      add(m[1]);
-    }
-    for (const m of xml.matchAll(/<lastmod>\s*([^<\s]+)\s*<\/lastmod>/gi)) {
-      const d = m[1].slice(0, 10);
-      if (!lastmod || d > lastmod) lastmod = d;
+    for (const xml of xmls) {
+      for (const m of xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)) {
+        if (urls.length >= POOL_MAX) break;
+        add(m[1]);
+      }
+      for (const m of xml.matchAll(/<lastmod>\s*([^<\s]+)\s*<\/lastmod>/gi)) {
+        const d = m[1].slice(0, 10);
+        if (!lastmod || d > lastmod) lastmod = d;
+      }
     }
   }
 
   if (urls.length < cap) {
     for (const m of homepageHtml.matchAll(/href=["']([^"'#?]{1,300})["']/gi)) {
-      if (urls.length >= cap * 3) break;
+      if (urls.length >= POOL_MAX) break;
       add(m[1]);
     }
   }
 
-  // Prefer content-looking paths (blog/articles/posts) over utility pages.
-  urls.sort((a, b) => {
-    const rank = (u: string) =>
-      /\/(blog|post|article|news|guide|learn|resources)/i.test(u) ? 0 : 1;
-    return rank(a) - rank(b);
-  });
+  // Rank the whole pool: content-looking paths first, ordinary pages next,
+  // locale-prefixed translations last (they duplicate pages already counted).
+  const rank = (u: string): number => {
+    let path = "/";
+    try {
+      path = new URL(u).pathname;
+    } catch {
+      /* keep default */
+    }
+    if (/^\/[a-z]{2}(-[a-zA-Z]{2})?(\/|$)/.test(path)) return 2;
+    if (/\/(blog|post|article|news|guide|learn|resources)/i.test(path)) return 0;
+    return 1;
+  };
+  urls.sort((a, b) => rank(a) - rank(b));
   return { urls: urls.slice(0, cap - 1), hasSitemap, lastmod };
 }
 
@@ -226,20 +274,24 @@ export async function analyzeSite(
   opts: { maxPages?: number } = {}
 ): Promise<{ ok: true; report: SiteScoreReport; pages: PageCheck[] } | { ok: false; error: string }> {
   const maxPages = Math.max(2, Math.min(150, opts.maxPages ?? 8));
-  const origin = normalizeUrl(rawUrl);
-  if (!origin) return { ok: false, error: "That doesn't look like a valid URL" };
-  if (!/^https?:$/.test(origin.protocol) || isBlockedHost(origin.hostname)) {
+  const entered = normalizeUrl(rawUrl);
+  if (!entered) return { ok: false, error: "That doesn't look like a valid URL" };
+  if (!/^https?:$/.test(entered.protocol) || isBlockedHost(entered.hostname)) {
     return { ok: false, error: "That address can't be scanned" };
   }
 
-  const homepageHtml = await fetchText(origin);
-  if (!homepageHtml) {
+  const home = await fetchPage(entered);
+  if (!home) {
     return {
       ok: false,
       error:
         "Couldn't fetch that site — it may be down, blocking automated visitors, or not a public website. We only score what we can actually read.",
     };
   }
+  const homepageHtml = home.html;
+  // Crawl at the site's real home (post-redirect) — sitemaps and links live
+  // on the canonical host, not necessarily the one the user typed.
+  const origin = new URL(home.finalUrl.origin + "/");
 
   const [{ urls, hasSitemap, lastmod }, robotsTxt, llmsTxt] = await Promise.all([
     discoverPages(origin, homepageHtml, maxPages),
