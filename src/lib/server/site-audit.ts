@@ -26,6 +26,9 @@ export interface SiteAuditCoach {
   pageAdvice: { url: string; verdict: string; headlineRewrite: string }[];
   contentGaps: string[];
   plan: string[];
+  /** Ready-to-paste fixes — the "written solutions", not homework. */
+  pageFixes: { url: string; title: string; metaDescription: string }[];
+  llmsTxt: string;
 }
 
 export interface FullSiteAudit {
@@ -51,6 +54,18 @@ const COACH_SCHEMA = {
     },
     contentGaps: { type: "array", items: { type: "string" } },
     plan: { type: "array", items: { type: "string" } },
+    pageFixes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          url: { type: "string" },
+          title: { type: "string" },
+          metaDescription: { type: "string" },
+        },
+      },
+    },
+    llmsTxt: { type: "string" },
   },
 };
 
@@ -78,12 +93,14 @@ async function coachAudit(
     'Respond ONLY with JSON: {"summary": string (3-5 sentences on the site\'s biggest content opportunity), ' +
     '"pageAdvice": [{"url", "verdict" (1-2 blunt sentences), "headlineRewrite" (a stronger title for that page)}] for each page shown, ' +
     '"contentGaps": [3-5 specific topics/formats this site is missing], ' +
-    '"plan": [7 ordered action steps for the next 30 days, each one sentence, starting with the highest-leverage repurposing move]}';
+    '"plan": [7 ordered action steps for the next 30 days, each one sentence, starting with the highest-leverage repurposing move], ' +
+    '"pageFixes": [{"url", "title" (a ready-to-paste <title> tag text, 50-60 chars, front-loaded keywords, no hype), "metaDescription" (ready-to-paste, 120-155 chars, concrete benefit + call to action)}] for each page shown, ' +
+    '"llmsTxt": string (a complete, ready-to-paste llms.txt file for this site: a # heading with the site name, a one-paragraph plain-language description of what the site offers and for whom, then a bulleted list of its most important pages with one-line descriptions, using only pages you were shown)}';
   const prompt = `SITE: ${report.url}\nSCORE: ${report.total}/100 (${report.grade})\n\nSECTION RESULTS:\n${sectionSummary}\n\nDEEPEST PAGES:\n${digests}`;
 
   const result = await llmComplete(system, prompt, COACH_SCHEMA, {
     tier: "flagship",
-    maxTokens: 4000,
+    maxTokens: 6500,
   });
   if (!result) return { coach: null, engine: null };
   try {
@@ -104,6 +121,16 @@ async function coachAudit(
           : [],
         contentGaps: Array.isArray(parsed.contentGaps) ? parsed.contentGaps.map(String) : [],
         plan: Array.isArray(parsed.plan) ? parsed.plan.map(String) : [],
+        pageFixes: Array.isArray(parsed.pageFixes)
+          ? parsed.pageFixes
+              .filter((f: Record<string, unknown>) => f && typeof f.url === "string")
+              .map((f: Record<string, string>) => ({
+                url: String(f.url),
+                title: String(f.title ?? ""),
+                metaDescription: String(f.metaDescription ?? ""),
+              }))
+          : [],
+        llmsTxt: typeof parsed.llmsTxt === "string" ? parsed.llmsTxt : "",
       },
       engine: result.engine,
     };

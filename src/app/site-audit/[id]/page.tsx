@@ -41,6 +41,8 @@ interface FullAudit {
     pageAdvice: { url: string; verdict: string; headlineRewrite: string }[];
     contentGaps: string[];
     plan: string[];
+    pageFixes?: { url: string; title: string; metaDescription: string }[];
+    llmsTxt?: string;
   } | null;
 }
 interface AuditState {
@@ -55,6 +57,26 @@ function gradeColor(n: number): string {
   if (n >= 70) return "text-success";
   if (n >= 45) return "text-warning";
   return "text-red-400";
+}
+
+function CopyBtn({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setDone(true);
+          setTimeout(() => setDone(false), 1800);
+        } catch {
+          /* clipboard unavailable — text stays selectable */
+        }
+      }}
+      className="print:hidden shrink-0 text-xs px-2.5 py-1 rounded-md border border-cyber-border text-cyber-muted hover:text-foreground hover:border-neon-purple/50 transition-colors"
+    >
+      {done ? "Copied" : "Copy"}
+    </button>
+  );
 }
 
 export default function SiteAuditReport({
@@ -255,6 +277,56 @@ export default function SiteAuditReport({
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {coach && (coach.pageFixes?.length ?? 0) > 0 && (
+          <section className="mb-10">
+            <h2 className="text-lg font-bold text-foreground mb-1">Ready-to-paste fixes</h2>
+            <p className="text-sm text-cyber-muted mb-4">
+              Written solutions, not homework — drop these straight into your CMS.
+            </p>
+            <div className="space-y-3">
+              {coach.pageFixes!.map((f, i) => (
+                <div key={i} className="bg-cyber-card border border-cyber-border rounded-xl p-5 print:border-gray-300">
+                  <p className="text-xs text-cyber-muted break-all mb-3">{f.url}</p>
+                  {f.title && (
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1">Title tag</p>
+                        <p className="text-sm text-foreground font-mono break-words">{f.title}</p>
+                      </div>
+                      <CopyBtn text={f.title} />
+                    </div>
+                  )}
+                  {f.metaDescription && (
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1">Meta description</p>
+                        <p className="text-sm text-foreground font-mono break-words">{f.metaDescription}</p>
+                      </div>
+                      <CopyBtn text={f.metaDescription} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {coach && coach.llmsTxt && (
+          <section className="mb-10">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-bold text-foreground">Your llms.txt, written for you</h2>
+              <CopyBtn text={coach.llmsTxt} />
+            </div>
+            <p className="text-sm text-cyber-muted mb-4">
+              Save this as <span className="font-mono">llms.txt</span> at your site root — it's how
+              AI assistants learn what your site offers.
+            </p>
+            <pre className="bg-cyber-card border border-cyber-border rounded-xl p-5 text-xs text-foreground whitespace-pre-wrap break-words print:border-gray-300">
+              {coach.llmsTxt}
+            </pre>
           </section>
         )}
 

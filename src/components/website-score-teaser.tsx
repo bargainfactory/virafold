@@ -108,7 +108,7 @@ export default function WebsiteScoreTeaser() {
                   <div className="flex-1 min-w-[220px]">
                     <p className="text-sm text-foreground font-medium break-all">{report.url}</p>
                     <p className="text-xs text-cyber-muted mt-1">
-                      {report.fetchedPages} pages scanned
+                      {report.fetchedPages} page{report.fetchedPages === 1 ? "" : "s"} scanned
                     </p>
                     {report.trappedPosts > 0 && (
                       <p className="mt-1.5 text-sm text-neon-purple">
@@ -136,13 +136,14 @@ export default function WebsiteScoreTeaser() {
                   ))}
                 </div>
 
-                <div className="mt-5 text-center">
+                <div className="mt-6 text-center">
                   <Link
-                    href="/tools/website-score"
+                    href={`/site-audit?url=${encodeURIComponent(report.url)}`}
                     onClick={() => track("wst_teaser_full")}
-                    className="inline-flex items-center gap-2 text-sm text-neon-purple hover:underline"
+                    className="group inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-neon-purple to-electric-blue text-white text-sm font-bold shadow-lg shadow-neon-purple/50 hover:brightness-110 hover:shadow-neon-purple/70 transition-all"
                   >
-                    {t("wst.full")} <ArrowRight className="w-4 h-4" />
+                    {t("wst.full")}
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
                 </div>
               </motion.div>
