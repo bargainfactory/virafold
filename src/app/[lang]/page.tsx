@@ -33,8 +33,17 @@ export async function generateMetadata({
   const { lang } = await params;
   const dict = translations[lang];
   if (!dict) return {};
+  // Localized, distinct titles per language surface — identical English
+  // titles across all 19 locale homepages read as duplicate pages to search
+  // engines and waste the localization (finding from our own site audit).
+  const heroTitle = [dict["hero.title1"], dict["hero.title2"], dict["hero.title3"]]
+    .filter(Boolean)
+    .join(" ");
+  const title = heroTitle
+    ? `Virafold — ${heroTitle}`
+    : "Virafold — AI Content Repurposing for Faceless Creators";
   return {
-    title: "Virafold — AI Content Repurposing for Faceless Creators",
+    title,
     description:
       dict["hero.description"] ??
       "Turn one long-form video into 30+ short-form assets, carousels, newsletters, and TikToks.",
@@ -46,7 +55,7 @@ export async function generateMetadata({
       type: "website",
       url: `https://virafold.ai/${lang}`,
       siteName: "Virafold",
-      title: "Virafold — AI Content Repurposing for Faceless Creators",
+      title,
       description: dict["hero.description"] ?? "",
       locale: lang.replace("-", "_"),
     },
