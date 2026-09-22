@@ -192,7 +192,7 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "build-10k-faceless-youtube-channel",
-    title: "How to Build a $10K/mo Faceless YouTube Channel in 2025",
+    title: "How to Build a $10K/mo Faceless YouTube Channel (Step by Step)",
     excerpt:
       "The complete blueprint for launching a faceless channel — from niche selection to monetization strategies that actually work.",
     category: "Growth",
@@ -211,7 +211,7 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "ai-content-repurposing-guide",
-    title: "AI Content Repurposing: The Ultimate Guide",
+    title: "AI Content Repurposing: How 1 Video Becomes 30 Posts",
     excerpt:
       "Turn one piece of content into 30+ assets automatically. Here's exactly how the AI pipeline works behind the scenes.",
     category: "AI Tools",
@@ -231,9 +231,9 @@ export const blogPosts: BlogPost[] = [
   },
   {
     slug: "faceless-content-vs-personal-brands",
-    title: "Why Faceless Content Outperforms Personal Brands",
+    title: "Why Faceless Channels Outgrow Personal Brands: 3 Structural Reasons",
     excerpt:
-      "Data-backed analysis showing why faceless channels grow faster and monetize better than personality-driven content.",
+      "Speed, parallel channels, and sellability — the structural reasons faceless formats scale where personal brands stall.",
     category: "Strategy",
     readTime: "6 min read",
     date: "Apr 7, 2025",
@@ -244,13 +244,13 @@ export const blogPosts: BlogPost[] = [
       "First, production speed. A faceless creator can publish 5-10x more content than a face-on-camera creator in the same time period. No makeup, no lighting setup, no multiple takes. Just script, produce, publish.",
       "Second, scalability. Personal brands hit a ceiling — you can only be in so many videos. Faceless channels can scale to multiple sub-channels, each targeting different niches, all running simultaneously.",
       "Third, sellability. A faceless channel is a true business asset. It can be sold, licensed, or operated by a team without depending on one person's likeness. This makes it significantly more valuable as an exit opportunity.",
-      "The data shows that the top 100 faceless YouTube channels grew an average of 340% faster than personality-driven channels in the same niches over the past 12 months. Their CPMs are 23% higher on average because they tend to operate in high-value niches.",
+      "We won't invent numbers here — there is no neutral census comparing faceless and personal channels. What is verifiable is structural: a format that doesn't depend on one person's face can produce more, run in parallel, and change hands. Structure, not statistics, is what compounds over years.",
       "The bottom line: faceless content isn't just a trend — it's a more scalable, more profitable, and more sustainable business model for creators who want to build real wealth.",
     ],
   },
   {
     slug: "creators-guide-passive-income",
-    title: "The Creator's Guide to Passive Income",
+    title: "Why Most Creators Never Build Passive Income (5 Streams That Work)",
     excerpt:
       "How to build multiple revenue streams from a single content source using AI repurposing and automation.",
     category: "Monetization",
@@ -264,7 +264,7 @@ export const blogPosts: BlogPost[] = [
       "Layer in digital products. Take your best-performing content and package it into a course, ebook, or template pack. If your faceless finance shorts are getting millions of views, a comprehensive budgeting template pack at $27 will sell consistently.",
       "Affiliate marketing is the multiplier. Every piece of content is an opportunity to recommend tools and services. A single well-placed affiliate link in a viral video description can generate hundreds of dollars per day.",
       "Email is the ownership layer. Social platforms can change algorithms overnight. An email list is yours. Build it from day one, nurture it with repurposed content, and monetize it with product launches and affiliate offers.",
-      "The automation stack ties it all together. Use AI repurposing to keep content flowing, email automation to nurture subscribers, and analytics to identify your highest-ROI content. This is how creators build $10K-$50K/mo in semi-passive income.",
+      "The automation stack ties it all together. Use AI repurposing to keep content flowing, email automation to nurture subscribers, and analytics to identify your highest-ROI content. The ceiling depends on your niche and your volume — the stack is what makes multiple streams possible from one source of content.",
     ],
   },
   {
