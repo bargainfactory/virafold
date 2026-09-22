@@ -267,6 +267,14 @@ export function getDb(): DatabaseSync {
       path       TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS content_translations (
+      id         TEXT NOT NULL,
+      locale     TEXT NOT NULL,
+      hash       TEXT NOT NULL,
+      payload    TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (id, locale)
+    );
     CREATE TABLE IF NOT EXISTS site_audits (
       id           TEXT PRIMARY KEY,
       user_email   TEXT NOT NULL,
@@ -2912,6 +2920,27 @@ export function updateSiteAudit(
   if (!sets.length) return;
   vals.push(id);
   getDb().prepare(`UPDATE site_audits SET ${sets.join(", ")} WHERE id = ?`).run(...(vals as never[]));
+}
+
+// --- On-demand content translation cache ---
+
+/** Returns the cached payload only when the content hash still matches —
+ *  edited English source silently invalidates every language. */
+export function getContentTranslation(id: string, locale: string, hash: string): string | null {
+  const r = getDb()
+    .prepare("SELECT payload, hash FROM content_translations WHERE id = ? AND locale = ?")
+    .get(id, locale) as { payload: string; hash: string } | undefined;
+  return r && r.hash === hash ? r.payload : null;
+}
+
+export function setContentTranslation(id: string, locale: string, hash: string, payload: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO content_translations (id, locale, hash, payload, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id, locale) DO UPDATE SET hash = excluded.hash, payload = excluded.payload, created_at = excluded.created_at`
+    )
+    .run(id, locale, hash, payload, new Date().toISOString());
 }
 
 /** Payment confirmed (Stripe webhook): unlock and queue the crawl. */

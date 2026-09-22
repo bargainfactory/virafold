@@ -8,7 +8,8 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Loader2, Printer, Sparkles } from "lucide-react";
+import { CheckCircle2, Languages, Loader2, Printer, Sparkles } from "lucide-react";
+import { locales } from "@/lib/locales";
 
 interface WsSection {
   key: string;
@@ -87,6 +88,42 @@ export default function SiteAuditReport({
   const { id } = use(params);
   const [audit, setAudit] = useState<AuditState | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const [langSel, setLangSel] = useState("es");
+  const [xBusy, setXBusy] = useState(false);
+  const [xErr, setXErr] = useState<string | null>(null);
+  const [trR, setTrR] = useState<{
+    sections: { label: string; notes: string[] }[];
+    coach: {
+      summary: string;
+      pageAdvice: { verdict: string; headlineRewrite: string }[];
+      contentGaps: string[];
+      plan: string[];
+    } | null;
+  } | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+
+  async function translateReport() {
+    if (xBusy) return;
+    setXBusy(true);
+    setXErr(null);
+    try {
+      const res = await fetch(`/api/site-audit/${id}/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: langSel }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) setXErr(String(data?.error ?? "Translation failed — try again"));
+      else {
+        setTrR(data.translation);
+        setShowOriginal(false);
+      }
+    } catch {
+      setXErr("Translation failed — try again");
+    } finally {
+      setXBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -186,6 +223,24 @@ export default function SiteAuditReport({
   }
 
   const { report, coach } = audit.report;
+  const xActive = trR !== null && !showOriginal;
+  const dispSections = report.sections.map((s, i) =>
+    xActive && trR!.sections?.[i] ? { ...s, ...trR!.sections[i] } : s
+  );
+  const dispCoach =
+    coach && xActive && trR!.coach
+      ? {
+          ...coach,
+          summary: trR!.coach.summary || coach.summary,
+          pageAdvice: coach.pageAdvice.map((a, i) => ({
+            ...a,
+            verdict: trR!.coach!.pageAdvice?.[i]?.verdict ?? a.verdict,
+            headlineRewrite: trR!.coach!.pageAdvice?.[i]?.headlineRewrite ?? a.headlineRewrite,
+          })),
+          contentGaps: trR!.coach.contentGaps?.length ? trR!.coach.contentGaps : coach.contentGaps,
+          plan: trR!.coach.plan?.length ? trR!.coach.plan : coach.plan,
+        }
+      : coach;
 
   return (
     <main className="min-h-screen bg-background print:bg-white">
@@ -194,13 +249,59 @@ export default function SiteAuditReport({
           <Link href="/dashboard" className="text-sm text-cyber-muted hover:text-foreground">
             ← Dashboard
           </Link>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyber-border text-sm text-cyber-muted hover:text-foreground hover:border-neon-purple/50"
-          >
-            <Printer className="w-4 h-4" /> Print / save as PDF
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Languages className="w-4 h-4 text-neon-purple" />
+            {xActive ? (
+              <>
+                <span className="text-xs text-cyber-muted">AI-translated</span>
+                <button
+                  onClick={() => setShowOriginal(true)}
+                  className="text-xs text-neon-purple hover:underline"
+                >
+                  Show original
+                </button>
+              </>
+            ) : (
+              <>
+                <select
+                  value={langSel}
+                  onChange={(e) => setLangSel(e.target.value)}
+                  className="px-2.5 py-1.5 bg-cyber-card border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+                  aria-label="Translation language"
+                >
+                  {locales
+                    .filter((l) => l.code !== "en")
+                    .map((l) => (
+                      <option key={l.code} value={l.code}>
+                        {l.nativeName}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  onClick={trR ? () => setShowOriginal(false) : translateReport}
+                  disabled={xBusy}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neon-purple/40 text-xs text-neon-purple hover:bg-neon-purple/10 transition-colors disabled:opacity-50"
+                >
+                  {xBusy && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {xBusy ? "Translating…" : trR ? "Show translation" : "Translate report"}
+                </button>
+              </>
+            )}
+            {xErr && <span className="text-xs text-red-400">{xErr}</span>}
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyber-border text-sm text-cyber-muted hover:text-foreground hover:border-neon-purple/50"
+            >
+              <Printer className="w-4 h-4" /> Print / save as PDF
+            </button>
+          </div>
         </div>
+        {xActive && (
+          <p className="mb-6 text-xs text-cyber-muted print:hidden">
+            The ready-to-paste fixes stay in English on purpose — they go directly into your
+            site's code and tags.
+          </p>
+        )}
 
         <header className="mb-10">
           <p className="text-xs font-semibold tracking-widest uppercase text-neon-purple mb-2">
@@ -230,14 +331,14 @@ export default function SiteAuditReport({
             <h2 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-neon-purple" /> The headline finding
             </h2>
-            <p className="text-sm text-cyber-muted leading-relaxed">{coach.summary}</p>
+            <p className="text-sm text-cyber-muted leading-relaxed">{dispCoach!.summary}</p>
           </section>
         )}
 
         <section className="mb-10">
           <h2 className="text-lg font-bold text-foreground mb-4">Section scores</h2>
           <div className="grid sm:grid-cols-2 gap-4">
-            {report.sections.map((s) => (
+            {dispSections.map((s) => (
               <div key={s.key} className="bg-cyber-card border border-cyber-border rounded-xl p-5 print:border-gray-300">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-semibold text-foreground">{s.label}</p>
@@ -265,7 +366,7 @@ export default function SiteAuditReport({
           <section className="mb-10">
             <h2 className="text-lg font-bold text-foreground mb-4">Page-by-page advice</h2>
             <div className="space-y-3">
-              {coach.pageAdvice.map((a, i) => (
+              {dispCoach!.pageAdvice.map((a, i) => (
                 <div key={i} className="bg-cyber-card border border-cyber-border rounded-xl p-5 print:border-gray-300">
                   <p className="text-xs text-cyber-muted break-all mb-1.5">{a.url}</p>
                   <p className="text-sm text-foreground leading-relaxed">{a.verdict}</p>
@@ -334,7 +435,7 @@ export default function SiteAuditReport({
           <section className="mb-10">
             <h2 className="text-lg font-bold text-foreground mb-4">Content gaps</h2>
             <ul className="space-y-2">
-              {coach.contentGaps.map((g, i) => (
+              {dispCoach!.contentGaps.map((g, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm text-cyber-muted">
                   <CheckCircle2 className="w-4 h-4 text-electric-blue mt-0.5 shrink-0" /> {g}
                 </li>
@@ -347,7 +448,7 @@ export default function SiteAuditReport({
           <section className="mb-10">
             <h2 className="text-lg font-bold text-foreground mb-4">Your 30-day plan</h2>
             <ol className="space-y-3">
-              {coach.plan.map((step, i) => (
+              {dispCoach!.plan.map((step, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-cyber-muted">
                   <span className="w-6 h-6 rounded-full bg-neon-purple/15 text-neon-purple text-xs font-bold flex items-center justify-center shrink-0">
                     {i + 1}
