@@ -133,7 +133,11 @@ export default function ArticleClient({ slug }: { slug: string }) {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyber-card border border-neon-purple/40 text-xs text-neon-purple hover:bg-neon-purple/10 transition-colors disabled:opacity-50"
                 >
                   {xBusy && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {xBusy ? "Translating… ~10s" : tr ? "Show translation" : "Translate this article"}
+                  {xBusy
+                    ? "Translating… first time can take a minute"
+                    : tr
+                      ? "Show translation"
+                      : "Translate this article"}
                 </button>
               </>
             )}
