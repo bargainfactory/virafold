@@ -59,11 +59,17 @@ export default function ArticleClient({ slug }: { slug: string }) {
           </div>
 
           <div className="prose-custom space-y-6">
-            {post.content.map((paragraph, i) => (
-              <p key={i} className="text-foreground/80 leading-relaxed">
-                {paragraph}
-              </p>
-            ))}
+            {post.content.map((paragraph, i) =>
+              paragraph.startsWith("## ") ? (
+                <h2 key={i} className="text-xl font-bold text-foreground pt-4">
+                  {paragraph.slice(3)}
+                </h2>
+              ) : (
+                <p key={i} className="text-foreground/80 leading-relaxed">
+                  {paragraph}
+                </p>
+              )
+            )}
           </div>
 
           <div className="mt-12 pt-8 border-t border-cyber-border">

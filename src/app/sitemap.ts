@@ -5,10 +5,16 @@ import { locales } from "@/lib/locales";
 const BASE = "https://virafold.ai";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  // Build date as lastModified for evergreen pages: the site redeploys with
+  // real changes near-weekly, and dateless sitemaps score zero freshness with
+  // every crawler that reads them.
+  const buildDate = new Date();
+
   const localizedLandings: MetadataRoute.Sitemap = locales
     .filter((l) => l.code !== "en")
     .map((l) => ({
       url: `${BASE}/${l.code}`,
+      lastModified: buildDate,
       changeFrequency: "weekly",
       priority: 0.9,
     }));
@@ -53,11 +59,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.1 },
   ];
 
-  const articles: MetadataRoute.Sitemap = blogPosts.map((p) => ({
-    url: `${BASE}/blog/${p.slug}`,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }));
+  const articles: MetadataRoute.Sitemap = blogPosts.map((p) => {
+    const posted = new Date(p.date);
+    return {
+      url: `${BASE}/blog/${p.slug}`,
+      lastModified: isNaN(posted.getTime()) ? buildDate : posted,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    };
+  });
 
-  return [...pages, ...articles];
+  return [...pages.map((p) => ({ lastModified: buildDate, ...p })), ...articles];
 }

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 const TITLE = "Virafold — AI Content Repurposing for Faceless Creators";
 const DESCRIPTION =
-  "Turn one long-form video into 30+ short-form assets, carousels, newsletters, and TikToks. AI-powered, faceless-first content engine for creators, podcasters, and course sellers.";
+  "Turn one long-form video into 30+ short-form assets, carousels, and newsletters. The faceless-first AI content engine — you approve everything before it ships.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://virafold.ai"),
@@ -32,6 +32,7 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "/",
+    types: { "application/rss+xml": "https://virafold.ai/feed" },
     languages: {
       en: "https://virafold.ai/",
       es: "https://virafold.ai/es",
