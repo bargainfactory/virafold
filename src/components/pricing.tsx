@@ -83,16 +83,36 @@ export default function Pricing() {
   const oneoffKey = (id: string, part: "Name" | "Items") =>
     `pricing.oneoff${id.charAt(0).toUpperCase()}${id.slice(1)}${part}`;
 
-  function handleOneOffClick(pkg: OneOffData) {
+  async function handleOneOffClick(pkg: OneOffData) {
     if (!user) {
       addToast(t("pricing.signUpFirst"), "info");
       router.push("/signup");
       return;
     }
-    addToast(`${t(oneoffKey(pkg.id, "Name"))} — $${pkg.price}`);
-    setTimeout(() => {
-      addToast("Demo mode: One-time Stripe payment would process here.", "info");
-    }, 1500);
+    // The single audit has its own product page with URL entry + checkout.
+    if (pkg.id === "auditOne") {
+      router.push("/site-audit");
+      return;
+    }
+    try {
+      const res = await fetch("/api/checkout/pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pack: pkg.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else if (data?.granted) {
+        addToast(`${t(oneoffKey(pkg.id, "Name"))} added to your account.`, "success");
+      } else if (data?.demo) {
+        addToast(String(data.error), "info");
+      } else {
+        addToast(String(data?.error ?? "Checkout could not be started — try again."), "error");
+      }
+    } catch {
+      addToast("Checkout could not be started — try again.", "error");
+    }
   }
 
   return (

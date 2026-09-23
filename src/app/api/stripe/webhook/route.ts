@@ -98,6 +98,34 @@ export async function POST(req: NextRequest) {
     const plan = PRICE_ID_TO_PLAN[priceId];
     if (email && plan) applyPlan(email, plan, "checkout.session.completed");
 
+    // One-off packs: payment grants credits usable at each feature's gate.
+    const pack = String(obj.metadata?.pack ?? "");
+    if (email && pack === "auditPack") {
+      const { addAuditCredits } = await import("@/lib/server/db");
+      addAuditCredits(email, 10);
+      insertNotification(email, {
+        id: `n-${crypto.randomUUID()}`,
+        title: "Agency Audit Pack activated",
+        message: "10 audit credits added — run a Complete Content Audit on any client site, no per-audit checkout.",
+        time: "Just now",
+        read: false,
+        type: "success",
+      });
+      insertAudit("stripe-webhook", "pack.audit10", email);
+    } else if (email && pack === "episodeKit") {
+      const { addBonusProjects } = await import("@/lib/server/db");
+      addBonusProjects(email, 1);
+      insertNotification(email, {
+        id: `n-${crypto.randomUUID()}`,
+        title: "Podcast Episode Kit activated",
+        message: "One bonus project added — upload your episode and it won't count against your monthly plan quota.",
+        time: "Just now",
+        read: false,
+        type: "success",
+      });
+      insertAudit("stripe-webhook", "pack.episodeKit", email);
+    }
+
     // One-off Complete Content Audit: payment unlocks and queues the crawl.
     const siteAuditId = String(obj.metadata?.siteAuditId ?? "");
     if (siteAuditId) {

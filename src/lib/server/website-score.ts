@@ -15,7 +15,7 @@ const FETCH_CONCURRENCY = 4;
 const UA = "VirafoldBot/1.0 (+https://virafold.ai/tools/website-score)";
 
 /** Hosts that must never be fetched server-side (SSRF guard). */
-function isBlockedHost(hostname: string): boolean {
+export function isBlockedHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   return (
     h === "localhost" ||
@@ -162,6 +162,14 @@ function extract(url: string, html: string): PageCheck {
     hookScore: hookBasis ? scoreHook(hookBasis) : 0,
     text: text.slice(0, 4000),
   };
+}
+
+/** One page, fetched and analyzed — powers the per-page rewrite feature. */
+export async function fetchPageCheck(raw: string): Promise<PageCheck | null> {
+  const u = normalizeUrl(raw);
+  if (!u) return null;
+  const page = await fetchPage(u);
+  return page ? extract(page.finalUrl.href, page.html) : null;
 }
 
 /** Same-origin candidate URLs: sitemap first, homepage links as fallback. */

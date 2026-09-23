@@ -82,12 +82,24 @@ export async function POST(req: NextRequest) {
     monthStart.setUTCHours(0, 0, 0, 0);
     const used = countProjectsSince(user.email, monthStart.toISOString());
     if (used >= cap) {
-      return NextResponse.json(
-        {
-          error: `Monthly limit reached — the ${plan} plan includes ${cap} project${cap === 1 ? "" : "s"} per month. Upgrade to keep generating.`,
-        },
-        { status: 402 }
-      );
+      // Episode Kit bonus projects cover overage one project at a time.
+      const { consumeBonusProject } = await import("@/lib/server/db");
+      if (!consumeBonusProject(user.email)) {
+        return NextResponse.json(
+          {
+            error: `Monthly limit reached — the ${plan} plan includes ${cap} project${cap === 1 ? "" : "s"} per month. Upgrade to keep generating.`,
+          },
+          { status: 402 }
+        );
+      }
+      insertNotification(user.email, {
+        id: `n-${crypto.randomUUID()}`,
+        title: "Bonus project used",
+        message: "This project ran on an Episode Kit bonus credit instead of your monthly plan quota.",
+        time: "Just now",
+        read: false,
+        type: "info",
+      });
     }
   }
 

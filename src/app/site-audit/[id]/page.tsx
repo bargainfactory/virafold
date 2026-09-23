@@ -8,7 +8,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Languages, Loader2, Printer, Sparkles } from "lucide-react";
+import { CheckCircle2, Globe, Languages, Loader2, Printer, Sparkles, Wand2 } from "lucide-react";
 import { locales } from "@/lib/locales";
 
 interface WsSection {
@@ -80,6 +80,107 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
+interface Rewrite {
+  headline: string;
+  metaDescription: string;
+  intro: string;
+  outline: string[];
+  cta: string;
+}
+
+/** Per-page deep rewrite: flagship-model copy, cached against page content. */
+function RewriteBlock({ auditId, url }: { auditId: string; url: string }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [rw, setRw] = useState<Rewrite | null>(null);
+
+  async function run() {
+    if (busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/site-audit/${auditId}/rewrite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) setErr(String(data?.error ?? "Rewrite failed — try again"));
+      else setRw(data.rewrite as Rewrite);
+    } catch {
+      setErr("Rewrite failed — try again");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!rw) {
+    return (
+      <div className="mt-3 print:hidden">
+        <button
+          onClick={run}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-electric-blue/40 text-xs text-electric-blue hover:bg-electric-blue/10 transition-colors disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+          {busy ? "Writing… can take up to a minute" : "Rewrite this page for me"}
+        </button>
+        {err && <p className="text-xs text-red-400 mt-1.5">{err}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 border-t border-cyber-border pt-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1">New headline</p>
+          <p className="text-sm text-foreground font-medium break-words">{rw.headline}</p>
+        </div>
+        <CopyBtn text={rw.headline} />
+      </div>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1">Meta description</p>
+          <p className="text-sm text-foreground font-mono break-words">{rw.metaDescription}</p>
+        </div>
+        <CopyBtn text={rw.metaDescription} />
+      </div>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1">Opening paragraph</p>
+          <p className="text-sm text-foreground leading-relaxed break-words">{rw.intro}</p>
+        </div>
+        <CopyBtn text={rw.intro} />
+      </div>
+      <div>
+        <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1.5">Suggested structure</p>
+        <ol className="space-y-1">
+          {rw.outline.map((h, i) => (
+            <li key={i} className="text-sm text-cyber-muted">
+              {i + 1}. {h}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] uppercase tracking-wider text-cyber-muted mb-1">Closing CTA</p>
+          <p className="text-sm text-foreground break-words">{rw.cta}</p>
+        </div>
+        <CopyBtn text={rw.cta} />
+      </div>
+    </div>
+  );
+}
+
+interface ApplyResult {
+  url: string;
+  status: "applied" | "not_found" | "failed";
+  error?: string;
+  previous?: { title: string; excerpt: string };
+}
+
 export default function SiteAuditReport({
   params,
 }: {
@@ -101,6 +202,33 @@ export default function SiteAuditReport({
     } | null;
   } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [wp, setWp] = useState<{ connected: boolean; siteUrl?: string } | null>(null);
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [applyResults, setApplyResults] = useState<ApplyResult[] | null>(null);
+  const [applyErr, setApplyErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/wordpress", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setWp(d))
+      .catch(() => {});
+  }, []);
+
+  async function applyToWordPress() {
+    if (applyBusy) return;
+    setApplyBusy(true);
+    setApplyErr(null);
+    try {
+      const res = await fetch(`/api/site-audit/${id}/apply`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) setApplyErr(String(data?.error ?? "Apply failed — try again"));
+      else setApplyResults(data.results as ApplyResult[]);
+    } catch {
+      setApplyErr("Apply failed — try again");
+    } finally {
+      setApplyBusy(false);
+    }
+  }
 
   async function translateReport() {
     if (xBusy) return;
@@ -375,6 +503,7 @@ export default function SiteAuditReport({
                       Stronger headline: “{a.headlineRewrite}”
                     </p>
                   )}
+                  <RewriteBlock auditId={audit.id} url={a.url} />
                 </div>
               ))}
             </div>
@@ -411,6 +540,66 @@ export default function SiteAuditReport({
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* One-click apply for connected WordPress sites. Honest scope:
+                core REST updates the page/post TITLE and EXCERPT; SEO-plugin
+                meta fields aren't exposed by core, so they stay manual. */}
+            <div className="mt-4 print:hidden">
+              {wp?.connected ? (
+                <div className="bg-cyber-card border border-electric-blue/30 rounded-xl p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-electric-blue" /> Apply to WordPress
+                      </p>
+                      <p className="text-xs text-cyber-muted mt-1">
+                        Pushes each fix's title and description (as the excerpt) to{" "}
+                        <span className="font-mono break-all">{wp.siteUrl}</span>. SEO-plugin meta
+                        fields aren't touched — previous values are shown so you can undo.
+                      </p>
+                    </div>
+                    <button
+                      onClick={applyToWordPress}
+                      disabled={applyBusy}
+                      className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                    >
+                      {applyBusy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      {applyBusy ? "Applying…" : "Apply all fixes"}
+                    </button>
+                  </div>
+                  {applyErr && <p className="text-xs text-red-400 mt-2">{applyErr}</p>}
+                  {applyResults && (
+                    <div className="mt-3 space-y-2">
+                      {applyResults.map((r, i) => (
+                        <div key={i} className="text-xs bg-cyber-dark border border-cyber-border rounded-lg p-2.5">
+                          <p className="break-all text-cyber-muted">{r.url}</p>
+                          {r.status === "applied" ? (
+                            <p className="text-success mt-0.5">
+                              Applied.{" "}
+                              {r.previous?.title && (
+                                <span className="text-cyber-muted">
+                                  Previous title: “{r.previous.title}”
+                                </span>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-warning mt-0.5">{r.error}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : wp && !wp.connected ? (
+                <p className="text-xs text-cyber-muted">
+                  On WordPress?{" "}
+                  <Link href="/dashboard" className="text-electric-blue hover:underline">
+                    Connect your site in Settings
+                  </Link>{" "}
+                  and apply these fixes with one click.
+                </p>
+              ) : null}
             </div>
           </section>
         )}

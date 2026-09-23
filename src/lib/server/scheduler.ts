@@ -375,6 +375,10 @@ export function startScheduler(): void {
           .then(({ runRetentionSweep }) => runRetentionSweep())
           .catch(() => {});
       }
+      // Site monitors: weekly re-scores, a few per hour (polite crawling).
+      import("./site-monitor")
+        .then(({ runSiteMonitors }) => runSiteMonitors())
+        .catch(() => {});
       // Competitor watchlist: weekly re-audits, a few per hour (YouTube quota).
       (async () => {
         const { listWatchDue } = await import("./db");

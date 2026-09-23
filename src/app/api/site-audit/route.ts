@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRealSessionUser, isAdminEmail } from "@/lib/server/auth";
-import { insertAudit, insertSiteAudit, listSiteAudits } from "@/lib/server/db";
+import { consumeAuditCredit, insertAudit, insertSiteAudit, listSiteAudits } from "@/lib/server/db";
 import { resolveField } from "@/lib/server/integrations";
 import { publicOrigin } from "@/lib/server/base-url";
 import { kickSiteAuditWorker } from "@/lib/server/site-audit";
@@ -53,6 +53,14 @@ export async function POST(req: NextRequest) {
     insertAudit(user.email, "site_audit.operator", `${id} ${url}`);
     kickSiteAuditWorker();
     return NextResponse.json({ id, operator: true }, { status: 201 });
+  }
+
+  // Agency Audit Pack credits skip checkout entirely — one credit, one audit.
+  if (consumeAuditCredit(user.email)) {
+    insertSiteAudit(user.email, id, url, { paid: true });
+    insertAudit(user.email, "site_audit.credit", `${id} ${url}`);
+    kickSiteAuditWorker();
+    return NextResponse.json({ id, credited: true }, { status: 201 });
   }
 
   const secretKey = resolveField("stripe", "secretKey");

@@ -53,7 +53,7 @@ export interface PricingConfig {
  * the stored DB copy when the stored version differs, so pricing edits ship
  * with the deploy instead of being shadowed by the first-ever seeded config.
  */
-export const PRICING_VERSION = 3;
+export const PRICING_VERSION = 4;
 
 /** Checkout priceId → the plan name stored on users. */
 export const PRICE_ID_TO_PLAN: Record<string, string> = {
@@ -197,9 +197,10 @@ export const DEFAULT_PRICING: PricingConfig = {
     },
   ],
   oneOffs: [
-    { id: "single", name: "Single Video Package", price: 199, items: "1 video → 8 assets" },
-    { id: "launch", name: "Launch Bundle", price: 999, items: "5 videos → 50+ assets" },
-    { id: "course", name: "Course Repurpose", price: 1999, items: "Full course → 100+ assets" },
+    // Real, fulfillable products only — each maps to a shipped feature.
+    { id: "auditOne", name: "Complete Content Audit", price: 49, items: "1 site → full audit + written fixes" },
+    { id: "auditPack", name: "Agency Audit Pack", price: 349, items: "10 audit credits for client sites" },
+    { id: "episodeKit", name: "Podcast Episode Kit", price: 29, items: "+1 project: episode → clips, notes, newsletter" },
   ],
   comparison: [
     { freeKey: "pricing.watermarked", paidKey: "pricing.cleanBranded", labelKey: "pricing.yourClips" },

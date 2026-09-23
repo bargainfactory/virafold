@@ -267,6 +267,28 @@ export function getDb(): DatabaseSync {
       path       TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS site_monitors (
+      id              TEXT PRIMARY KEY,
+      user_email      TEXT NOT NULL,
+      url             TEXT NOT NULL,
+      last_score      INTEGER,
+      last_sections   TEXT,
+      last_checked_at TEXT,
+      created_at      TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS site_monitor_checks (
+      monitor_id TEXT NOT NULL,
+      score      INTEGER NOT NULL,
+      sections   TEXT NOT NULL,
+      ts         TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS wp_connections (
+      user_email TEXT PRIMARY KEY,
+      site_url   TEXT NOT NULL,
+      username   TEXT NOT NULL,
+      secret_enc TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS content_translations (
       id         TEXT NOT NULL,
       locale     TEXT NOT NULL,
@@ -316,6 +338,8 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN kind TEXT NOT NULL DEFAULT 'clip'",
     "ALTER TABLE clips ADD COLUMN script TEXT",
     "ALTER TABLE projects ADD COLUMN approve_token TEXT",
+    "ALTER TABLE users ADD COLUMN audit_credits INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN bonus_projects INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       conn.exec(stmt);
@@ -1651,6 +1675,9 @@ export function deleteAccount(email: string): { files: string[] } {
   conn.prepare("DELETE FROM managed_accounts WHERE manager_email = ? OR client_email = ?").run(e, e);
   conn.prepare("DELETE FROM reset_tokens WHERE user_email = ?").run(e);
   conn.prepare("DELETE FROM site_audits WHERE user_email = ?").run(e);
+  conn.prepare("DELETE FROM site_monitor_checks WHERE monitor_id IN (SELECT id FROM site_monitors WHERE user_email = ?)").run(e);
+  conn.prepare("DELETE FROM site_monitors WHERE user_email = ?").run(e);
+  conn.prepare("DELETE FROM wp_connections WHERE user_email = ?").run(e);
   conn.prepare("DELETE FROM users WHERE email = ?").run(e);
   return { files };
 }
@@ -2941,6 +2968,164 @@ export function setContentTranslation(id: string, locale: string, hash: string, 
        ON CONFLICT(id, locale) DO UPDATE SET hash = excluded.hash, payload = excluded.payload, created_at = excluded.created_at`
     )
     .run(id, locale, hash, payload, new Date().toISOString());
+}
+
+// --- Per-user secrets (WordPress app passwords etc.) ---
+// Same AES-256-GCM envelope as operator integration configs.
+
+export function encryptSecret(plain: string): string {
+  return encryptConfig(plain);
+}
+export function decryptSecret(stored: string): string {
+  return decryptConfig(stored);
+}
+
+// --- Site monitors (recurring re-score + alerts; #1 adjacency) ---
+
+export interface SiteMonitorRow {
+  id: string;
+  userEmail: string;
+  url: string;
+  lastScore: number | null;
+  lastSections: string | null;
+  lastCheckedAt: string | null;
+  createdAt: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToMonitor(r: any): SiteMonitorRow {
+  return {
+    id: r.id,
+    userEmail: r.user_email,
+    url: r.url,
+    lastScore: r.last_score ?? null,
+    lastSections: r.last_sections ?? null,
+    lastCheckedAt: r.last_checked_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+export function insertSiteMonitor(email: string, id: string, url: string): void {
+  getDb()
+    .prepare(
+      "INSERT INTO site_monitors (id, user_email, url, created_at) VALUES (?, ?, ?, ?)"
+    )
+    .run(id, email.toLowerCase(), url, new Date().toISOString());
+}
+
+export function listSiteMonitors(email: string): SiteMonitorRow[] {
+  return (
+    getDb()
+      .prepare("SELECT * FROM site_monitors WHERE user_email = ? ORDER BY created_at")
+      .all(email.toLowerCase()) as unknown[]
+  ).map(rowToMonitor);
+}
+
+/** Monitors whose last check is older than the cutoff (or never checked). */
+export function listDueSiteMonitors(cutoffIso: string, limit = 5): SiteMonitorRow[] {
+  return (
+    getDb()
+      .prepare(
+        `SELECT * FROM site_monitors
+         WHERE last_checked_at IS NULL OR last_checked_at < ?
+         ORDER BY last_checked_at ASC NULLS FIRST LIMIT ?`
+      )
+      .all(cutoffIso, limit) as unknown[]
+  ).map(rowToMonitor);
+}
+
+export function deleteSiteMonitor(email: string, id: string): void {
+  const conn = getDb();
+  const res = conn
+    .prepare("DELETE FROM site_monitors WHERE id = ? AND user_email = ?")
+    .run(id, email.toLowerCase());
+  if (Number(res.changes) > 0) {
+    conn.prepare("DELETE FROM site_monitor_checks WHERE monitor_id = ?").run(id);
+  }
+}
+
+/** Failed check: bump last_checked_at only, so a broken site isn't re-crawled every pass. */
+export function touchSiteMonitor(id: string): void {
+  getDb()
+    .prepare("UPDATE site_monitors SET last_checked_at = ? WHERE id = ?")
+    .run(new Date().toISOString(), id);
+}
+
+export function recordMonitorCheck(id: string, score: number, sectionsJson: string): void {
+  const now = new Date().toISOString();
+  const conn = getDb();
+  conn
+    .prepare(
+      "UPDATE site_monitors SET last_score = ?, last_sections = ?, last_checked_at = ? WHERE id = ?"
+    )
+    .run(score, sectionsJson, now, id);
+  conn
+    .prepare("INSERT INTO site_monitor_checks (monitor_id, score, sections, ts) VALUES (?, ?, ?, ?)")
+    .run(id, score, sectionsJson, now);
+}
+
+export function getMonitorHistory(id: string, limit = 12): { score: number; ts: string }[] {
+  return getDb()
+    .prepare("SELECT score, ts FROM site_monitor_checks WHERE monitor_id = ? ORDER BY ts DESC LIMIT ?")
+    .all(id, limit) as { score: number; ts: string }[];
+}
+
+// --- One-off credits (agency audit packs, episode kits; #3/#5 adjacencies) ---
+
+export function getUserCredits(email: string): { auditCredits: number; bonusProjects: number } {
+  const r = getDb()
+    .prepare("SELECT audit_credits, bonus_projects FROM users WHERE email = ?")
+    .get(email.toLowerCase()) as { audit_credits: number; bonus_projects: number } | undefined;
+  return { auditCredits: r?.audit_credits ?? 0, bonusProjects: r?.bonus_projects ?? 0 };
+}
+
+export function addAuditCredits(email: string, n: number): void {
+  getDb()
+    .prepare("UPDATE users SET audit_credits = audit_credits + ? WHERE email = ?")
+    .run(n, email.toLowerCase());
+}
+
+export function consumeAuditCredit(email: string): boolean {
+  const res = getDb()
+    .prepare("UPDATE users SET audit_credits = audit_credits - 1 WHERE email = ? AND audit_credits > 0")
+    .run(email.toLowerCase());
+  return Number(res.changes) > 0;
+}
+
+export function addBonusProjects(email: string, n: number): void {
+  getDb()
+    .prepare("UPDATE users SET bonus_projects = bonus_projects + ? WHERE email = ?")
+    .run(n, email.toLowerCase());
+}
+
+export function consumeBonusProject(email: string): boolean {
+  const res = getDb()
+    .prepare("UPDATE users SET bonus_projects = bonus_projects - 1 WHERE email = ? AND bonus_projects > 0")
+    .run(email.toLowerCase());
+  return Number(res.changes) > 0;
+}
+
+// --- WordPress connections (1-click apply; #2 adjacency) ---
+
+export function setWpConnection(email: string, siteUrl: string, username: string, secretEnc: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO wp_connections (user_email, site_url, username, secret_enc, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_email) DO UPDATE SET site_url = excluded.site_url, username = excluded.username, secret_enc = excluded.secret_enc, created_at = excluded.created_at`
+    )
+    .run(email.toLowerCase(), siteUrl, username, secretEnc, new Date().toISOString());
+}
+
+export function getWpConnection(email: string): { siteUrl: string; username: string; secretEnc: string } | null {
+  const r = getDb()
+    .prepare("SELECT site_url, username, secret_enc FROM wp_connections WHERE user_email = ?")
+    .get(email.toLowerCase()) as { site_url: string; username: string; secret_enc: string } | undefined;
+  return r ? { siteUrl: r.site_url, username: r.username, secretEnc: r.secret_enc } : null;
+}
+
+export function deleteWpConnection(email: string): void {
+  getDb().prepare("DELETE FROM wp_connections WHERE user_email = ?").run(email.toLowerCase());
 }
 
 /** Payment confirmed (Stripe webhook): unlock and queue the crawl. */

@@ -58,6 +58,8 @@ import BrandVoicePanel from "@/components/brand-voice-panel";
 import ClipsTab from "@/components/clips-tab";
 import SetupChecklist from "@/components/setup-checklist";
 import WatchlistCard from "@/components/watchlist-card";
+import SiteMonitorCard from "@/components/site-monitor-card";
+import WordPressCard from "@/components/wordpress-card";
 import ClientSwitcher from "@/components/client-switcher";
 import ManagedClientsCard from "@/components/managed-clients-card";
 import ExportCard from "@/components/export-card";
@@ -572,6 +574,7 @@ export default function Dashboard() {
           {activeTab === "Audit" && (
             <>
               <AuditTab />
+              <SiteMonitorCard />
               <WatchlistCard />
             </>
           )}
@@ -586,17 +589,20 @@ export default function Dashboard() {
             />
           )}
           {activeTab === "Settings" && (
-            <SettingsTab
-              user={user}
-              form={settingsForm}
-              setForm={setSettingsForm}
-              saved={settingsSaved}
-              onSave={() => {
-                setSettingsSaved(true);
-                addToast(t("dash.settingsSaved"));
-                setTimeout(() => setSettingsSaved(false), 2000);
-              }}
-            />
+            <>
+              <SettingsTab
+                user={user}
+                form={settingsForm}
+                setForm={setSettingsForm}
+                saved={settingsSaved}
+                onSave={() => {
+                  setSettingsSaved(true);
+                  addToast(t("dash.settingsSaved"));
+                  setTimeout(() => setSettingsSaved(false), 2000);
+                }}
+              />
+              <WordPressCard />
+            </>
           )}
         </div>
       </main>
