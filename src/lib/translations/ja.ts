@@ -372,6 +372,8 @@ export const ja: Record<string, string> = {
   "wp.sub": "アプリケーションパスワードで接続し、監査のページ修正をワンクリックで適用できます。対象範囲：WordPressコア経由でページ／投稿のタイトルと抜粋を更新します — SEOプラグインのメタフィールドは変更しません。",
   "wp.title": "WordPress接続",
   "wp.userPh": "WordPressユーザー名",
+  "footer.refundPolicy": "返金ポリシー",
+  "footer.support": "サポート",
   "feat.1videoMonth": "月1本の動画（最大10分）",
   "feat.3clips": "ショートクリップ3本",
   "feat.basicCaptions": "自動字幕（基本）",

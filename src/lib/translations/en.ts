@@ -870,6 +870,8 @@ export const en: Record<string, string> = {
   "watch.empty": "No channels watched yet — add the competitors you learn from.",
   "watch.topNow": "Top video now",
   "watch.checked": "Checked",
+  "footer.refundPolicy": "Refund Policy",
+  "footer.support": "Support",
   // Site monitor
   "monitor.title": "Site Monitor",
   "monitor.sub": "Your site, re-scored automatically every week — the same 5-section analysis as the free tool. If your score or AI findability drops, you get an alert before your traffic graph shows it.",

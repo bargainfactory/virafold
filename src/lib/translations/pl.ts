@@ -363,6 +363,8 @@ export const pl: Record<string, string> = {
   "wp.sub": "Połącz się hasłem aplikacji i zastosuj poprawki stron z audytu jednym kliknięciem. Szczery zakres: aktualizujemy tytuły i zajawki stron oraz wpisów przez rdzeń WordPress — pól meta wtyczek SEO nie ruszamy.",
   "wp.title": "Połączenie z WordPress",
   "wp.userPh": "Nazwa użytkownika WordPress",
+  "footer.refundPolicy": "Polityka zwrotów",
+  "footer.support": "Wsparcie",
   "feat.1videoMonth": "1 wideo miesięcznie (maks. 10 min)",
   "feat.3clips": "3 krótkie klipy",
   "feat.basicCaptions": "Automatyczne napisy (podstawowe)",

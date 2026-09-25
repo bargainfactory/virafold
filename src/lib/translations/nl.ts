@@ -363,6 +363,8 @@ export const nl: Record<string, string> = {
   "wp.sub": "Verbind met een applicatiewachtwoord en pas de paginacorrecties uit je audit met één klik toe. Eerlijk over de scope: we werken pagina- en berichttitels en samenvattingen bij via WordPress core — meta-velden van SEO-plugins blijven onaangeroerd.",
   "wp.title": "WordPress-verbinding",
   "wp.userPh": "WordPress-gebruikersnaam",
+  "footer.refundPolicy": "Terugbetalingsbeleid",
+  "footer.support": "Ondersteuning",
   "feat.1videoMonth": "1 video per maand (max. 10 min)",
   "feat.3clips": "3 short-form clips",
   "feat.basicCaptions": "Automatische ondertiteling (basis)",

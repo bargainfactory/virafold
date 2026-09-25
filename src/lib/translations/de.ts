@@ -372,6 +372,8 @@ export const de: Record<string, string> = {
   "wp.sub": "Verbinde dich mit einem Anwendungskennwort und wende die Seitenkorrekturen deines Audits mit einem Klick an. Ehrlicher Umfang: Wir aktualisieren Titel und Auszüge von Seiten/Beiträgen über den WordPress-Core – Meta-Felder von SEO-Plugins bleiben unberührt.",
   "wp.title": "WordPress-Verbindung",
   "wp.userPh": "WordPress-Benutzername",
+  "footer.refundPolicy": "Rückerstattungsrichtlinie",
+  "footer.support": "Support",
   "feat.1videoMonth": "1 Video pro Monat (max. 10 Min.)",
   "feat.3clips": "3 Kurzform-Clips",
   "feat.basicCaptions": "Automatische Untertitel (Basis)",

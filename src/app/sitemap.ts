@@ -57,6 +57,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/contact`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.1 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.1 },
+    { url: `${BASE}/refunds`, changeFrequency: "yearly", priority: 0.1 },
   ];
 
   const articles: MetadataRoute.Sitemap = blogPosts.map((p) => {

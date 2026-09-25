@@ -372,6 +372,8 @@ export const ar: Record<string, string> = {
   "wp.sub": "اتصل بكلمة مرور تطبيق وطبّق إصلاحات صفحات التدقيق بنقرة واحدة. بصراحة عن النطاق: نحدّث عناوين الصفحات/المقالات والمقتطفات عبر نواة WordPress — ولا نلمس حقول الميتا في إضافات SEO.",
   "wp.title": "اتصال WordPress",
   "wp.userPh": "اسم مستخدم WordPress",
+  "footer.refundPolicy": "سياسة الاسترداد",
+  "footer.support": "الدعم",
   "feat.1videoMonth": "مقطع واحد شهرياً (10 دقائق كحد أقصى)",
   "feat.3clips": "3 مقاطع قصيرة",
   "feat.basicCaptions": "تعليقات توضيحية تلقائية (أساسية)",

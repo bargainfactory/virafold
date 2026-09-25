@@ -154,8 +154,8 @@ export default function ContactPage() {
 
             <div className="space-y-4">
               {[
-                { icon: Mail, labelKey: "contact.emailLabel", value: "hello@virafold.ai" },
-                { icon: MapPin, labelKey: "contact.location", value: "San Francisco, CA" },
+                { icon: Mail, labelKey: "contact.emailLabel", value: "justin@virafold.ai" },
+                { icon: MapPin, labelKey: "contact.location", value: "New York, NY" },
                 { icon: Clock, labelKey: "contact.responseTime", valueKey: "contact.within24h" },
               ].map((item) => (
                 <div key={item.labelKey} className="bg-cyber-card border border-cyber-border rounded-xl p-4">

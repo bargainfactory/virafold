@@ -359,6 +359,8 @@ export const hi: Record<string, string> = {
   "wp.sub": "एप्लिकेशन पासवर्ड से कनेक्ट करें और एक क्लिक में अपने ऑडिट के पेज सुधार लागू करें। ईमानदार स्कोप: हम WordPress कोर के ज़रिए पेज/पोस्ट टाइटल और एक्सर्प्ट अपडेट करते हैं — SEO-प्लगइन मेटा फ़ील्ड छूए नहीं जाते।",
   "wp.title": "WordPress कनेक्शन",
   "wp.userPh": "WordPress यूज़रनेम",
+  "footer.refundPolicy": "धनवापसी नीति",
+  "footer.support": "सहायता",
   "feat.1videoMonth": "प्रति माह 1 वीडियो (अधिकतम 10 मिनट)",
   "feat.3clips": "3 शॉर्ट-फॉर्म क्लिप्स",
   "feat.basicCaptions": "ऑटो-कैप्शन (बेसिक)",

@@ -363,6 +363,8 @@ export const id: Record<string, string> = {
   "wp.sub": "Hubungkan dengan Kata Sandi Aplikasi dan terapkan perbaikan halaman dari audit Anda dalam satu klik. Cakupan jujur: kami memperbarui judul dan kutipan halaman/postingan melalui WordPress core — field meta plugin SEO tidak disentuh.",
   "wp.title": "Koneksi WordPress",
   "wp.userPh": "Nama pengguna WordPress",
+  "footer.refundPolicy": "Kebijakan Pengembalian Dana",
+  "footer.support": "Dukungan",
   "feat.1videoMonth": "1 video per bulan (maks 10 mnt)",
   "feat.3clips": "3 klip pendek",
   "feat.basicCaptions": "Takarir otomatis (dasar)",

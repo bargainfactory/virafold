@@ -372,6 +372,8 @@ export const ko: Record<string, string> = {
   "wp.sub": "애플리케이션 비밀번호로 연결하고 감사의 페이지 수정 사항을 클릭 한 번에 적용하세요. 적용 범위: WordPress 코어를 통해 페이지/게시물 제목과 발췌문을 업데이트합니다 — SEO 플러그인 메타 필드는 건드리지 않습니다.",
   "wp.title": "WordPress 연결",
   "wp.userPh": "WordPress 사용자 이름",
+  "footer.refundPolicy": "환불 정책",
+  "footer.support": "지원",
   "feat.1videoMonth": "월 1개 영상 (최대 10분)",
   "feat.3clips": "단편 클립 3개",
   "feat.basicCaptions": "자동 자막 (기본)",

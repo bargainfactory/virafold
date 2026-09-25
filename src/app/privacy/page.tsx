@@ -29,7 +29,7 @@ const sections = [
   },
   {
     title: "Your Rights",
-    content: "You have the right to access, correct, or delete your personal data at any time. You can export your content and assets, and request complete account deletion. Contact privacy@virafold.ai for any data requests.",
+    content: "You have the right to access, correct, or delete your personal data at any time. You can export your content and assets, and request complete account deletion. Contact justin@virafold.ai for any data requests.",
   },
   {
     title: "Cookies",
@@ -73,9 +73,9 @@ export default function PrivacyPage() {
           <div className="mt-12 pt-8 border-t border-cyber-border">
             <p className="text-sm text-cyber-muted">
               Questions about this policy? Contact us at{" "}
-              <Link href="/contact" className="text-neon-purple hover:underline">
-                privacy@virafold.ai
-              </Link>
+              <a href="mailto:justin@virafold.ai" className="text-neon-purple hover:underline">
+                justin@virafold.ai
+              </a>
             </p>
           </div>
         </div>

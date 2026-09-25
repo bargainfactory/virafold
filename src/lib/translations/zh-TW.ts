@@ -363,6 +363,8 @@ export const zhTW: Record<string, string> = {
   "wp.sub": "使用應用程式密碼連線，一鍵套用稽核的頁面修正。誠實說明範圍：我們透過 WordPress 核心更新頁面／文章的標題與摘要——不會更動 SEO 外掛的 meta 欄位。",
   "wp.title": "WordPress 連線",
   "wp.userPh": "WordPress 使用者名稱",
+  "footer.refundPolicy": "退款政策",
+  "footer.support": "支援",
   "feat.1videoMonth": "每月 1 支影片（最長 10 分鐘）",
   "feat.3clips": "3 支短影音",
   "feat.basicCaptions": "自動字幕（基本）",

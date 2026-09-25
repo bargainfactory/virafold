@@ -29,7 +29,7 @@ const sections = [
   },
   {
     title: "Payment Terms",
-    content: "Subscription fees are billed monthly in advance. One-off packages are billed at the time of purchase. All fees are non-refundable except as required by law or as specified in our refund policy. We may change pricing with 30 days' notice.",
+    content: "Subscription fees are billed monthly in advance. One-off packages are billed at the time of purchase. All fees are non-refundable except as required by law or as specified in our Refund & Cancellation Policy (virafold.ai/refunds). We may change pricing with 30 days' notice.",
   },
   {
     title: "Service Availability",
@@ -77,9 +77,9 @@ export default function TermsPage() {
           <div className="mt-12 pt-8 border-t border-cyber-border">
             <p className="text-sm text-cyber-muted">
               Questions about these terms? Contact us at{" "}
-              <Link href="/contact" className="text-neon-purple hover:underline">
-                legal@virafold.ai
-              </Link>
+              <a href="mailto:justin@virafold.ai" className="text-neon-purple hover:underline">
+                justin@virafold.ai
+              </a>
             </p>
           </div>
         </div>

@@ -43,6 +43,7 @@ export default function Footer() {
     [t("footer.legal")]: [
       { label: t("footer.privacyPolicy"), href: "/privacy" },
       { label: t("footer.termsOfService"), href: "/terms" },
+      { label: t("footer.refundPolicy"), href: "/refunds" },
     ],
   };
 
@@ -57,6 +58,17 @@ export default function Footer() {
             </Link>
             <p className="text-sm text-cyber-muted mb-6 max-w-xs">
               {t("footer.tagline")}
+            </p>
+            {/* Visible support contact — card networks (and Stripe's site
+                review) require a reachable customer-service address. */}
+            <p className="text-sm text-cyber-muted mb-4">
+              {t("footer.support")}:{" "}
+              <a
+                href="mailto:justin@virafold.ai"
+                className="text-neon-purple hover:underline"
+              >
+                justin@virafold.ai
+              </a>
             </p>
             <div className="flex gap-3">
               {socials.map((social) => (

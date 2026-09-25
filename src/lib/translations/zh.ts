@@ -359,6 +359,8 @@ export const zh: Record<string, string> = {
   "wp.sub": "使用应用程序密码连接，一键应用审核中的页面修复。如实说明范围：我们通过 WordPress 核心更新页面/文章的标题和摘要 — 不会改动 SEO 插件的元字段。",
   "wp.title": "WordPress 连接",
   "wp.userPh": "WordPress 用户名",
+  "footer.refundPolicy": "退款政策",
+  "footer.support": "支持",
   "feat.1videoMonth": "每月1个视频（最长10分钟）",
   "feat.3clips": "3个短视频",
   "feat.basicCaptions": "自动字幕（基础）",

@@ -363,6 +363,8 @@ export const vi: Record<string, string> = {
   "wp.sub": "Kết nối bằng Mật khẩu ứng dụng và áp dụng các sửa trang từ bản kiểm toán chỉ với một cú nhấp. Phạm vi minh bạch: chúng tôi cập nhật tiêu đề và đoạn trích trang/bài viết qua lõi WordPress — không đụng tới các trường meta của plugin SEO.",
   "wp.title": "Kết nối WordPress",
   "wp.userPh": "Tên người dùng WordPress",
+  "footer.refundPolicy": "Chính sách hoàn tiền",
+  "footer.support": "Hỗ trợ",
   "feat.1videoMonth": "1 video mỗi tháng (tối đa 10 phút)",
   "feat.3clips": "3 clip ngắn",
   "feat.basicCaptions": "Phụ đề tự động (cơ bản)",

@@ -372,6 +372,8 @@ export const fr: Record<string, string> = {
   "wp.sub": "Connectez WordPress avec un mot de passe d'application et appliquez les corrections de pages de votre audit en un clic. Périmètre honnête : nous mettons à jour les titres et extraits des pages/articles via le cœur de WordPress — les champs méta des plugins SEO ne sont pas modifiés.",
   "wp.title": "Connexion WordPress",
   "wp.userPh": "Nom d'utilisateur WordPress",
+  "footer.refundPolicy": "Politique de remboursement",
+  "footer.support": "Assistance",
   "feat.1videoMonth": "1 vidéo par mois (max 10 min)",
   "feat.3clips": "3 clips courts",
   "feat.basicCaptions": "Sous-titres automatiques (basique)",

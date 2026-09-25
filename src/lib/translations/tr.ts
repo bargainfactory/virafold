@@ -363,6 +363,8 @@ export const tr: Record<string, string> = {
   "wp.sub": "Bir Uygulama Şifresi ile bağlanın ve denetiminizin sayfa düzeltmelerini tek tıkla uygulayın. Dürüst kapsam: WordPress çekirdeği üzerinden sayfa/yazı başlıklarını ve özetleri güncelleriz — SEO eklentisi meta alanlarına dokunulmaz.",
   "wp.title": "WordPress bağlantısı",
   "wp.userPh": "WordPress kullanıcı adı",
+  "footer.refundPolicy": "İade Politikası",
+  "footer.support": "Destek",
   "feat.1videoMonth": "Ayda 1 video (en fazla 10 dk)",
   "feat.3clips": "3 kısa klip",
   "feat.basicCaptions": "Otomatik altyazı (temel)",
