@@ -56,7 +56,7 @@ export async function runTrendRadar(email: string): Promise<boolean> {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "grok-4.6",
+        model: "grok-4.7",
         tools: [{ type: "web_search" }],
         input: [
           {

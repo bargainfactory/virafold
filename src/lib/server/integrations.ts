@@ -71,7 +71,7 @@ export const INTEGRATIONS: IntegrationDef[] = [
     docsHint: "Change a tier here the day a better/cheaper model ships — no deploy needed.",
     fields: [
       { key: "flagshipModel", label: "Flagship tier", envVar: "LLM_FLAGSHIP", placeholder: "anthropic:claude-opus-4-8" },
-      { key: "standardModel", label: "Standard tier", envVar: "LLM_STANDARD", placeholder: "xai:grok-4.6" },
+      { key: "standardModel", label: "Standard tier", envVar: "LLM_STANDARD", placeholder: "xai:grok-4.7" },
       { key: "fastModel", label: "Fast tier", envVar: "LLM_FAST", placeholder: "openai:gpt-4o-mini" },
     ],
   },

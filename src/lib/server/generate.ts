@@ -423,7 +423,7 @@ function strictSchema(s: unknown): unknown {
 
 const TIER_DEFAULTS: Record<LlmTier, { route: string; maxTokens: number }> = {
   flagship: { route: "anthropic:claude-opus-5", maxTokens: 32000 },
-  standard: { route: "xai:grok-4.6", maxTokens: 8192 },
+  standard: { route: "xai:grok-4.7", maxTokens: 8192 },
   fast: { route: "openai:gpt-4o-mini", maxTokens: 2048 },
 };
 
@@ -463,7 +463,7 @@ export async function llmComplete(
   };
   push(routed);
   push({ provider: "anthropic", model: "claude-opus-5" });
-  push({ provider: "xai", model: "grok-4.6" });
+  push({ provider: "xai", model: "grok-4.7" });
   push({ provider: "openai", model: "gpt-4o" });
   if (creds.customUrl && creds.customModel) {
     push({ provider: "custom", model: creds.customModel });
