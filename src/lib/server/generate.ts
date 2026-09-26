@@ -383,7 +383,7 @@ const REGEN_SCHEMA = {
  * Tasks declare a tier, never a model: flagship (full generation, scripts),
  * standard (coaching, highlight detection), fast (one-line rewrites). The
  * tier→model mapping is operator-editable ("routing" integration, values like
- * "anthropic:claude-opus-4-8" / "xai:grok-4" / "custom:llama-3.3-70b"), so
+ * "anthropic:claude-opus-5" / "xai:grok-4" / "custom:llama-3.3-70b"), so
  * adopting a new frontier or open-source model is a config change, not a
  * deploy. "custom" hits any OpenAI-compatible endpoint (vLLM, Ollama, Groq,
  * Together…) configured in the "customllm" integration.
@@ -422,7 +422,7 @@ function strictSchema(s: unknown): unknown {
 }
 
 const TIER_DEFAULTS: Record<LlmTier, { route: string; maxTokens: number }> = {
-  flagship: { route: "anthropic:claude-opus-4-8", maxTokens: 32000 },
+  flagship: { route: "anthropic:claude-opus-5", maxTokens: 32000 },
   standard: { route: "xai:grok-4.6", maxTokens: 8192 },
   fast: { route: "openai:gpt-4o-mini", maxTokens: 2048 },
 };
@@ -462,7 +462,7 @@ export async function llmComplete(
     if (a && !attempts.some((x) => x.provider === a.provider)) attempts.push(a);
   };
   push(routed);
-  push({ provider: "anthropic", model: "claude-opus-4-8" });
+  push({ provider: "anthropic", model: "claude-opus-5" });
   push({ provider: "xai", model: "grok-4.6" });
   push({ provider: "openai", model: "gpt-4o" });
   if (creds.customUrl && creds.customModel) {
