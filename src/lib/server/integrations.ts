@@ -145,7 +145,9 @@ export const INTEGRATIONS: IntegrationDef[] = [
       { key: "linkedinClientId", label: "LinkedIn client ID", envVar: "LINKEDIN_CLIENT_ID" },
       { key: "linkedinClientSecret", label: "LinkedIn client secret", envVar: "LINKEDIN_CLIENT_SECRET", secret: true },
       { key: "tiktokClientKey", label: "TikTok client key", envVar: "TIKTOK_CLIENT_KEY", secret: true },
+      { key: "tiktokClientSecret", label: "TikTok client secret", envVar: "TIKTOK_CLIENT_SECRET", secret: true },
       { key: "youtubeClientId", label: "YouTube client ID", envVar: "YOUTUBE_CLIENT_ID", secret: true },
+      { key: "youtubeClientSecret", label: "YouTube client secret", envVar: "YOUTUBE_CLIENT_SECRET", secret: true },
     ],
   },
 ];
