@@ -374,6 +374,11 @@ export function startScheduler(): void {
         import("./maintenance")
           .then(({ runRetentionSweep }) => runRetentionSweep())
           .catch(() => {});
+        // Operator digest rides the same daily cadence — the admin's
+        // morning read: signups, revenue, fulfillment, errors, queue.
+        import("./ops-digest")
+          .then(({ runOpsDigest }) => runOpsDigest())
+          .catch(() => {});
       }
       // Site monitors: weekly re-scores, a few per hour (polite crawling).
       import("./site-monitor")

@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { PricingConfig } from "@/lib/server/pricing";
+import AdminGrowthTools from "@/components/admin-growth-tools";
 
 /**
  * Operator console (English-only, admin-gated via ADMIN_EMAILS). Everything
@@ -752,6 +753,9 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        {/* Growth ops: daily digest on demand + SMB prospect outreach kit */}
+        <AdminGrowthTools />
       </main>
     </div>
   );
