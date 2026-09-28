@@ -340,6 +340,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE projects ADD COLUMN approve_token TEXT",
     "ALTER TABLE users ADD COLUMN audit_credits INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN bonus_projects INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN report_brand TEXT NOT NULL DEFAULT ''",
   ]) {
     try {
       conn.exec(stmt);
@@ -3103,6 +3104,21 @@ export function consumeBonusProject(email: string): boolean {
     .prepare("UPDATE users SET bonus_projects = bonus_projects - 1 WHERE email = ? AND bonus_projects > 0")
     .run(email.toLowerCase());
   return Number(res.changes) > 0;
+}
+
+// --- White-label reports (agencies resell audits under their own name) ---
+
+export function getReportBrand(email: string): string {
+  const r = getDb()
+    .prepare("SELECT report_brand FROM users WHERE email = ?")
+    .get(email.toLowerCase()) as { report_brand: string } | undefined;
+  return r?.report_brand ?? "";
+}
+
+export function setReportBrand(email: string, brand: string): void {
+  getDb()
+    .prepare("UPDATE users SET report_brand = ? WHERE email = ?")
+    .run(brand, email.toLowerCase());
 }
 
 // --- WordPress connections (1-click apply; #2 adjacency) ---

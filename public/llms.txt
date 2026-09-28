@@ -14,19 +14,27 @@
 - Business management: a revenue ledger by income stream and a brand-deal pipeline (lead → negotiating → booked → delivered → paid); paid deals book themselves into the ledger.
 - Trust rails: every generated asset carries a cryptographically signed, C2PA-shaped provenance manifest (source hash, engine, edit trail) and a pre-publish policy/demonetization lint.
 - Localized end-to-end in 19 languages: English, Spanish, French, German, Portuguese, Japanese, Chinese (Simplified and Traditional), Korean, Arabic, Hindi, Russian, Italian, Indonesian, Turkish, Vietnamese, Dutch, Polish, and Thai.
+- Website Content Score (free, ~1 minute, no signup) grades any website across content depth, headlines, discovery, AI findability, and repurposing potential; the $49 Complete Content Audit crawls up to 120 pages and returns written fixes — ready-to-paste page titles and meta descriptions, a complete llms.txt, per-page rewrites, and a 30-day plan — with one-click apply for WordPress sites and weekly Site Monitor re-scores with drop alerts on paid plans.
+- Article-to-video for writers: paste an article URL (or text) and it becomes a narrated video with AI visuals and captions, plus threads, carousels, and newsletters.
 
 ## Who it is for
 
-Faceless creators are the flagship segment, and the same system serves podcasters (diarized interview clipping), coaches and consultants, course creators, and agencies — creator-type presets configure the workspace per segment, and caption position + crop focus options make clips work for on-camera and talking-head formats too.
+Faceless creators are the flagship segment, and the same system serves podcasters (diarized interview clipping), podcast guests (one-off Episode Kits), coaches and consultants, course creators, writers and newsletter authors (article-to-video), agencies, B2B SaaS marketing teams (webinar repurposing with approval workflow), and local businesses (website scoring, audits, and monitoring) — creator-type presets configure the workspace per segment, and caption position + crop focus options make clips work for on-camera and talking-head formats too.
 
 ## Key pages
 
 - Free YouTube channel audit (no signup, instant virality grade): https://virafold.ai/#audit
 - Free creator toolbox (auto-subtitle generator, thumbnail tester, video ideas, podcast chapters & show notes, hook analyzer, engagement calculator, hashtag generator, channel comparison, best posting times, media kit maker — all no-signup): https://virafold.ai/tools
+- Free website score (content + AI-findability grade, no signup): https://virafold.ai/tools/website-score
+- Complete Content Audit ($49, written fixes included): https://virafold.ai/site-audit
 - For podcasters: https://virafold.ai/for/podcasters
+- For podcast guests ($29 Episode Kit): https://virafold.ai/for/podcast-guests
 - For coaches and consultants: https://virafold.ai/for/coaches
 - For course creators: https://virafold.ai/for/course-creators
+- For writers and newsletter authors: https://virafold.ai/for/writers
 - For agencies: https://virafold.ai/for/agencies
+- For B2B SaaS teams: https://virafold.ai/for/saas
+- For local businesses: https://virafold.ai/for/local-business
 - Home: https://virafold.ai/
 - Pricing: https://virafold.ai/pricing
 - Blog (guides on faceless content, repurposing, monetization): https://virafold.ai/blog
@@ -37,4 +45,5 @@ Faceless creators are the flagship segment, and the same system serves podcaster
 - Product name: Virafold (formerly EchoForge Studio)
 - Free tier available; paid plans with monthly generation allowances
 - Works without connecting any AI keys (built-in engine); upgrades to Claude/GPT quality when keys are connected
-- Contact: hello@virafold.ai
+- Contact: justin@virafold.ai
+- Refund & cancellation policy: https://virafold.ai/refunds

@@ -24,9 +24,13 @@ export default function Footer() {
     ],
     [t("footer.solutions")]: [
       { label: t("footer.forPodcasters"), href: "/for/podcasters" },
+      { label: t("footer.forGuests"), href: "/for/podcast-guests" },
       { label: t("footer.forCoaches"), href: "/for/coaches" },
       { label: t("footer.forCourses"), href: "/for/course-creators" },
+      { label: t("footer.forWriters"), href: "/for/writers" },
       { label: t("footer.forAgencies"), href: "/for/agencies" },
+      { label: t("footer.forSaas"), href: "/for/saas" },
+      { label: t("footer.forLocal"), href: "/for/local-business" },
     ],
     [t("footer.company")]: [
       { label: t("footer.about"), href: "/about" },

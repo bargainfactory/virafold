@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRealSessionUser } from "@/lib/server/auth";
-import { getSiteAudit } from "@/lib/server/db";
+import { getReportBrand, getSiteAudit } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -24,5 +24,7 @@ export async function GET(
     error: audit.error,
     createdAt: audit.createdAt,
     completedAt: audit.completedAt,
+    // White-label: agencies show their own name on reports they resell.
+    reportBrand: getReportBrand(user.email),
   });
 }

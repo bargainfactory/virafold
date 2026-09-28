@@ -59,6 +59,7 @@ import ClipsTab from "@/components/clips-tab";
 import SetupChecklist from "@/components/setup-checklist";
 import WatchlistCard from "@/components/watchlist-card";
 import SiteMonitorCard from "@/components/site-monitor-card";
+import ReportBrandCard from "@/components/report-brand-card";
 import WordPressCard from "@/components/wordpress-card";
 import ClientSwitcher from "@/components/client-switcher";
 import ManagedClientsCard from "@/components/managed-clients-card";
@@ -575,6 +576,7 @@ export default function Dashboard() {
             <>
               <AuditTab />
               <SiteMonitorCard />
+              <ReportBrandCard />
               <WatchlistCard />
             </>
           )}

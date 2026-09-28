@@ -52,6 +52,8 @@ interface AuditState {
   status: string;
   report: FullAudit | null;
   error: string | null;
+  /** White-label: the buyer's agency name, shown as the report's author. */
+  reportBrand?: string;
 }
 
 function gradeColor(n: number): string {
@@ -436,6 +438,9 @@ export default function SiteAuditReport({
             Complete Content Audit
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-all">{report.url}</h1>
+          {audit.reportBrand ? (
+            <p className="mt-1 text-sm text-cyber-muted">Prepared by {audit.reportBrand}</p>
+          ) : null}
           <div className="mt-4 flex flex-wrap items-center gap-6">
             <p className={`text-6xl font-bold ${gradeColor(report.total)}`}>{report.grade}</p>
             <div>
@@ -659,18 +664,22 @@ export default function SiteAuditReport({
           </section>
         )}
 
-        <section className="print:hidden bg-gradient-to-r from-neon-purple/10 to-electric-blue/10 border border-neon-purple/30 rounded-xl p-6 text-center">
-          <p className="text-sm text-cyber-muted mb-3">
-            Ready to act on it? Paste any page's URL into Virafold and it becomes a thread, a
-            carousel, and a newsletter in one run — your $49 is credited toward your first month.
-          </p>
-          <Link
-            href="/dashboard"
-            className="inline-block px-6 py-2.5 rounded-full bg-gradient-to-r from-neon-purple to-electric-blue text-white text-sm font-medium hover:opacity-90"
-          >
-            Open your dashboard
-          </Link>
-        </section>
+        {/* White-labeled reports drop the Virafold sales pitch — the agency
+            presenting this report is the one selling something. */}
+        {!audit.reportBrand && (
+          <section className="print:hidden bg-gradient-to-r from-neon-purple/10 to-electric-blue/10 border border-neon-purple/30 rounded-xl p-6 text-center">
+            <p className="text-sm text-cyber-muted mb-3">
+              Ready to act on it? Paste any page's URL into Virafold and it becomes a thread, a
+              carousel, and a newsletter in one run — your $49 is credited toward your first month.
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-block px-6 py-2.5 rounded-full bg-gradient-to-r from-neon-purple to-electric-blue text-white text-sm font-medium hover:opacity-90"
+            >
+              Open your dashboard
+            </Link>
+          </section>
+        )}
       </div>
     </main>
   );

@@ -27,9 +27,13 @@ export default function Navbar() {
   // Persona funnels — the parallel doors into the same product.
   const solutions = [
     { href: "/for/podcasters", label: t("footer.forPodcasters") },
+    { href: "/for/podcast-guests", label: t("footer.forGuests") },
     { href: "/for/coaches", label: t("footer.forCoaches") },
     { href: "/for/course-creators", label: t("footer.forCourses") },
+    { href: "/for/writers", label: t("footer.forWriters") },
     { href: "/for/agencies", label: t("footer.forAgencies") },
+    { href: "/for/saas", label: t("footer.forSaas") },
+    { href: "/for/local-business", label: t("footer.forLocal") },
   ];
 
   return (
