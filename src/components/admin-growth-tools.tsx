@@ -13,6 +13,12 @@
 import { useState } from "react";
 import { ClipboardList, Loader2, Megaphone } from "lucide-react";
 
+interface SeqEmail {
+  day: number;
+  purpose: string;
+  email: { subject: string; body: string };
+}
+
 interface ProspectRow {
   url: string;
   ok: boolean;
@@ -21,6 +27,7 @@ interface ProspectRow {
   grade?: string;
   findings?: string[];
   email?: { subject: string; body: string };
+  sequence?: SeqEmail[];
 }
 
 function CopyBtn({ text, label }: { text: string; label: string }) {
@@ -154,8 +161,9 @@ export default function AdminGrowthTools() {
         <div className="p-6">
           <p className="text-xs text-cyber-muted mb-3">
             Paste local-business website URLs (one per line, up to 10 per run). Each gets a real
-            score and a ready-to-send outreach email built from its two weakest findings — every
-            number in the draft is the actual result. Send them one at a time, personally.
+            score and a 7-email sequence over ~5 weeks — diagnosis, a free fix, the AI-shift
+            angle, the itemized offer, a competitor comparison, a direct ask, and a polite
+            breakup. Every number in every draft is the site's actual result.
           </p>
           <textarea
             value={urlsRaw}
@@ -190,7 +198,7 @@ export default function AdminGrowthTools() {
                       <span className="text-xs text-warning shrink-0">{r.error}</span>
                     )}
                   </div>
-                  {r.ok && r.email && (
+                  {r.ok && (
                     <>
                       <ul className="mt-2 space-y-1">
                         {r.findings?.map((f, j) => (
@@ -199,21 +207,43 @@ export default function AdminGrowthTools() {
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-3 flex items-center gap-2 flex-wrap">
-                        <p className="text-xs text-foreground/80 flex-1 min-w-0 truncate">
-                          <span className="text-cyber-muted">Subject:</span> {r.email.subject}
-                        </p>
-                        <CopyBtn text={r.email.subject} label="Copy subject" />
-                        <CopyBtn text={r.email.body} label="Copy email" />
+                      {/* 7-touch sequence: diagnosis → value → why-now →
+                          offer → comparison → ask → breakup. Send manually
+                          on the suggested days; stop the moment they reply. */}
+                      <div className="mt-3 space-y-1.5">
+                        {(r.sequence ?? []).map((s, j) => (
+                          <details
+                            key={j}
+                            className="bg-cyber-card border border-cyber-border rounded-lg px-3 py-2"
+                          >
+                            <summary className="cursor-pointer text-xs flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-neon-purple shrink-0">
+                                Day {s.day}
+                              </span>
+                              <span className="text-cyber-muted truncate flex-1 min-w-0">
+                                {s.purpose}
+                              </span>
+                            </summary>
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <p className="text-xs text-foreground/80 flex-1 min-w-0 truncate">
+                                <span className="text-cyber-muted">Subject:</span>{" "}
+                                {s.email.subject}
+                              </p>
+                              <CopyBtn text={s.email.subject} label="Copy subject" />
+                              <CopyBtn text={s.email.body} label="Copy email" />
+                            </div>
+                            <pre className="mt-2 text-xs text-cyber-muted whitespace-pre-wrap leading-relaxed">
+                              {s.email.body}
+                            </pre>
+                          </details>
+                        ))}
                       </div>
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-xs text-neon-purple">
-                          Preview email
-                        </summary>
-                        <pre className="mt-2 text-xs text-cyber-muted whitespace-pre-wrap leading-relaxed">
-                          {r.email.body}
-                        </pre>
-                      </details>
+                      {(r.sequence?.length ?? 0) > 0 && (
+                        <p className="mt-2 text-[11px] text-cyber-muted/80">
+                          Send these personally on the suggested days. Stop the sequence the
+                          moment they reply — from there it's a conversation, not a cadence.
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
