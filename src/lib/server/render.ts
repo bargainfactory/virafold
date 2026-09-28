@@ -471,24 +471,41 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     }
     fs.writeFileSync(path.join(jobDir, "subs.ass"), ass, "utf8");
 
-    // Visual mode: AI imagery per beat with a slow zoom, when an image
-    // provider is connected. Any failure falls back to the waveform canvas.
+    // Documentary mode: an art-director pass classifies each beat — data
+    // becomes drawn stat cards and bar charts, enumerations become bullet
+    // cards, the rest gets styled AI imagery with varied motion. Any failure
+    // falls back to the waveform canvas.
     const beats = splitBeats(clip.script, duration);
     const images: string[] = [];
+    const kinds: string[] = [];
     if (beats.length >= 3) {
       try {
+        const { planScenes, renderSceneStill, imagePromptFor } = await import("./scenes");
         const { generateBackground } = await import("./images");
-        for (let i = 0; i < beats.length; i++) {
+        const scenes = await planScenes(beats, clip.title);
+        for (let i = 0; i < scenes.length; i++) {
+          const scene = scenes[i];
+          const name = `beat${i}.png`;
+          // Data/text scenes render locally (drawtext); anything that can't
+          // becomes imagery, so one bad slide never kills the whole style.
+          if (scene.kind !== "image") {
+            const drawn = await renderSceneStill(jobDir, name, scene);
+            if (drawn) {
+              images.push(drawn);
+              kinds.push(scene.kind);
+              continue;
+            }
+          }
           const bg = await generateBackground(
-            `Cinematic abstract vertical background illustrating: "${beats[i].text.slice(0, 140)}". Moody dark scene, purple and electric blue accents, atmospheric depth, absolutely no text or letters or words, no watermark.`
+            imagePromptFor(scene.imageSubject ?? scene.text.slice(0, 120), i)
           );
           if (!bg) {
             images.length = 0;
             break;
           }
-          const name = `beat${i}.png`;
           fs.writeFileSync(path.join(jobDir, name), bg);
           images.push(name);
+          kinds.push("image");
         }
       } catch {
         images.length = 0;
@@ -497,13 +514,22 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
 
     let args: string[];
     if (images.length && images.length === beats.length) {
-      // Slideshow: each still becomes dur*30 zooming frames, concatenated,
-      // captions on top.
+      // Slideshow: imagery gets alternating push-in/pull-back moves plus film
+      // grain and a vignette; drawn cards stay static and crisp (zooming text
+      // shimmers). A short fade-in on every segment masks the cuts.
       const inputs = images.flatMap((name) => ["-i", name]);
       const segs = images
         .map((_, i) => {
           const frames = Math.max(30, Math.round(beats[i].dur * 30));
-          return `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30,setsar=1[v${i}]`;
+          const base = `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`;
+          if (kinds[i] === "image") {
+            const zoom =
+              i % 2 === 0
+                ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30`
+                : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
+            return `${base},${zoom},vignette=PI/5,noise=alls=5:allf=t,fade=t=in:st=0:d=0.35,setsar=1[v${i}]`;
+          }
+          return `${base},zoompan=z=1:d=${frames}:s=1080x1920:fps=30,fade=t=in:st=0:d=0.35,setsar=1[v${i}]`;
         })
         .join(";");
       const concatIn = images.map((_, i) => `[v${i}]`).join("");
