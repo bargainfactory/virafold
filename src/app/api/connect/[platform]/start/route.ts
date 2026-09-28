@@ -8,6 +8,7 @@ import {
   platformCreds,
   type ConnectablePlatform,
 } from "@/lib/server/connect";
+import { publicOrigin } from "@/lib/server/base-url";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ export async function GET(
   { params }: { params: Promise<{ platform: string }> }
 ) {
   const user = await getSessionUser();
-  if (!user) return NextResponse.redirect(new URL("/login", _req.url));
+  // req.url is localhost behind Caddy — build browser redirects on the public origin.
+  if (!user) return NextResponse.redirect(new URL("/login", publicOrigin(_req)));
 
   const { platform } = await params;
   if (!(CONNECTABLE as readonly string[]).includes(platform)) {
