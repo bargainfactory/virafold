@@ -31,6 +31,12 @@ import {
   X,
 } from "lucide-react";
 
+/** Date → the local value a datetime-local input expects. */
+function toLocalInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 interface ClipRow {
   id: string;
   projectId: string;
@@ -318,6 +324,11 @@ export default function ClipsTab({
   const [focusSel, setFocusSel] = useState<Record<string, string>>({});
   const [schedAt, setSchedAt] = useState<Record<string, string>>({});
   const [schedPlatform, setSchedPlatform] = useState<Record<string, string>>({});
+  // clipId → its live scheduled post, so the card edits the time in place
+  // instead of stacking duplicate posts.
+  const [schedPosts, setSchedPosts] = useState<
+    Record<string, { id: string; scheduledAt: string; platform: string }>
+  >({});
   const [preview, setPreview] = useState<{ clip: ClipRow; words: PreviewWord[] } | null>(null);
 
   const load = useCallback(() => {
@@ -328,6 +339,26 @@ export default function ClipsTab({
         setProjects(d.projects ?? []);
         setClips(d.clips ?? []);
         setSelProject((cur) => cur || d.projects?.[0]?.id || "");
+      })
+      .catch(() => {});
+    // Existing scheduled posts, so a scheduled clip's time stays editable here.
+    fetch("/api/schedule", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.posts) return;
+        const map: Record<string, { id: string; scheduledAt: string; platform: string }> = {};
+        for (const p of d.posts as {
+          id: string;
+          clipId?: string | null;
+          status: string;
+          scheduledAt: string;
+          platform: string;
+        }[]) {
+          if (p.clipId && p.status === "scheduled") {
+            map[p.clipId] = { id: p.id, scheduledAt: p.scheduledAt, platform: p.platform };
+          }
+        }
+        setSchedPosts(map);
       })
       .catch(() => {});
   }, []);
@@ -388,9 +419,34 @@ export default function ClipsTab({
 
   const schedule = useCallback(
     async (clip: ClipRow) => {
-      const at = schedAt[clip.id] ?? defaultAt;
+      const existing = schedPosts[clip.id];
+      const at =
+        schedAt[clip.id] ??
+        (existing ? toLocalInput(new Date(existing.scheduledAt)) : defaultAt);
       if (!at) return;
-      const platform = schedPlatform[clip.id] ?? lastPlatform("YouTube");
+      const platform =
+        schedPlatform[clip.id] ?? existing?.platform ?? lastPlatform("YouTube");
+
+      // An already-scheduled clip edits its post in place — no duplicates.
+      if (existing) {
+        const res = await fetch(`/api/schedule/${existing.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform, scheduledAt: at }),
+        });
+        if (res.ok) {
+          setSchedPosts((prev) => ({
+            ...prev,
+            [clip.id]: { ...existing, scheduledAt: at, platform },
+          }));
+          addToast(t("clips.timeUpdated"));
+        } else {
+          const data = await res.json().catch(() => null);
+          addToast(data?.error || t("clips.scheduleFailed"), "error");
+        }
+        return;
+      }
+
       const res = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -403,13 +459,20 @@ export default function ClipsTab({
       });
       if (res.ok) {
         rememberPlatform(platform);
+        const data = await res.json().catch(() => null);
+        if (data?.post?.id) {
+          setSchedPosts((prev) => ({
+            ...prev,
+            [clip.id]: { id: data.post.id, scheduledAt: at, platform },
+          }));
+        }
         addToast(t("clips.scheduled").replace("{p}", platform));
       } else {
         const data = await res.json().catch(() => null);
         addToast(data?.error || t("clips.scheduleFailed"), "error");
       }
     },
-    [schedAt, schedPlatform, defaultAt, addToast, t]
+    [schedAt, schedPlatform, schedPosts, defaultAt, addToast, t]
   );
 
   const remove = useCallback(async (clip: ClipRow) => {
@@ -738,7 +801,11 @@ export default function ClipsTab({
                       <Download className="w-3.5 h-3.5" /> {t("clips.download")}
                     </a>
                     <select
-                      value={schedPlatform[clip.id] ?? lastPlatform("YouTube")}
+                      value={
+                        schedPlatform[clip.id] ??
+                        schedPosts[clip.id]?.platform ??
+                        lastPlatform("YouTube")
+                      }
                       onChange={(e) =>
                         setSchedPlatform((prev) => ({ ...prev, [clip.id]: e.target.value }))
                       }
@@ -752,7 +819,12 @@ export default function ClipsTab({
                     </select>
                     <input
                       type="datetime-local"
-                      value={schedAt[clip.id] ?? defaultAt}
+                      value={
+                        schedAt[clip.id] ??
+                        (schedPosts[clip.id]
+                          ? toLocalInput(new Date(schedPosts[clip.id].scheduledAt))
+                          : defaultAt)
+                      }
                       onChange={(e) =>
                         setSchedAt((prev) => ({ ...prev, [clip.id]: e.target.value }))
                       }
@@ -762,7 +834,8 @@ export default function ClipsTab({
                       onClick={() => schedule(clip)}
                       className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
                     >
-                      <Calendar className="w-3.5 h-3.5" /> {t("clips.schedule")}
+                      <Calendar className="w-3.5 h-3.5" />{" "}
+                      {schedPosts[clip.id] ? t("clips.updateTime") : t("clips.schedule")}
                     </button>
                     <button
                       onClick={() => genThumb(clip)}
@@ -777,6 +850,19 @@ export default function ClipsTab({
                       {t("clips.thumb")}
                     </button>
                   </div>
+                  {schedPosts[clip.id] && (
+                    <p className="text-[11px] text-success">
+                      {t("clips.scheduledFor", {
+                        when: new Date(schedPosts[clip.id].scheduledAt).toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }),
+                        p: schedPosts[clip.id].platform,
+                      })}
+                    </p>
+                  )}
                   {thumbs[clip.id]?.id && (
                     <div className="space-y-1.5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -858,7 +944,11 @@ export default function ClipsTab({
                         <Download className="w-3.5 h-3.5" /> {t("clips.download")}
                       </a>
                       <select
-                        value={schedPlatform[clip.id] ?? lastPlatform("YouTube")}
+                        value={
+                          schedPlatform[clip.id] ??
+                          schedPosts[clip.id]?.platform ??
+                          lastPlatform("YouTube")
+                        }
                         onChange={(e) =>
                           setSchedPlatform((prev) => ({ ...prev, [clip.id]: e.target.value }))
                         }
@@ -872,7 +962,12 @@ export default function ClipsTab({
                       </select>
                       <input
                         type="datetime-local"
-                        value={schedAt[clip.id] ?? defaultAt}
+                        value={
+                          schedAt[clip.id] ??
+                          (schedPosts[clip.id]
+                            ? toLocalInput(new Date(schedPosts[clip.id].scheduledAt))
+                            : defaultAt)
+                        }
                         onChange={(e) =>
                           setSchedAt((prev) => ({ ...prev, [clip.id]: e.target.value }))
                         }
@@ -882,7 +977,8 @@ export default function ClipsTab({
                         onClick={() => schedule(clip)}
                         className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
                       >
-                        <Calendar className="w-3.5 h-3.5" /> {t("clips.schedule")}
+                        <Calendar className="w-3.5 h-3.5" />{" "}
+                        {schedPosts[clip.id] ? t("clips.updateTime") : t("clips.schedule")}
                       </button>
                       <button
                         onClick={() => genThumb(clip)}
@@ -897,6 +993,17 @@ export default function ClipsTab({
                         {t("clips.thumb")}
                       </button>
                     </div>
+                    {schedPosts[clip.id] && (
+                      <p className="text-[11px] text-success">
+                        {t("clips.scheduledFor", {
+                          when: new Date(schedPosts[clip.id].scheduledAt).toLocaleString(
+                            undefined,
+                            { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
+                          ),
+                          p: schedPosts[clip.id].platform,
+                        })}
+                      </p>
+                    )}
                     {thumbs[clip.id]?.id && (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
