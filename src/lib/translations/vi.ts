@@ -377,7 +377,7 @@ export const vi: Record<string, string> = {
   "wl.sub": "Gắn tên agency của bạn lên các báo cáo audit đã mua — \"Được chuẩn bị bởi bạn\" thay thế phần giới thiệu Virafold, để các audit từ gói credit của bạn được gửi đi như sản phẩm bàn giao cho khách hàng của chính bạn.",
   "wl.title": "Báo cáo white-label",
   "wl.upgrade": "Báo cáo white-label đi kèm mọi gói trả phí hoặc Agency Audit Pack.",
-  "clips.scheduledFor": "Đã lên lịch: {when} · {p} — chỉnh thời gian phía trên rồi nhấn Cập nhật.",
+  "clips.scheduledFor": "Đã lên lịch: {when} · {p}",
   "clips.timeUpdated": "Đã cập nhật lịch.",
   "clips.updateTime": "Cập nhật thời gian",
   "clips.apply": "Áp dụng thời gian mới",

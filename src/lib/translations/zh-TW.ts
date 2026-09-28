@@ -377,7 +377,7 @@ export const zhTW: Record<string, string> = {
   "wl.sub": "在購買的稽核報告上加上你的代理商名稱——「由你準備」會取代 Virafold 的宣傳文案，讓你點數包中的稽核報告能以你自己的客戶交付物寄出。",
   "wl.title": "白標報告",
   "wl.upgrade": "白標報告隨附於任何付費方案或 Agency Audit Pack。",
-  "clips.scheduledFor": "已排程：{when} · {p} — 請編輯上方時間並點選更新。",
+  "clips.scheduledFor": "已排程：{when} · {p}",
   "clips.timeUpdated": "排程已更新。",
   "clips.updateTime": "更新時間",
   "clips.apply": "套用新時間",

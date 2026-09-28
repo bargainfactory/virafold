@@ -386,7 +386,7 @@ export const de: Record<string, string> = {
   "wl.sub": "Setze den Namen deiner Agentur auf gekaufte Audit-Berichte — „Erstellt von dir“ ersetzt den Virafold-Pitch, sodass Audits aus deinem Credit-Pack als eigene Kundenlieferungen versendet werden.",
   "wl.title": "White-Label-Berichte",
   "wl.upgrade": "White-Label-Berichte sind in jedem bezahlten Plan oder einem Agency Audit Pack enthalten.",
-  "clips.scheduledFor": "Geplant: {when} · {p} — bearbeite die Zeit oben und klicke auf Aktualisieren.",
+  "clips.scheduledFor": "Geplant: {when} · {p}",
   "clips.timeUpdated": "Zeitplan aktualisiert.",
   "clips.updateTime": "Zeit aktualisieren",
   "clips.apply": "Neue Zeit übernehmen",

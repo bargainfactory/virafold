@@ -377,7 +377,7 @@ export const id: Record<string, string> = {
   "wl.sub": "Cantumkan nama agensi Anda pada laporan audit yang dibeli — \"Disiapkan oleh Anda\" menggantikan pitch Virafold, sehingga audit dari paket kredit Anda dikirim sebagai hasil kerja klien Anda sendiri.",
   "wl.title": "Laporan white-label",
   "wl.upgrade": "Laporan white-label tersedia dengan paket berbayar apa pun atau Agency Audit Pack.",
-  "clips.scheduledFor": "Dijadwalkan: {when} · {p} — ubah waktu di atas lalu klik Perbarui.",
+  "clips.scheduledFor": "Dijadwalkan: {when} · {p}",
   "clips.timeUpdated": "Jadwal diperbarui.",
   "clips.updateTime": "Perbarui waktu",
   "clips.apply": "Terapkan waktu baru",

@@ -373,7 +373,7 @@ export const zh: Record<string, string> = {
   "wl.sub": "将你的机构名称印在已购买的审计报告上——「由你准备」将替换 Virafold 的介绍，这样来自你积分包的审计就会作为你自己的客户交付物发出。",
   "wl.title": "白标报告",
   "wl.upgrade": "白标报告随任意付费套餐或机构审计包提供。",
-  "clips.scheduledFor": "已排期：{when} · {p} — 请修改上方时间并点击更新。",
+  "clips.scheduledFor": "已安排：{when} · {p}",
   "clips.timeUpdated": "排期已更新。",
   "clips.updateTime": "更新时间",
   "clips.apply": "应用新时间",

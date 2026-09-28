@@ -386,7 +386,7 @@ export const ja: Record<string, string> = {
   "wl.sub": "購入した監査レポートに代理店名を掲載します。「あなたが作成」がVirafoldの案内に代わり、クレジットパックの監査が自社のクライアント納品物として出荷されます。",
   "wl.title": "ホワイトラベルレポート",
   "wl.upgrade": "ホワイトラベルレポートは、いずれかの有料プランまたはAgency Audit Packに含まれています。",
-  "clips.scheduledFor": "予約済み: {when} · {p} — 上の時刻を編集して更新をクリックしてください。",
+  "clips.scheduledFor": "予約済み: {when} · {p}",
   "clips.timeUpdated": "スケジュールを更新しました。",
   "clips.updateTime": "時刻を更新",
   "clips.apply": "新しい時間を適用",

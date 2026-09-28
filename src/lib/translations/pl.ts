@@ -377,7 +377,7 @@ export const pl: Record<string, string> = {
   "wl.sub": "Umieść nazwę swojej agencji na zakupionych raportach audytowych — \"Przygotowane przez Ciebie\" zastępuje przekaz Virafold, dzięki czemu audyty z Twojego pakietu kredytów trafiają do klientów jako Twoje własne materiały.",
   "wl.title": "Raporty white-label",
   "wl.upgrade": "Raporty white-label są dostępne w każdym płatnym planie lub pakiecie Agency Audit Pack.",
-  "clips.scheduledFor": "Zaplanowano: {when} · {p} — edytuj czas powyżej i kliknij Aktualizuj.",
+  "clips.scheduledFor": "Zaplanowano: {when} · {p}",
   "clips.timeUpdated": "Harmonogram zaktualizowany.",
   "clips.updateTime": "Aktualizuj czas",
   "clips.apply": "Zastosuj nowy czas",

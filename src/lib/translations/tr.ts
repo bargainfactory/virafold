@@ -377,7 +377,7 @@ export const tr: Record<string, string> = {
   "wl.sub": "Satın alınan denetim raporlarına ajansınızın adını ekleyin — \"Sizin tarafınızdan hazırlandı\" ifadesi Virafold tanıtımının yerini alır; böylece kredi paketinizdeki denetimler kendi müşteri teslimatlarınız olarak gider.",
   "wl.title": "White-label raporlar",
   "wl.upgrade": "White-label raporlar, herhangi bir ücretli plan veya Agency Audit Pack ile birlikte gelir.",
-  "clips.scheduledFor": "Planlandı: {when} · {p} — yukarıdaki saati düzenleyin ve Güncelle’ye tıklayın.",
+  "clips.scheduledFor": "Planlandı: {when} · {p}",
   "clips.timeUpdated": "Zamanlama güncellendi.",
   "clips.updateTime": "Saati güncelle",
   "clips.apply": "Yeni zamanı uygula",

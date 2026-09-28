@@ -377,7 +377,7 @@ export const nl: Record<string, string> = {
   "wl.sub": "Zet de naam van je agency op gekochte auditrapporten — \"Opgesteld door jou\" vervangt de Virafold-pitch, zodat audits uit je credit pack als je eigen klantdeliverables worden verstuurd.",
   "wl.title": "White-label rapporten",
   "wl.upgrade": "White-label rapporten zitten bij elk betaald plan of een Agency Audit Pack.",
-  "clips.scheduledFor": "Gepland: {when} · {p} — pas de tijd hierboven aan en klik op Bijwerken.",
+  "clips.scheduledFor": "Gepland: {when} · {p}",
   "clips.timeUpdated": "Planning bijgewerkt.",
   "clips.updateTime": "Tijd bijwerken",
   "clips.apply": "Nieuwe tijd toepassen",

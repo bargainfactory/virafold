@@ -19,6 +19,8 @@ import {
 } from "@/lib/use-connections";
 import {
   Calendar,
+  Check,
+  ChevronDown,
   Download,
   Film,
   FileVideo,
@@ -35,6 +37,29 @@ import {
 function toLocalInput(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** Schedule-time picker with a visible "this is editable" chevron. The native
+ *  calendar indicator is stretched invisibly across the whole field, so
+ *  clicking anywhere opens the picker; the chevron is the affordance. */
+function SchedTimeField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <input
+        type="datetime-local"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pl-3 pr-8 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground cursor-pointer focus:outline-none focus:border-neon-purple/50 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+      />
+      <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-neon-purple pointer-events-none" />
+    </div>
+  );
 }
 
 interface ClipRow {
@@ -833,35 +858,31 @@ export default function ClipsTab({
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="datetime-local"
+                    <SchedTimeField
                       value={
                         schedAt[clip.id] ??
                         (schedPosts[clip.id]
                           ? toLocalInput(new Date(schedPosts[clip.id].scheduledAt))
                           : defaultAt)
                       }
-                      onChange={(e) =>
-                        setSchedAt((prev) => ({ ...prev, [clip.id]: e.target.value }))
-                      }
-                      className="px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+                      onChange={(v) => setSchedAt((prev) => ({ ...prev, [clip.id]: v }))}
                     />
-                    <button
-                      onClick={() => schedule(clip)}
-                      disabled={Boolean(schedPosts[clip.id]) && !hasPendingChange(clip.id)}
-                      className={`px-4 py-2 rounded-lg text-white text-xs font-medium transition-opacity flex items-center gap-1.5 ${
-                        hasPendingChange(clip.id)
-                          ? "bg-gradient-to-r from-neon-purple to-electric-blue ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90"
-                          : "bg-gradient-to-r from-neon-purple to-electric-blue hover:opacity-90 disabled:opacity-40 disabled:cursor-default"
-                      }`}
-                    >
-                      <Calendar className="w-3.5 h-3.5" />{" "}
-                      {schedPosts[clip.id]
-                        ? hasPendingChange(clip.id)
-                          ? t("clips.apply")
-                          : t("clips.updateTime")
-                        : t("clips.schedule")}
-                    </button>
+                    {!schedPosts[clip.id] ? (
+                      <button
+                        onClick={() => schedule(clip)}
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                      >
+                        <Calendar className="w-3.5 h-3.5" /> {t("clips.schedule")}
+                      </button>
+                    ) : hasPendingChange(clip.id) ? (
+                      /* Appears the moment the time or platform is edited. */
+                      <button
+                        onClick={() => schedule(clip)}
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90 flex items-center gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" /> {t("clips.apply")}
+                      </button>
+                    ) : null}
                     <button
                       onClick={() => genThumb(clip)}
                       disabled={thumbs[clip.id]?.busy}
@@ -985,35 +1006,31 @@ export default function ClipsTab({
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="datetime-local"
+                      <SchedTimeField
                         value={
                           schedAt[clip.id] ??
                           (schedPosts[clip.id]
                             ? toLocalInput(new Date(schedPosts[clip.id].scheduledAt))
                             : defaultAt)
                         }
-                        onChange={(e) =>
-                          setSchedAt((prev) => ({ ...prev, [clip.id]: e.target.value }))
-                        }
-                        className="px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+                        onChange={(v) => setSchedAt((prev) => ({ ...prev, [clip.id]: v }))}
                       />
-                      <button
-                        onClick={() => schedule(clip)}
-                        disabled={Boolean(schedPosts[clip.id]) && !hasPendingChange(clip.id)}
-                        className={`px-4 py-2 rounded-lg text-white text-xs font-medium transition-opacity flex items-center gap-1.5 ${
-                          hasPendingChange(clip.id)
-                            ? "bg-gradient-to-r from-neon-purple to-electric-blue ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90"
-                            : "bg-gradient-to-r from-neon-purple to-electric-blue hover:opacity-90 disabled:opacity-40 disabled:cursor-default"
-                        }`}
-                      >
-                        <Calendar className="w-3.5 h-3.5" />{" "}
-                        {schedPosts[clip.id]
-                          ? hasPendingChange(clip.id)
-                            ? t("clips.apply")
-                            : t("clips.updateTime")
-                          : t("clips.schedule")}
-                      </button>
+                      {!schedPosts[clip.id] ? (
+                        <button
+                          onClick={() => schedule(clip)}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                        >
+                          <Calendar className="w-3.5 h-3.5" /> {t("clips.schedule")}
+                        </button>
+                      ) : hasPendingChange(clip.id) ? (
+                        /* Appears the moment the time or platform is edited. */
+                        <button
+                          onClick={() => schedule(clip)}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90 flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" /> {t("clips.apply")}
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => genThumb(clip)}
                         disabled={thumbs[clip.id]?.busy}

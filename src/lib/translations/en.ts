@@ -826,7 +826,7 @@ export const en: Record<string, string> = {
   "clips.updateTime": "Update time",
   "clips.apply": "Apply new time",
   "clips.timeUpdated": "Schedule updated.",
-  "clips.scheduledFor": "Scheduled: {when} · {p} — edit the time above and click Update.",
+  "clips.scheduledFor": "Scheduled: {when} · {p}",
   "clips.scheduleFailed": "Could not schedule the clip",
   "clips.delete": "Delete clip",
   "clips.livePreview": "Preview",

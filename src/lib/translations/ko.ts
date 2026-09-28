@@ -386,7 +386,7 @@ export const ko: Record<string, string> = {
   "wl.sub": "구매한 오딧 리포트에 에이전시 이름을 넣으세요 — \"귀하가 준비함\"이 Virafold 소개를 대신하므로, 크레딧 팩의 오딧이 고객에게 보내는 자체 결과물로 전달됩니다.",
   "wl.title": "화이트라벨 리포트",
   "wl.upgrade": "화이트라벨 리포트는 모든 유료 플랜 또는 Agency Audit Pack에 포함됩니다.",
-  "clips.scheduledFor": "예약됨: {when} · {p} — 위에서 시간을 수정한 뒤 업데이트를 클릭하세요.",
+  "clips.scheduledFor": "예약됨: {when} · {p}",
   "clips.timeUpdated": "예약이 업데이트되었습니다.",
   "clips.updateTime": "시간 업데이트",
   "clips.apply": "새 시간 적용",

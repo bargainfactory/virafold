@@ -386,7 +386,7 @@ export const es: Record<string, string> = {
   "wl.sub": "Pon el nombre de tu agencia en los informes de auditoría comprados: «Preparado por ti» sustituye la presentación de Virafold, así las auditorías de tu pack de créditos se entregan como entregables propios para tus clientes.",
   "wl.title": "Informes de marca blanca",
   "wl.upgrade": "Los informes de marca blanca se incluyen con cualquier plan de pago o un Pack de Auditorías para Agencias.",
-  "clips.scheduledFor": "Programado: {when} · {p} — edita la hora de arriba y haz clic en Actualizar.",
+  "clips.scheduledFor": "Programado: {when} · {p}",
   "clips.timeUpdated": "Programación actualizada.",
   "clips.updateTime": "Actualizar hora",
   "clips.apply": "Aplicar nueva hora",
