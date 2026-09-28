@@ -389,6 +389,7 @@ export const ja: Record<string, string> = {
   "clips.scheduledFor": "予約済み: {when} · {p} — 上の時刻を編集して更新をクリックしてください。",
   "clips.timeUpdated": "スケジュールを更新しました。",
   "clips.updateTime": "時刻を更新",
+  "clips.apply": "新しい時間を適用",
   "feat.1videoMonth": "月1本の動画（最大10分）",
   "feat.3clips": "ショートクリップ3本",
   "feat.basicCaptions": "自動字幕（基本）",

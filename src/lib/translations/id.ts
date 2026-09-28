@@ -380,6 +380,7 @@ export const id: Record<string, string> = {
   "clips.scheduledFor": "Dijadwalkan: {when} · {p} — ubah waktu di atas lalu klik Perbarui.",
   "clips.timeUpdated": "Jadwal diperbarui.",
   "clips.updateTime": "Perbarui waktu",
+  "clips.apply": "Terapkan waktu baru",
   "feat.1videoMonth": "1 video per bulan (maks 10 mnt)",
   "feat.3clips": "3 klip pendek",
   "feat.basicCaptions": "Takarir otomatis (dasar)",

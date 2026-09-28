@@ -380,6 +380,7 @@ export const tr: Record<string, string> = {
   "clips.scheduledFor": "Planlandı: {when} · {p} — yukarıdaki saati düzenleyin ve Güncelle’ye tıklayın.",
   "clips.timeUpdated": "Zamanlama güncellendi.",
   "clips.updateTime": "Saati güncelle",
+  "clips.apply": "Yeni zamanı uygula",
   "feat.1videoMonth": "Ayda 1 video (en fazla 10 dk)",
   "feat.3clips": "3 kısa klip",
   "feat.basicCaptions": "Otomatik altyazı (temel)",

@@ -380,6 +380,7 @@ export const th: Record<string, string> = {
   "clips.scheduledFor": "กำหนดเวลา: {when} · {p} — แก้ไขเวลาด้านบนแล้วคลิกอัปเดต",
   "clips.timeUpdated": "อัปเดตกำหนดเวลาแล้ว",
   "clips.updateTime": "อัปเดตเวลา",
+  "clips.apply": "ใช้เวลาใหม่",
   "feat.1videoMonth": "1 วิดีโอต่อเดือน (สูงสุด 10 นาที)",
   "feat.3clips": "คลิปสั้น 3 คลิป",
   "feat.basicCaptions": "คำบรรยายอัตโนมัติ (พื้นฐาน)",

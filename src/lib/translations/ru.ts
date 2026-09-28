@@ -380,6 +380,7 @@ export const ru: Record<string, string> = {
   "clips.scheduledFor": "Запланировано: {when} · {p} — измените время выше и нажмите Обновить.",
   "clips.timeUpdated": "Расписание обновлено.",
   "clips.updateTime": "Обновить время",
+  "clips.apply": "Применить новое время",
   "feat.1videoMonth": "1 видео в месяц (до 10 мин)",
   "feat.3clips": "3 коротких клипа",
   "feat.basicCaptions": "Автосубтитры (базовые)",

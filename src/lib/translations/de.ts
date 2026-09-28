@@ -389,6 +389,7 @@ export const de: Record<string, string> = {
   "clips.scheduledFor": "Geplant: {when} · {p} — bearbeite die Zeit oben und klicke auf Aktualisieren.",
   "clips.timeUpdated": "Zeitplan aktualisiert.",
   "clips.updateTime": "Zeit aktualisieren",
+  "clips.apply": "Neue Zeit übernehmen",
   "feat.1videoMonth": "1 Video pro Monat (max. 10 Min.)",
   "feat.3clips": "3 Kurzform-Clips",
   "feat.basicCaptions": "Automatische Untertitel (Basis)",

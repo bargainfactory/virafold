@@ -824,6 +824,7 @@ export const en: Record<string, string> = {
   "clips.schedule": "Schedule",
   "clips.scheduled": "Clip scheduled for {p}",
   "clips.updateTime": "Update time",
+  "clips.apply": "Apply new time",
   "clips.timeUpdated": "Schedule updated.",
   "clips.scheduledFor": "Scheduled: {when} · {p} — edit the time above and click Update.",
   "clips.scheduleFailed": "Could not schedule the clip",

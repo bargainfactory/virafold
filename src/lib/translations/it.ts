@@ -380,6 +380,7 @@ export const it: Record<string, string> = {
   "clips.scheduledFor": "Programmato: {when} · {p} — modifica l'orario sopra e clicca su Aggiorna.",
   "clips.timeUpdated": "Programmazione aggiornata.",
   "clips.updateTime": "Aggiorna orario",
+  "clips.apply": "Applica nuovo orario",
   "feat.1videoMonth": "1 video al mese (max 10 min)",
   "feat.3clips": "3 clip short-form",
   "feat.basicCaptions": "Sottotitoli automatici (base)",

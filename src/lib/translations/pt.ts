@@ -389,6 +389,7 @@ export const pt: Record<string, string> = {
   "clips.scheduledFor": "Agendado: {when} · {p} — edite o horário acima e clique em Atualizar.",
   "clips.timeUpdated": "Agendamento atualizado.",
   "clips.updateTime": "Atualizar horário",
+  "clips.apply": "Aplicar novo horário",
   "feat.1videoMonth": "1 vídeo por mês (máx. 10 min)",
   "feat.3clips": "3 clipes curtos",
   "feat.basicCaptions": "Legendas automáticas (básico)",

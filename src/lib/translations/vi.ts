@@ -380,6 +380,7 @@ export const vi: Record<string, string> = {
   "clips.scheduledFor": "Đã lên lịch: {when} · {p} — chỉnh thời gian phía trên rồi nhấn Cập nhật.",
   "clips.timeUpdated": "Đã cập nhật lịch.",
   "clips.updateTime": "Cập nhật thời gian",
+  "clips.apply": "Áp dụng thời gian mới",
   "feat.1videoMonth": "1 video mỗi tháng (tối đa 10 phút)",
   "feat.3clips": "3 clip ngắn",
   "feat.basicCaptions": "Phụ đề tự động (cơ bản)",

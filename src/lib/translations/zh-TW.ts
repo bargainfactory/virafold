@@ -380,6 +380,7 @@ export const zhTW: Record<string, string> = {
   "clips.scheduledFor": "已排程：{when} · {p} — 請編輯上方時間並點選更新。",
   "clips.timeUpdated": "排程已更新。",
   "clips.updateTime": "更新時間",
+  "clips.apply": "套用新時間",
   "feat.1videoMonth": "每月 1 支影片（最長 10 分鐘）",
   "feat.3clips": "3 支短影音",
   "feat.basicCaptions": "自動字幕（基本）",

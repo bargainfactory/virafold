@@ -376,6 +376,7 @@ export const zh: Record<string, string> = {
   "clips.scheduledFor": "已排期：{when} · {p} — 请修改上方时间并点击更新。",
   "clips.timeUpdated": "排期已更新。",
   "clips.updateTime": "更新时间",
+  "clips.apply": "应用新时间",
   "feat.1videoMonth": "每月1个视频（最长10分钟）",
   "feat.3clips": "3个短视频",
   "feat.basicCaptions": "自动字幕（基础）",

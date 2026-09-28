@@ -389,6 +389,7 @@ export const ar: Record<string, string> = {
   "clips.scheduledFor": "مجدول: {when} · {p} — عدّل الوقت أعلاه وانقر تحديث.",
   "clips.timeUpdated": "تم تحديث الجدولة.",
   "clips.updateTime": "تحديث الوقت",
+  "clips.apply": "تطبيق الوقت الجديد",
   "feat.1videoMonth": "مقطع واحد شهرياً (10 دقائق كحد أقصى)",
   "feat.3clips": "3 مقاطع قصيرة",
   "feat.basicCaptions": "تعليقات توضيحية تلقائية (أساسية)",

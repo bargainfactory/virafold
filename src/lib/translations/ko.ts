@@ -389,6 +389,7 @@ export const ko: Record<string, string> = {
   "clips.scheduledFor": "예약됨: {when} · {p} — 위에서 시간을 수정한 뒤 업데이트를 클릭하세요.",
   "clips.timeUpdated": "예약이 업데이트되었습니다.",
   "clips.updateTime": "시간 업데이트",
+  "clips.apply": "새 시간 적용",
   "feat.1videoMonth": "월 1개 영상 (최대 10분)",
   "feat.3clips": "단편 클립 3개",
   "feat.basicCaptions": "자동 자막 (기본)",

@@ -417,6 +417,22 @@ export default function ClipsTab({
     [styleSel, posSel, focusSel, addToast, t, load]
   );
 
+  /** True when the picker/platform differ from the saved scheduled post —
+   *  the button then becomes an emphasized "Apply new time". */
+  const hasPendingChange = useCallback(
+    (clipId: string): boolean => {
+      const post = schedPosts[clipId];
+      if (!post) return false;
+      const at = schedAt[clipId];
+      const platform = schedPlatform[clipId];
+      const timeChanged =
+        at !== undefined && at !== toLocalInput(new Date(post.scheduledAt));
+      const platformChanged = platform !== undefined && platform !== post.platform;
+      return timeChanged || platformChanged;
+    },
+    [schedPosts, schedAt, schedPlatform]
+  );
+
   const schedule = useCallback(
     async (clip: ClipRow) => {
       const existing = schedPosts[clip.id];
@@ -832,10 +848,19 @@ export default function ClipsTab({
                     />
                     <button
                       onClick={() => schedule(clip)}
-                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                      disabled={Boolean(schedPosts[clip.id]) && !hasPendingChange(clip.id)}
+                      className={`px-4 py-2 rounded-lg text-white text-xs font-medium transition-opacity flex items-center gap-1.5 ${
+                        hasPendingChange(clip.id)
+                          ? "bg-gradient-to-r from-neon-purple to-electric-blue ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90"
+                          : "bg-gradient-to-r from-neon-purple to-electric-blue hover:opacity-90 disabled:opacity-40 disabled:cursor-default"
+                      }`}
                     >
                       <Calendar className="w-3.5 h-3.5" />{" "}
-                      {schedPosts[clip.id] ? t("clips.updateTime") : t("clips.schedule")}
+                      {schedPosts[clip.id]
+                        ? hasPendingChange(clip.id)
+                          ? t("clips.apply")
+                          : t("clips.updateTime")
+                        : t("clips.schedule")}
                     </button>
                     <button
                       onClick={() => genThumb(clip)}
@@ -975,10 +1000,19 @@ export default function ClipsTab({
                       />
                       <button
                         onClick={() => schedule(clip)}
-                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                        disabled={Boolean(schedPosts[clip.id]) && !hasPendingChange(clip.id)}
+                        className={`px-4 py-2 rounded-lg text-white text-xs font-medium transition-opacity flex items-center gap-1.5 ${
+                          hasPendingChange(clip.id)
+                            ? "bg-gradient-to-r from-neon-purple to-electric-blue ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90"
+                            : "bg-gradient-to-r from-neon-purple to-electric-blue hover:opacity-90 disabled:opacity-40 disabled:cursor-default"
+                        }`}
                       >
                         <Calendar className="w-3.5 h-3.5" />{" "}
-                        {schedPosts[clip.id] ? t("clips.updateTime") : t("clips.schedule")}
+                        {schedPosts[clip.id]
+                          ? hasPendingChange(clip.id)
+                            ? t("clips.apply")
+                            : t("clips.updateTime")
+                          : t("clips.schedule")}
                       </button>
                       <button
                         onClick={() => genThumb(clip)}

@@ -376,6 +376,7 @@ export const hi: Record<string, string> = {
   "clips.scheduledFor": "शेड्यूल्ड: {when} · {p} — ऊपर समय संपादित करें और अपडेट पर क्लिक करें।",
   "clips.timeUpdated": "शेड्यूल अपडेट हो गया।",
   "clips.updateTime": "समय अपडेट करें",
+  "clips.apply": "नया समय लागू करें",
   "feat.1videoMonth": "प्रति माह 1 वीडियो (अधिकतम 10 मिनट)",
   "feat.3clips": "3 शॉर्ट-फॉर्म क्लिप्स",
   "feat.basicCaptions": "ऑटो-कैप्शन (बेसिक)",
