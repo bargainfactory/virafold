@@ -381,6 +381,7 @@ export const vi: Record<string, string> = {
   "clips.timeUpdated": "Đã cập nhật lịch.",
   "clips.updateTime": "Cập nhật thời gian",
   "clips.apply": "Áp dụng thời gian mới",
+  "hiw.videoCaption": "Toàn bộ hướng dẫn — mọi tính năng trong bốn phút, thuyết minh trên sản phẩm thật.",
   "feat.1videoMonth": "1 video mỗi tháng (tối đa 10 phút)",
   "feat.3clips": "3 clip ngắn",
   "feat.basicCaptions": "Phụ đề tự động (cơ bản)",

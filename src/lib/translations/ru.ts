@@ -381,6 +381,7 @@ export const ru: Record<string, string> = {
   "clips.timeUpdated": "Расписание обновлено.",
   "clips.updateTime": "Обновить время",
   "clips.apply": "Применить новое время",
+  "hiw.videoCaption": "Полный обзор — все функции за четыре минуты, с озвучкой на реальном продукте.",
   "feat.1videoMonth": "1 видео в месяц (до 10 мин)",
   "feat.3clips": "3 коротких клипа",
   "feat.basicCaptions": "Автосубтитры (базовые)",

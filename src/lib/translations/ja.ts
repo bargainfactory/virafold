@@ -390,6 +390,7 @@ export const ja: Record<string, string> = {
   "clips.timeUpdated": "スケジュールを更新しました。",
   "clips.updateTime": "時刻を更新",
   "clips.apply": "新しい時間を適用",
+  "hiw.videoCaption": "完全ウォークスルー — 実際の製品画面をナレーション付きで、全機能を4分で。",
   "feat.1videoMonth": "月1本の動画（最大10分）",
   "feat.3clips": "ショートクリップ3本",
   "feat.basicCaptions": "自動字幕（基本）",

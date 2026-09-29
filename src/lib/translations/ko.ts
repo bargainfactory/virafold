@@ -390,6 +390,7 @@ export const ko: Record<string, string> = {
   "clips.timeUpdated": "예약이 업데이트되었습니다.",
   "clips.updateTime": "시간 업데이트",
   "clips.apply": "새 시간 적용",
+  "hiw.videoCaption": "전체 둘러보기 — 실제 제품 화면에 내레이션을 더해 4분 만에 모든 기능을 소개합니다.",
   "feat.1videoMonth": "월 1개 영상 (최대 10분)",
   "feat.3clips": "단편 클립 3개",
   "feat.basicCaptions": "자동 자막 (기본)",

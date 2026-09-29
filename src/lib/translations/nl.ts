@@ -381,6 +381,7 @@ export const nl: Record<string, string> = {
   "clips.timeUpdated": "Planning bijgewerkt.",
   "clips.updateTime": "Tijd bijwerken",
   "clips.apply": "Nieuwe tijd toepassen",
+  "hiw.videoCaption": "De volledige rondleiding — elke functie in vier minuten, ingesproken over het echte product.",
   "feat.1videoMonth": "1 video per maand (max. 10 min)",
   "feat.3clips": "3 short-form clips",
   "feat.basicCaptions": "Automatische ondertiteling (basis)",

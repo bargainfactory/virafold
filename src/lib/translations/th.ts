@@ -381,6 +381,7 @@ export const th: Record<string, string> = {
   "clips.timeUpdated": "อัปเดตกำหนดเวลาแล้ว",
   "clips.updateTime": "อัปเดตเวลา",
   "clips.apply": "ใช้เวลาใหม่",
+  "hiw.videoCaption": "ทัวร์ฉบับเต็ม — ทุกฟีเจอร์ในสี่นาที บรรยายบนผลิตภัณฑ์จริง",
   "feat.1videoMonth": "1 วิดีโอต่อเดือน (สูงสุด 10 นาที)",
   "feat.3clips": "คลิปสั้น 3 คลิป",
   "feat.basicCaptions": "คำบรรยายอัตโนมัติ (พื้นฐาน)",

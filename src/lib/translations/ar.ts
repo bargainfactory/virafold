@@ -390,6 +390,7 @@ export const ar: Record<string, string> = {
   "clips.timeUpdated": "تم تحديث الجدولة.",
   "clips.updateTime": "تحديث الوقت",
   "clips.apply": "تطبيق الوقت الجديد",
+  "hiw.videoCaption": "الجولة الكاملة — كل ميزة في أربع دقائق، بتعليق صوتي على المنتج الحقيقي.",
   "feat.1videoMonth": "مقطع واحد شهرياً (10 دقائق كحد أقصى)",
   "feat.3clips": "3 مقاطع قصيرة",
   "feat.basicCaptions": "تعليقات توضيحية تلقائية (أساسية)",

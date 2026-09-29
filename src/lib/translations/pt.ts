@@ -390,6 +390,7 @@ export const pt: Record<string, string> = {
   "clips.timeUpdated": "Agendamento atualizado.",
   "clips.updateTime": "Atualizar horário",
   "clips.apply": "Aplicar novo horário",
+  "hiw.videoCaption": "O tour completo — cada recurso em quatro minutos, narrado sobre o produto real.",
   "feat.1videoMonth": "1 vídeo por mês (máx. 10 min)",
   "feat.3clips": "3 clipes curtos",
   "feat.basicCaptions": "Legendas automáticas (básico)",

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Upload,
@@ -7,12 +8,19 @@ import {
   Scissors,
   Palette,
   CheckCircle,
+  Play,
   Rocket,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 
+// The walkthrough lives on the @Virafold channel — playing it here counts
+// as a real YouTube view. Click-to-load keeps the page fast and cookie-free
+// until the visitor actually presses play.
+const WALKTHROUGH_YT_ID = "A2N2p_vGQRY";
+
 export default function HowItWorks() {
   const { t } = useTranslation();
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
   const steps = [
     {
@@ -69,6 +77,47 @@ export default function HowItWorks() {
           </h2>
           <p className="text-cyber-muted max-w-xl mx-auto">
             {t("hiw.description")}
+          </p>
+        </motion.div>
+
+        {/* The full product walkthrough — real UI, narrated, 4 minutes. */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-20"
+        >
+          <div className="rounded-2xl overflow-hidden border border-neon-purple/30 shadow-[0_0_60px_-15px_rgba(168,85,247,0.4)] aspect-video bg-cyber-dark">
+            {videoPlaying ? (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${WALKTHROUGH_YT_ID}?autoplay=1&rel=0`}
+                title="Virafold walkthrough"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            ) : (
+              <button
+                onClick={() => setVideoPlaying(true)}
+                className="relative w-full h-full group"
+                aria-label="Play walkthrough video"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/media/walkthrough-poster.jpg"
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/10 transition-colors">
+                  <span className="w-20 h-20 rounded-full bg-gradient-to-r from-neon-purple to-electric-blue flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                    <Play className="w-9 h-9 text-white ml-1" fill="currentColor" />
+                  </span>
+                </span>
+              </button>
+            )}
+          </div>
+          <p className="mt-3 text-center text-sm text-cyber-muted">
+            {t("hiw.videoCaption")}
           </p>
         </motion.div>
 

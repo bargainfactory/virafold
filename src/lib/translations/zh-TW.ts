@@ -381,6 +381,7 @@ export const zhTW: Record<string, string> = {
   "clips.timeUpdated": "排程已更新。",
   "clips.updateTime": "更新時間",
   "clips.apply": "套用新時間",
+  "hiw.videoCaption": "完整導覽——四分鐘看遍所有功能，以真實產品搭配旁白解說。",
   "feat.1videoMonth": "每月 1 支影片（最長 10 分鐘）",
   "feat.3clips": "3 支短影音",
   "feat.basicCaptions": "自動字幕（基本）",

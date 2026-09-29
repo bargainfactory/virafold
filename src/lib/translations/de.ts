@@ -390,6 +390,7 @@ export const de: Record<string, string> = {
   "clips.timeUpdated": "Zeitplan aktualisiert.",
   "clips.updateTime": "Zeit aktualisieren",
   "clips.apply": "Neue Zeit übernehmen",
+  "hiw.videoCaption": "Der komplette Rundgang — alle Funktionen in vier Minuten, erklärt am echten Produkt.",
   "feat.1videoMonth": "1 Video pro Monat (max. 10 Min.)",
   "feat.3clips": "3 Kurzform-Clips",
   "feat.basicCaptions": "Automatische Untertitel (Basis)",

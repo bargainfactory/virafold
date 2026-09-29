@@ -876,6 +876,7 @@ export const en: Record<string, string> = {
   "watch.checked": "Checked",
   "footer.refundPolicy": "Refund Policy",
   "footer.support": "Support",
+  "hiw.videoCaption": "The full walkthrough — every feature in four minutes, narrated over the real product.",
   "footer.forGuests": "For Podcast Guests",
   "footer.forWriters": "For Writers",
   "footer.forSaas": "For SaaS Teams",

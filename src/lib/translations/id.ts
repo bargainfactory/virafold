@@ -381,6 +381,7 @@ export const id: Record<string, string> = {
   "clips.timeUpdated": "Jadwal diperbarui.",
   "clips.updateTime": "Perbarui waktu",
   "clips.apply": "Terapkan waktu baru",
+  "hiw.videoCaption": "Panduan lengkap — semua fitur dalam empat menit, dinarasikan langsung di produk asli.",
   "feat.1videoMonth": "1 video per bulan (maks 10 mnt)",
   "feat.3clips": "3 klip pendek",
   "feat.basicCaptions": "Takarir otomatis (dasar)",

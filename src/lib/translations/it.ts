@@ -381,6 +381,7 @@ export const it: Record<string, string> = {
   "clips.timeUpdated": "Programmazione aggiornata.",
   "clips.updateTime": "Aggiorna orario",
   "clips.apply": "Applica nuovo orario",
+  "hiw.videoCaption": "Il tour completo — ogni funzione in quattro minuti, narrato sul prodotto reale.",
   "feat.1videoMonth": "1 video al mese (max 10 min)",
   "feat.3clips": "3 clip short-form",
   "feat.basicCaptions": "Sottotitoli automatici (base)",

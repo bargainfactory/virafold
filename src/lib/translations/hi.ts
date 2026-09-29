@@ -377,6 +377,7 @@ export const hi: Record<string, string> = {
   "clips.timeUpdated": "शेड्यूल अपडेट हो गया।",
   "clips.updateTime": "समय अपडेट करें",
   "clips.apply": "नया समय लागू करें",
+  "hiw.videoCaption": "पूरा वॉकथ्रू — चार मिनट में हर फ़ीचर, असली प्रोडक्ट पर वर्णन के साथ।",
   "feat.1videoMonth": "प्रति माह 1 वीडियो (अधिकतम 10 मिनट)",
   "feat.3clips": "3 शॉर्ट-फॉर्म क्लिप्स",
   "feat.basicCaptions": "ऑटो-कैप्शन (बेसिक)",
