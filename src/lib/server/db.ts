@@ -2203,6 +2203,40 @@ export function insertCaptionJob(
 }
 
 /** A TTS-narrated script video: enters the same render queue as clips. */
+/** Ambient loop job (sleep/relaxation video): config JSON rides the script
+ *  column — {theme, minutes, soundscape}. */
+export function insertAmbientVideo(
+  email: string,
+  v: { id: string; title: string; config: string }
+): Clip {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script)
+       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', 'clean', 'middle', ?, 'ambient', ?)`
+    )
+    .run(v.id, email.toLowerCase(), v.title, now, v.config);
+  return {
+    id: v.id,
+    projectId: "",
+    title: v.title,
+    startSec: 0,
+    endSec: 0,
+    score: 0,
+    reason: "",
+    matched: null,
+    status: "queued",
+    style: "clean",
+    position: "middle",
+    focus: "center",
+    kind: "ambient",
+    script: v.config,
+    outputPath: null,
+    error: null,
+    createdAt: now,
+  };
+}
+
 export function insertScriptVideo(
   email: string,
   v: { id: string; title: string; script: string; style: string; position: string }

@@ -620,6 +620,141 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   }
 }
 
+/** Soundscape beds synthesized from ffmpeg's noise source — the same audio
+ *  family real sleep channels use. Deterministic, license-free, key-free. */
+export const AMBIENT_SOUNDSCAPES = ["ocean", "brown-noise", "rain", "wind"] as const;
+
+function soundscapeGraph(kind: string, durationSec: number): string {
+  const base: Record<string, string> = {
+    // NB tremolo's minimum frequency is 0.1 Hz — slower "wave" cycles are
+    // rejected with a range error (verified on the prod ffmpeg).
+    ocean:
+      "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=600,tremolo=f=0.1:d=0.8,volume=0.55",
+    "brown-noise": "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=500,volume=0.5",
+    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=300,lowpass=f=7000,volume=0.26",
+    wind: "anoisesrc=colour=pink:sample_rate=44100,lowpass=f=900,tremolo=f=0.1:d=0.55,volume=0.4",
+  };
+  const g = base[kind] ?? base.ocean;
+  // Gentle entry and exit — nothing in a sleep video should startle.
+  return `${g},afade=t=in:st=0:d=4,afade=t=out:st=${Math.max(0, durationSec - 6).toFixed(1)}:d=6`;
+}
+
+/**
+ * Ambient loop: a single AI still with a glacial palindromic drift (zoom out
+ * lands exactly where the zoom in began, so loop joins are seamless), encoded
+ * once as a short base segment and stream-copy concatenated to the target
+ * length — an hour of video for ~2 minutes of encoding — over a synthesized
+ * soundscape. No captions, no cuts, no grain: the anti-documentary.
+ */
+async function renderAmbientLoop(clip: Clip & { userEmail: string }): Promise<void> {
+  let cfg: { theme?: string; minutes?: number; soundscape?: string } = {};
+  try {
+    cfg = JSON.parse(clip.script ?? "{}");
+  } catch {
+    /* fall through to defaults */
+  }
+  const theme = String(cfg.theme ?? clip.title).slice(0, 140);
+  const minutes = Math.max(5, Math.min(60, Math.round(Number(cfg.minutes) || 30)));
+  const soundscape = String(cfg.soundscape ?? "ocean");
+
+  const { generateBackground } = await import("./images");
+  const bg = await generateBackground(
+    `Soft-focus ambient night scene: ${theme}. Deep calm palette of midnight blue and muted violet, gentle gradients, dreamlike haze, very low contrast, serene and still, no people, absolutely no text or letters or words, no watermark. Wide cinematic 16:9 composition.`
+  );
+  if (!bg) {
+    throw new Error("no image provider available — connect an image key in the Operator Console");
+  }
+
+  fs.mkdirSync(RENDERS_DIR, { recursive: true });
+  const jobDir = path.join(RENDERS_DIR, `tmp-${clip.id}`);
+  fs.mkdirSync(jobDir, { recursive: true });
+  const outAbs = path.join(RENDERS_DIR, `${clip.id}.mp4`);
+
+  try {
+    fs.writeFileSync(path.join(jobDir, "bg.png"), bg);
+
+    // Pre-soften once (blur per output frame would be wasted work).
+    let r = await run(
+      "ffmpeg",
+      [
+        "-y", "-i", "bg.png",
+        "-vf",
+        "scale=4800:2700:force_original_aspect_ratio=increase,crop=4800:2700,gblur=sigma=2.2,eq=saturation=0.82:brightness=-0.03",
+        "-frames:v", "1", "prep.png",
+      ],
+      jobDir
+    );
+    if (r.code !== 0) throw new Error(`ambient prep failed: ${r.err.slice(-200)}`);
+
+    // Base segment: 150 s palindromic drift at 24 fps, video-only.
+    const BASE_SEC = 150;
+    const FPS = 24;
+    const F = BASE_SEC * FPS;
+    const half = F / 2;
+    const AMP = 0.055;
+    const z = `if(lte(on,${half}),1+${AMP}*on/${half},1+${AMP}*(${F}-on)/${half})`;
+    r = await run(
+      "ffmpeg",
+      [
+        "-y", "-loop", "1", "-i", "prep.png",
+        "-vf",
+        `zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${F}:s=1920x1080:fps=${FPS},setsar=1`,
+        "-frames:v", String(F),
+        "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage", "-crf", "27",
+        "-pix_fmt", "yuv420p", "-an",
+        "base.mp4",
+      ],
+      jobDir
+    );
+    if (r.code !== 0) throw new Error(`ambient base render failed: ${r.err.slice(-200)}`);
+
+    // Loop by stream copy — length costs storage, not CPU.
+    const loops = Math.max(1, Math.ceil((minutes * 60) / BASE_SEC));
+    const totalSec = loops * BASE_SEC;
+    fs.writeFileSync(path.join(jobDir, "list.txt"), Array(loops).fill("file 'base.mp4'").join("\n"));
+    r = await run(
+      "ffmpeg",
+      ["-y", "-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "long.mp4"],
+      jobDir
+    );
+    if (r.code !== 0) throw new Error(`ambient concat failed: ${r.err.slice(-200)}`);
+
+    // One continuous audio bed for the whole runtime (no loop seams).
+    r = await run(
+      "ffmpeg",
+      [
+        "-y", "-i", "long.mp4",
+        "-f", "lavfi", "-t", String(totalSec), "-i", soundscapeGraph(soundscape, totalSec),
+        "-map", "0:v", "-map", "1:a",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+        "-shortest", "-movflags", "+faststart",
+        outAbs,
+      ],
+      jobDir
+    );
+    if (r.code !== 0) throw new Error(`ambient mux failed: ${r.err.slice(-200)}`);
+    if (!fs.existsSync(outAbs) || fs.statSync(outAbs).size === 0) {
+      throw new Error("render produced no output");
+    }
+
+    updateClip(clip.userEmail, clip.id, {
+      status: "ready",
+      outputPath: path.relative(process.cwd(), outAbs),
+      error: null,
+    });
+    insertNotification(clip.userEmail, {
+      id: `n-${crypto.randomUUID()}`,
+      title: "Ambient Video Ready",
+      message: `"${clip.title}" is rendered — ${Math.round(totalSec / 60)} minutes of seamless ${soundscape} ambience, ready to preview or download from the Clips tab.`,
+      time: "Just now",
+      read: false,
+      type: "success",
+    });
+  } finally {
+    fs.rmSync(jobDir, { recursive: true, force: true });
+  }
+}
+
 /** In-app caption-only job: the whole source video, captioned, uncut. */
 async function renderCaptionFull(clip: Clip & { userEmail: string }): Promise<void> {
   const media = getProjectMedia(clip.userEmail, clip.projectId);
@@ -706,6 +841,7 @@ export function kickRenderWorker(): void {
         try {
           if (next.kind === "script") await renderScriptVideo(next);
           else if (next.kind === "caption") await renderCaptionFull(next);
+          else if (next.kind === "ambient") await renderAmbientLoop(next);
           else await renderOne(next);
         } catch (e) {
           updateClip(next.userEmail, next.id, {

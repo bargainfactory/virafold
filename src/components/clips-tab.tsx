@@ -25,6 +25,7 @@ import {
   Film,
   FileVideo,
   Loader2,
+  Moon,
   Play,
   Scissors,
   Sparkles,
@@ -355,6 +356,10 @@ export default function ClipsTab({
     Record<string, { id: string; scheduledAt: string; platform: string }>
   >({});
   const [preview, setPreview] = useState<{ clip: ClipRow; words: PreviewWord[] } | null>(null);
+  const [ambTheme, setAmbTheme] = useState("");
+  const [ambMinutes, setAmbMinutes] = useState(30);
+  const [ambScape, setAmbScape] = useState("ocean");
+  const [ambBusy, setAmbBusy] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/clips", { cache: "no-store" })
@@ -391,6 +396,28 @@ export default function ClipsTab({
   useEffect(() => {
     load();
   }, [load]);
+
+  const createAmbient = useCallback(async () => {
+    if (ambBusy || ambTheme.trim().length < 3) return;
+    setAmbBusy(true);
+    try {
+      const res = await fetch("/api/ambient", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: ambTheme.trim(), minutes: ambMinutes, soundscape: ambScape }),
+      });
+      const d = await res.json().catch(() => null);
+      if (res.ok) {
+        setAmbTheme("");
+        addToast(t("amb.queued"));
+        load();
+      } else {
+        addToast(d?.error ?? t("clips.renderFailed"), "error");
+      }
+    } finally {
+      setAmbBusy(false);
+    }
+  }, [ambBusy, ambTheme, ambMinutes, ambScape, addToast, t, load]);
 
   // Poll while anything is in the render queue so status flips live.
   const hasActive = clips.some((c) => c.status === "queued" || c.status === "rendering");
@@ -539,9 +566,10 @@ export default function ClipsTab({
   );
 
   const projClips = clips.filter(
-    (c) => c.kind !== "script" && (!selProject || c.projectId === selProject)
+    (c) => c.kind !== "script" && c.kind !== "ambient" && (!selProject || c.projectId === selProject)
   );
   const svClips = clips.filter((c) => c.kind === "script" || c.kind === "caption");
+  const ambClips = clips.filter((c) => c.kind === "ambient");
 
   // Caption-only render of the selected project's full source video.
   const [captioning, setCaptioning] = useState(false);
@@ -1085,6 +1113,98 @@ export default function ClipsTab({
           </div>
         </div>
       )}
+
+      {/* Ambient loops: sleep-length seamless renders — still + glacial
+          drift + synthesized soundscape. The anti-documentary style. */}
+      <div className="pt-4">
+        <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+          <Moon className="w-4 h-4 text-electric-blue" /> {t("amb.title")}
+        </h3>
+        <p className="text-xs text-cyber-muted mb-3">{t("amb.sub")}</p>
+        <div className="flex flex-wrap items-end gap-2 mb-4">
+          <input
+            type="text"
+            value={ambTheme}
+            onChange={(e) => setAmbTheme(e.target.value)}
+            placeholder={t("amb.themePh")}
+            className="flex-1 min-w-[220px] px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50"
+          />
+          <select
+            value={ambMinutes}
+            onChange={(e) => setAmbMinutes(Number(e.target.value))}
+            className="px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+          >
+            {[15, 30, 45, 60].map((m) => (
+              <option key={m} value={m}>
+                {m} min
+              </option>
+            ))}
+          </select>
+          <select
+            value={ambScape}
+            onChange={(e) => setAmbScape(e.target.value)}
+            className="px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+          >
+            <option value="ocean">{t("amb.ocean")}</option>
+            <option value="brown-noise">{t("amb.brownNoise")}</option>
+            <option value="rain">{t("amb.rain")}</option>
+            <option value="wind">{t("amb.wind")}</option>
+          </select>
+          <button
+            onClick={createAmbient}
+            disabled={ambBusy || ambTheme.trim().length < 3}
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {ambBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Moon className="w-3.5 h-3.5" />}
+            {t("amb.create")}
+          </button>
+        </div>
+
+        {ambClips.length > 0 && (
+          <div className="grid gap-4">
+            {ambClips.map((clip) => (
+              <div
+                key={clip.id}
+                className="bg-cyber-card border border-cyber-border rounded-xl p-4 space-y-3 hover:border-electric-blue/40 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">{clip.title}</p>
+                  <button
+                    onClick={() => remove(clip)}
+                    className="text-cyber-muted hover:text-danger transition-colors shrink-0"
+                    title={t("clips.delete")}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                {clip.status === "ready" ? (
+                  <div className="space-y-3">
+                    <video
+                      src={`/api/clips/${clip.id}/file`}
+                      controls
+                      preload="metadata"
+                      className="w-full max-w-[480px] rounded-lg border border-cyber-border aspect-video bg-black"
+                    />
+                    <a
+                      href={`/api/clips/${clip.id}/file?download=1`}
+                      className="inline-flex px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs text-cyber-muted hover:text-foreground transition-colors items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> {t("clips.download")}
+                    </a>
+                  </div>
+                ) : clip.status === "failed" ? (
+                  <span className="text-[11px] text-danger">{clip.error}</span>
+                ) : (
+                  <p className="text-xs text-electric-blue flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {t("amb.rendering")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {preview && (
         <ClipPreviewModal
