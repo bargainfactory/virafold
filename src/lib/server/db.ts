@@ -1633,6 +1633,18 @@ export function consumeVerifyToken(token: string): string | null {
 /** Removes every row and returns every stored file path for this account.
  *  Explicit per-table deletes — never trusting cascade pragmas with a
  *  person's right to be forgotten. */
+/** Accounts whose NAME carries a link — the signature of signup-spam bots
+ *  abusing verification emails as a relay. Optional extra substring filter. */
+export function listSpamAccounts(contains?: string): { email: string; name: string }[] {
+  const urlish =
+    "(name LIKE '%http%' OR name LIKE '%www.%' OR name LIKE '%bit.ly%' OR name LIKE '%tinyurl%' OR name LIKE '%t.me/%' OR name LIKE '%.ly/%')";
+  const where = contains ? `(${urlish} OR name LIKE ?)` : urlish;
+  const args = contains ? [`%${contains}%`] : [];
+  return getDb()
+    .prepare(`SELECT email, name FROM users WHERE ${where} ORDER BY created_at`)
+    .all(...args) as { email: string; name: string }[];
+}
+
 export function deleteAccount(email: string): { files: string[] } {
   const conn = getDb();
   const e = email.toLowerCase();

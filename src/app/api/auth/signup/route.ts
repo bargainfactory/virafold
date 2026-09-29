@@ -41,11 +41,22 @@ export async function POST(req: NextRequest) {
   }
 
   const b = body as Record<string, unknown>;
-  const name = String(b?.name ?? "").trim();
+  const name = String(b?.name ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
   const email = String(b?.email ?? "").trim().toLowerCase();
   const password = String(b?.password ?? "");
 
+  // Honeypot: a hidden field humans never see. Bots that fill it get a
+  // success-shaped response and no account — let them believe it worked.
+  if (String(b?.company ?? "").trim()) {
+    return NextResponse.json({ user: { name, email } });
+  }
+
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+  // Names carrying URLs are spam using our verification email as a relay
+  // (seen in the wild: casino links in the name field).
+  if (/https?:|www\.|bit\.ly|tinyurl|t\.me|t\.co\/|[a-z0-9-]+\.[a-z]{2,}\//i.test(name)) {
+    return NextResponse.json({ error: "Name can't contain links" }, { status: 400 });
+  }
   if (!EMAIL_RE.test(email))
     return NextResponse.json({ error: "A valid email is required" }, { status: 400 });
   if (password.length < 8)
@@ -63,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashPassword(password);
   // A Stripe checkout completed before signup reserves a plan for this email.
-  const plan = consumePendingPlan(email) ?? "Starter";
+  const plan = consumePendingPlan(email) ?? "Free";
   createUser({
     email,
     name,
@@ -88,7 +99,9 @@ export async function POST(req: NextRequest) {
     void sendEmail({
       to: email,
       subject: "Verify your Virafold email",
-      html: `<p>Hi ${name},</p><p>Welcome to Virafold! Confirm this email address to secure your account:</p><p><a href="${link}">Verify my email</a></p><p>If you didn't create this account, you can ignore this message.</p>`,
+      // Deliberately no user-supplied content in this email — the name field
+      // was being used to smuggle spam into verification mails.
+      html: `<p>Welcome to Virafold! Confirm this email address to secure your account:</p><p><a href="${link}">Verify my email</a></p><p>If you didn't create this account, you can ignore this message.</p>`,
     });
   }
 

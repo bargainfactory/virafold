@@ -312,7 +312,10 @@ export async function sendWeeklyBriefs(): Promise<void> {
         read: false,
         type: "info",
       });
-      if (emailConfigured()) {
+      // Never email unverified addresses — spam bots sign victims up, and a
+      // weekly brief to a victim is us delivering their spam cadence.
+      const { isEmailVerified } = await import("./db");
+      if (emailConfigured() && isEmailVerified(u.email)) {
         await sendEmail({
           to: u.email,
           subject: "Your Virafold weekly brief",

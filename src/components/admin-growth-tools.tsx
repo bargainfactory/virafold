@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { ClipboardList, Loader2, Megaphone } from "lucide-react";
+import { ClipboardList, Loader2, Megaphone, ShieldAlert } from "lucide-react";
 
 interface SeqEmail {
   day: number;
@@ -56,6 +56,46 @@ function CopyBtn({ text, label }: { text: string; label: string }) {
 }
 
 export default function AdminGrowthTools() {
+  // --- Spam cleanup ---
+  const [spam, setSpam] = useState<{ count: number; sample: { email: string; name: string }[] } | null>(null);
+  const [spamBusy, setSpamBusy] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<string | null>(null);
+
+  async function previewSpam() {
+    setSpamBusy(true);
+    setPurgeResult(null);
+    try {
+      const res = await fetch("/api/admin/purge-spam", { cache: "no-store" });
+      const d = await res.json().catch(() => null);
+      if (res.ok) setSpam(d);
+    } finally {
+      setSpamBusy(false);
+    }
+  }
+
+  async function purgeSpam() {
+    if (!spam || spamBusy) return;
+    setSpamBusy(true);
+    try {
+      const res = await fetch("/api/admin/purge-spam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const d = await res.json().catch(() => null);
+      if (res.ok) {
+        setPurgeResult(
+          `Deleted ${d.deleted} accounts${d.remaining > 0 ? ` — ${d.remaining} remain, run again` : "."}`
+        );
+        setSpam(null);
+      } else {
+        setPurgeResult(String(d?.error ?? "Purge failed"));
+      }
+    } finally {
+      setSpamBusy(false);
+    }
+  }
+
   // --- Digest ---
   const [digest, setDigest] = useState<{ lines: string[]; attention: boolean } | null>(null);
   const [digestBusy, setDigestBusy] = useState(false);
@@ -114,6 +154,53 @@ export default function AdminGrowthTools() {
 
   return (
     <>
+      {/* Spam cleanup */}
+      <div className="bg-cyber-card border border-warning/40 rounded-xl mt-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cyber-border">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-warning" />
+            <h2 className="font-semibold text-foreground">Signup-spam cleanup</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={previewSpam}
+              disabled={spamBusy}
+              className="px-4 py-2 rounded-lg border border-cyber-border text-xs text-cyber-muted hover:text-foreground disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {spamBusy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Preview matches
+            </button>
+            {spam && spam.count > 0 && (
+              <button
+                onClick={purgeSpam}
+                disabled={spamBusy}
+                className="px-4 py-2 rounded-lg bg-red-500/80 text-white text-xs font-medium hover:bg-red-500 disabled:opacity-50"
+              >
+                Delete {spam.count} spam accounts
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="p-6">
+          <p className="text-xs text-cyber-muted">
+            Bots register victims’ emails with a spam link in the name, riding the verification
+            email as a relay. This finds every account with a link in its name and deletes them
+            with the full account-purge cascade. Signup now rejects link-names and the emails no
+            longer echo user input — this cleans up what got through before.
+          </p>
+          {spam && (
+            <div className="mt-3 text-xs text-foreground/80">
+              <p className="font-semibold">{spam.count} matching accounts</p>
+              {spam.sample.map((s, i) => (
+                <p key={i} className="text-cyber-muted truncate">
+                  {s.email} — “{s.name}”
+                </p>
+              ))}
+            </div>
+          )}
+          {purgeResult && <p className="mt-3 text-xs text-success">{purgeResult}</p>}
+        </div>
+      </div>
+
       {/* Operator digest */}
       <div className="bg-cyber-card border border-cyber-border rounded-xl mt-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-cyber-border">

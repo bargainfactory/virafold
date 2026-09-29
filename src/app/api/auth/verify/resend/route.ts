@@ -30,7 +30,9 @@ export async function POST(req: NextRequest) {
   const r = await sendEmail({
     to: user.email,
     subject: "Verify your Virafold email",
-    html: `<p>Hi ${user.name},</p><p>Confirm this email address for your Virafold account:</p><p><a href="${link}">Verify my email</a></p><p>If you didn't create this account, you can ignore this message.</p>`,
+    // No user-supplied content here — the name field has been abused as a
+    // spam carrier in verification mails.
+    html: `<p>Confirm this email address for your Virafold account:</p><p><a href="${link}">Verify my email</a></p><p>If you didn't create this account, you can ignore this message.</p>`,
   });
   if (!r.sent) {
     return NextResponse.json({ error: "Could not send the email — try again shortly" }, { status: 502 });
