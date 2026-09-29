@@ -85,7 +85,9 @@ export default function AdminGrowthTools() {
       const d = await res.json().catch(() => null);
       if (res.ok) {
         setPurgeResult(
-          `Deleted ${d.deleted} accounts${d.remaining > 0 ? ` — ${d.remaining} remain, run again` : "."}`
+          d.deleted === 0 && d.errors?.length
+            ? `Nothing deleted — first error: ${d.errors[0]}`
+            : `Deleted ${d.deleted} accounts${d.remaining > 0 ? ` — ${d.remaining} remain, run again` : "."}`
         );
         setSpam(null);
       } else {

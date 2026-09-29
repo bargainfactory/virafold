@@ -1670,7 +1670,6 @@ export function deleteAccount(email: string): { files: string[] } {
     "assets",
     "notifications",
     "ideas",
-    "subscribers",
     "creator_pages",
     "audits",
     "platform_accounts",
@@ -1685,6 +1684,9 @@ export function deleteAccount(email: string): { files: string[] } {
   ]) {
     conn.prepare(`DELETE FROM ${table} WHERE user_email = ?`).run(e);
   }
+  // subscribers keys on owner_email (whose list) — and the person may also
+  // appear as a subscriber on other people's lists; remove both.
+  conn.prepare("DELETE FROM subscribers WHERE owner_email = ? OR email = ?").run(e, e);
   conn.prepare("DELETE FROM managed_accounts WHERE manager_email = ? OR client_email = ?").run(e, e);
   conn.prepare("DELETE FROM reset_tokens WHERE user_email = ?").run(e);
   conn.prepare("DELETE FROM site_audits WHERE user_email = ?").run(e);
