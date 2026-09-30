@@ -341,6 +341,69 @@ export async function probeDuration(absPath: string): Promise<number | null> {
   });
 }
 
+/**
+ * Bolt-style tight cut: the speech runs inside the clip window, silences
+ * longer than GAP removed, PAD kept around each run so words never clip.
+ * Returns null when there's nothing worth cutting (or no usable words) —
+ * the render then proceeds untouched.
+ */
+const TIGHT_GAP = 0.35;
+const TIGHT_PAD = 0.1;
+
+function tightSegments(
+  words: TranscriptWord[],
+  start: number,
+  end: number
+): { a: number; b: number }[] | null {
+  const inWin = words
+    .filter((w) => w.e > start && w.s < end)
+    .sort((x, y) => x.s - y.s);
+  if (inWin.length < 3) return null;
+
+  const runs: { a: number; b: number }[] = [];
+  let cur = { a: inWin[0].s, b: inWin[0].e };
+  for (let i = 1; i < inWin.length; i++) {
+    const w = inWin[i];
+    if (w.s - cur.b > TIGHT_GAP) {
+      runs.push(cur);
+      cur = { a: w.s, b: w.e };
+    } else {
+      cur.b = Math.max(cur.b, w.e);
+    }
+  }
+  runs.push(cur);
+
+  // Pad, clamp to the window, merge any overlaps padding created.
+  const padded = runs.map((r) => ({
+    a: Math.max(start, r.a - TIGHT_PAD),
+    b: Math.min(end, r.b + TIGHT_PAD),
+  }));
+  const merged: { a: number; b: number }[] = [];
+  for (const r of padded) {
+    const last = merged[merged.length - 1];
+    if (last && r.a <= last.b + 0.01) last.b = Math.max(last.b, r.b);
+    else merged.push({ ...r });
+  }
+
+  const kept = merged.reduce((s, r) => s + (r.b - r.a), 0);
+  const removed = end - start - kept;
+  // Below a quarter second the cut isn't worth a re-timed caption track.
+  if (removed < 0.25 || kept < 1) return null;
+  return merged;
+}
+
+/** Absolute time → its position on the tightened timeline (window-relative
+ *  removal compressed out). Times inside a removed gap snap to the gap edge. */
+function compressTime(t: number, segs: { a: number; b: number }[]): number {
+  let out = 0;
+  for (const s of segs) {
+    if (t <= s.a) return out;
+    out += Math.min(t, s.b) - s.a;
+    if (t <= s.b) return out;
+  }
+  return out;
+}
+
 async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
   const media = getProjectMedia(clip.userEmail, clip.projectId);
   if (!media?.storagePath) throw new Error("source video is no longer stored for this project");
@@ -358,15 +421,32 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
   const outAbs = path.join(RENDERS_DIR, `${clip.id}.mp4`);
 
   try {
+    // Tight cut (default on): drop dead air >0.35s inside the clip window —
+    // the retention tactic from the Mathis Bolt playbook. Captions are
+    // re-timed onto the compressed timeline so they stay in sync.
+    const segs = clip.tight !== 0 ? tightSegments(words, clip.startSec, clip.endSec) : null;
+    let effWords = words;
+    let effDur = Math.max(1, clip.endSec - clip.startSec);
+    if (segs) {
+      effDur = Math.max(1, segs.reduce((s, r) => s + (r.b - r.a), 0));
+      effWords = words
+        .filter((w) => w.e > clip.startSec && w.s < clip.endSec)
+        .map((w) => ({
+          ...w,
+          s: clip.startSec + compressTime(w.s, segs),
+          e: clip.startSec + Math.max(compressTime(w.e, segs), compressTime(w.s, segs) + 0.05),
+        }));
+    }
+
     let ass = buildAss(
-      words,
+      effWords,
       clip.startSec,
-      clip.endSec,
+      clip.startSec + effDur,
       clip.style as CaptionStyle,
       clip.position as CaptionPosition
     );
     if (needsWatermark(clip.userEmail)) {
-      ass = withWatermark(ass, { w: 1080, h: 1920 }, Math.max(1, clip.endSec - clip.startSec));
+      ass = withWatermark(ass, { w: 1080, h: 1920 }, effDur);
     }
     fs.writeFileSync(path.join(jobDir, "subs.ass"), ass, "utf8");
 
@@ -375,31 +455,25 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
     // true face tracking).
     const cropX =
       clip.focus === "left" ? "0" : clip.focus === "right" ? "iw-ow" : "(iw-ow)/2";
-    const vf = `crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':${cropX}:'(ih-oh)/2',scale=1080:1920,ass=subs.ass`;
-    const args = [
-      "-y",
-      "-ss",
-      String(clip.startSec),
-      "-i",
-      srcAbs,
-      "-t",
-      String(Math.max(1, clip.endSec - clip.startSec)),
-      "-vf",
-      vf,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "128k",
-      "-movflags",
-      "+faststart",
-      outAbs,
-    ];
+    let vf = `crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':${cropX}:'(ih-oh)/2',scale=1080:1920`;
+    const args = ["-y", "-ss", String(clip.startSec), "-i", srcAbs, "-t",
+      String(Math.max(1, clip.endSec - clip.startSec))];
+    if (segs) {
+      // -ss before -i resets timestamps, so select() sees window-relative t.
+      const expr = segs
+        .map((r) => `between(t,${(r.a - clip.startSec).toFixed(3)},${(r.b - clip.startSec).toFixed(3)})`)
+        .join("+");
+      vf += `,select='${expr}',setpts=N/FRAME_RATE/TB`;
+      args.push("-af", `aselect='${expr}',asetpts=N/SR/TB`);
+    }
+    vf += ",ass=subs.ass";
+    args.push(
+      "-vf", vf,
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+      "-c:a", "aac", "-b:a", "128k",
+      "-movflags", "+faststart",
+      outAbs
+    );
     const res = await run("ffmpeg", args, jobDir);
     if (res.code !== 0) {
       const missing = res.err.includes("ENOENT");
@@ -622,17 +696,48 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
 
 /** Soundscape beds synthesized from ffmpeg's noise source — the same audio
  *  family real sleep channels use. Deterministic, license-free, key-free. */
-export const AMBIENT_SOUNDSCAPES = ["ocean", "brown-noise", "rain", "wind"] as const;
+export const AMBIENT_SOUNDSCAPES = [
+  "ocean",
+  "brown-noise",
+  "rain",
+  "wind",
+  "thunder",
+  "waterfall",
+  "binaural",
+  "purr",
+] as const;
 
 function soundscapeGraph(kind: string, durationSec: number): string {
   const base: Record<string, string> = {
     // NB tremolo's minimum frequency is 0.1 Hz — slower "wave" cycles are
     // rejected with a range error (verified on the prod ffmpeg).
+    // Water texture: droplet "plinks" come from VELVET noise (sparse random
+    // impulses; density is per-sample, so ~0.0001 ≈ a few events/sec) rung
+    // through a resonant bandpass and splashed with aecho. Verified sparse on
+    // prod (≈29 dB mean-to-peak gap). Ocean adds a foam-hiss layer swelling
+    // with the waves.
     ocean:
-      "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=600,tremolo=f=0.1:d=0.8,volume=0.55",
+      "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=600,tremolo=f=0.1:d=0.8,volume=0.55[o];anoisesrc=colour=white:sample_rate=44100,highpass=f=2500,tremolo=f=0.1:d=0.7,volume=0.05[f];[o][f]amix=inputs=2:duration=longest,volume=1.3",
     "brown-noise": "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=500,volume=0.5",
-    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=300,lowpass=f=7000,volume=0.26",
+    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=300,lowpass=f=7000,volume=0.24[r];anoisesrc=colour=velvet:sample_rate=44100:seed=11:density=0.00012,bandpass=f=2400:width_type=q:w=7,aecho=0.6:0.4:45|85:0.3|0.18,volume=5[d];[r][d]amix=inputs=2:duration=longest,volume=1.4",
     wind: "anoisesrc=colour=pink:sample_rate=44100,lowpass=f=900,tremolo=f=0.1:d=0.55,volume=0.4",
+    // The four below are original synthesis INSPIRED BY the categories
+    // myNoise.net users love most (their audio is proprietary — these share
+    // a recipe idea, not a sample). Thunder = steady rain over irregular far
+    // rumbles (two incommensurate tremolos beat against each other so the
+    // envelope never audibly repeats, and no sharp claps — the design note
+    // behind every good sleep-thunder scape).
+    thunder:
+      "anoisesrc=colour=pink:sample_rate=44100,highpass=f=300,lowpass=f=7000,volume=0.22[rn];anoisesrc=colour=brown:sample_rate=44100:seed=7,lowpass=f=110,tremolo=f=0.1:d=0.9,tremolo=f=0.13:d=0.75,volume=0.5[th];[rn][th]amix=inputs=2:duration=longest,volume=1.4",
+    waterfall:
+      "anoisesrc=colour=white:sample_rate=44100,highpass=f=120,lowpass=f=7500,volume=0.17[w];anoisesrc=colour=brown:sample_rate=44100,lowpass=f=400,volume=0.3[b];anoisesrc=colour=velvet:sample_rate=44100:seed=42:density=0.00008,bandpass=f=1600:width_type=q:w=8,aecho=0.7:0.5:70|130:0.4|0.25,volume=8[d];[w][b][d]amix=inputs=3:duration=longest,volume=1.6",
+    // 200 Hz carrier, 206 Hz in the other ear → 6 Hz theta beat, over a
+    // faint brown bed so headphones-off playback isn't a bare test tone.
+    binaural:
+      "sine=frequency=200:sample_rate=44100[L];sine=frequency=206:sample_rate=44100[R];[L][R]join=inputs=2:channel_layout=stereo,volume=0.22[t];anoisesrc=colour=brown:sample_rate=44100,lowpass=f=350,volume=0.12,aformat=channel_layouts=stereo[n];[t][n]amix=inputs=2:duration=longest",
+    // ~2.3 Hz amplitude bursts on band-limited low noise ≈ a resting purr,
+    // with a slow second modulation as the breathing cycle.
+    purr: "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=160,highpass=f=25,tremolo=f=2.3:d=0.85,tremolo=f=0.12:d=0.5,volume=0.6",
   };
   const g = base[kind] ?? base.ocean;
   // Gentle entry and exit — nothing in a sleep video should startle.

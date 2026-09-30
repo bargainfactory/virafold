@@ -420,7 +420,9 @@ export async function deliverVideo(
   platform: string,
   filePath: string,
   title: string,
-  description: string
+  description: string,
+  /** false for long-form (ambient loops) — no #Shorts tag. */
+  isShort = true
 ): Promise<DeliveryResult | null> {
   const key = platform.toLowerCase();
   if (key !== "youtube" && key !== "tiktok") return null;
@@ -438,9 +440,11 @@ export async function deliverVideo(
 
   try {
     if (key === "youtube") {
-      const ytTitle = /#shorts/i.test(title)
+      const ytTitle = !isShort
         ? title.slice(0, 100)
-        : `${title.slice(0, 90)} #Shorts`;
+        : /#shorts/i.test(title)
+          ? title.slice(0, 100)
+          : `${title.slice(0, 90)} #Shorts`;
       const init = await fetch(
         "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
         {

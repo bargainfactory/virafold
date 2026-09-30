@@ -79,7 +79,8 @@ export async function publishDuePosts(): Promise<number> {
           post.platform,
           path.join(process.cwd(), clip.outputPath),
           clip.title,
-          clip.reason
+          clip.reason,
+          clip.kind !== "ambient" // hour-long loops are long-form, not Shorts
         );
         if (result) {
           deliveryNote = result.ok

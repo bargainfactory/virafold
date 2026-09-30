@@ -69,6 +69,7 @@ interface ClipRow {
   title: string;
   startSec: number;
   endSec: number;
+  tight?: number;
   score: number;
   reason: string;
   matched: string | null;
@@ -356,6 +357,7 @@ export default function ClipsTab({
     Record<string, { id: string; scheduledAt: string; platform: string }>
   >({});
   const [preview, setPreview] = useState<{ clip: ClipRow; words: PreviewWord[] } | null>(null);
+  const [tightSel, setTightSel] = useState<Record<string, boolean>>({});
   const [ambTheme, setAmbTheme] = useState("");
   const [ambMinutes, setAmbMinutes] = useState(30);
   const [ambScape, setAmbScape] = useState("ocean");
@@ -453,10 +455,11 @@ export default function ClipsTab({
       const style = styleSel[clip.id] ?? "bold";
       const position = posSel[clip.id] ?? clip.position ?? "bottom";
       const focus = focusSel[clip.id] ?? clip.focus ?? "center";
+      const tight = tightSel[clip.id] ?? clip.tight !== 0;
       const res = await fetch(`/api/clips/${clip.id}/render`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style, position, focus }),
+        body: JSON.stringify({ style, position, focus, tight }),
       });
       if (res.ok) {
         addToast(t("clips.queued"));
@@ -466,7 +469,7 @@ export default function ClipsTab({
         addToast(data?.error || t("clips.renderFailed"), "error");
       }
     },
-    [styleSel, posSel, focusSel, addToast, t, load]
+    [styleSel, posSel, focusSel, tightSel, addToast, t, load]
   );
 
   /** True when the picker/platform differ from the saved scheduled post —
@@ -493,7 +496,9 @@ export default function ClipsTab({
         (existing ? toLocalInput(new Date(existing.scheduledAt)) : defaultAt);
       if (!at) return;
       const platform =
-        schedPlatform[clip.id] ?? existing?.platform ?? lastPlatform("YouTube");
+        clip.kind === "ambient"
+          ? "YouTube" // long-form: Shorts/TikTok duration caps rule them out
+          : schedPlatform[clip.id] ?? existing?.platform ?? lastPlatform("YouTube");
 
       // An already-scheduled clip edits its post in place — no duplicates.
       if (existing) {
@@ -837,6 +842,20 @@ export default function ClipsTab({
                       </option>
                     ))}
                   </select>
+                  <label
+                    className="flex items-center gap-1.5 px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground cursor-pointer select-none"
+                    title={t("clips.tightHint")}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tightSel[clip.id] ?? clip.tight !== 0}
+                      onChange={(e) =>
+                        setTightSel((prev) => ({ ...prev, [clip.id]: e.target.checked }))
+                      }
+                      className="accent-purple-500"
+                    />
+                    {t("clips.tight")}
+                  </label>
                   <button
                     onClick={() => openPreview(clip)}
                     className="px-4 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs font-medium text-foreground hover:border-electric-blue/60 transition-colors flex items-center gap-1.5"
@@ -1146,9 +1165,13 @@ export default function ClipsTab({
             className="px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
           >
             <option value="ocean">{t("amb.ocean")}</option>
-            <option value="brown-noise">{t("amb.brownNoise")}</option>
+            <option value="thunder">{t("amb.thunder")}</option>
             <option value="rain">{t("amb.rain")}</option>
+            <option value="waterfall">{t("amb.waterfall")}</option>
+            <option value="brown-noise">{t("amb.brownNoise")}</option>
             <option value="wind">{t("amb.wind")}</option>
+            <option value="binaural">{t("amb.binaural")}</option>
+            <option value="purr">{t("amb.purr")}</option>
           </select>
           <button
             onClick={createAmbient}
@@ -1185,12 +1208,54 @@ export default function ClipsTab({
                       preload="metadata"
                       className="w-full max-w-[480px] rounded-lg border border-cyber-border aspect-video bg-black"
                     />
-                    <a
-                      href={`/api/clips/${clip.id}/file?download=1`}
-                      className="inline-flex px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs text-cyber-muted hover:text-foreground transition-colors items-center gap-1.5"
-                    >
-                      <Download className="w-3.5 h-3.5" /> {t("clips.download")}
-                    </a>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <a
+                        href={`/api/clips/${clip.id}/file?download=1`}
+                        className="inline-flex px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs text-cyber-muted hover:text-foreground transition-colors items-center gap-1.5"
+                      >
+                        <Download className="w-3.5 h-3.5" /> {t("clips.download")}
+                      </a>
+                      {/* Long-form goes to YouTube only (Shorts/TikTok caps
+                          are minutes, not hours) — uploaded without #Shorts. */}
+                      <span className="px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-cyber-muted">
+                        YouTube
+                      </span>
+                      <SchedTimeField
+                        value={
+                          schedAt[clip.id] ??
+                          (schedPosts[clip.id]
+                            ? toLocalInput(new Date(schedPosts[clip.id].scheduledAt))
+                            : defaultAt)
+                        }
+                        onChange={(v) => setSchedAt((prev) => ({ ...prev, [clip.id]: v }))}
+                      />
+                      {!schedPosts[clip.id] ? (
+                        <button
+                          onClick={() => schedule(clip)}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                        >
+                          <Calendar className="w-3.5 h-3.5" /> {t("clips.schedule")}
+                        </button>
+                      ) : hasPendingChange(clip.id) ? (
+                        <button
+                          onClick={() => schedule(clip)}
+                          className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium ring-2 ring-neon-purple/60 animate-pulse hover:animate-none hover:opacity-90 flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" /> {t("clips.apply")}
+                        </button>
+                      ) : null}
+                    </div>
+                    {schedPosts[clip.id] && (
+                      <p className="text-[11px] text-success">
+                        {t("clips.scheduledFor", {
+                          when: new Date(schedPosts[clip.id].scheduledAt).toLocaleString(
+                            undefined,
+                            { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
+                          ),
+                          p: schedPosts[clip.id].platform,
+                        })}
+                      </p>
+                    )}
                   </div>
                 ) : clip.status === "failed" ? (
                   <span className="text-[11px] text-danger">{clip.error}</span>

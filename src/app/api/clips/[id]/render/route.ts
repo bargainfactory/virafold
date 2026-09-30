@@ -41,8 +41,15 @@ export async function POST(
   let style: CaptionStyle = "bold";
   let position: CaptionPosition = "bottom";
   let focus: CropFocus = "center";
+  let tight = 1;
   try {
-    const body = (await req.json()) as { style?: string; position?: string; focus?: string };
+    const body = (await req.json()) as {
+      style?: string;
+      position?: string;
+      focus?: string;
+      tight?: boolean;
+    };
+    if (body?.tight === false) tight = 0;
     if (body?.style && (CAPTION_STYLES as readonly string[]).includes(body.style)) {
       style = body.style as CaptionStyle;
     }
@@ -56,7 +63,7 @@ export async function POST(
     /* defaults */
   }
 
-  updateClip(user.email, id, { status: "queued", style, position, focus, error: null });
+  updateClip(user.email, id, { status: "queued", style, position, focus, tight, error: null });
   kickRenderWorker();
   return NextResponse.json({ clip: getClip(user.email, id) });
 }

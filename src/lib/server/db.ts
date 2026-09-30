@@ -341,6 +341,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE users ADD COLUMN audit_credits INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN bonus_projects INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN report_brand TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE clips ADD COLUMN tight INTEGER NOT NULL DEFAULT 1",
   ]) {
     try {
       conn.exec(stmt);
@@ -2137,6 +2138,8 @@ export interface Clip {
   style: string;
   /** Caption placement: top | middle | bottom. */
   position: string;
+  /** Bolt-style tight cut: 1 = silences >0.35s removed at render (default). */
+  tight: number;
   /** Horizontal crop focus for the 9:16 cut: left | center | right. */
   focus: string;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
@@ -2159,6 +2162,7 @@ function mapClip(row: Record<string, unknown>): Clip {
     matched: (row.matched as string | null) ?? null,
     status: row.status as Clip["status"],
     style: row.style as string,
+    tight: (row.tight as number) ?? 1,
     position: (row.position as string) ?? "bottom",
     focus: (row.focus as string) ?? "center",
     kind: (row.kind as string) ?? "clip",
@@ -2194,6 +2198,7 @@ export function insertCaptionJob(
     style: v.style,
     position: v.position,
     focus: "center",
+    tight: 1,
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2229,6 +2234,7 @@ export function insertAmbientVideo(
     style: "clean",
     position: "middle",
     focus: "center",
+    tight: 1,
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2261,6 +2267,7 @@ export function insertScriptVideo(
     style: v.style,
     position: v.position,
     focus: "center",
+    tight: 1,
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2271,7 +2278,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2297,6 +2304,7 @@ export function insertClip(
     ...c,
     position: "bottom",
     focus: "center",
+    tight: 1,
     kind: "clip",
     script: null,
     outputPath: null,
@@ -2340,6 +2348,7 @@ export function updateClip(
     style?: string;
     position?: string;
     focus?: string;
+    tight?: number;
     outputPath?: string | null;
     error?: string | null;
   }
@@ -2348,13 +2357,14 @@ export function updateClip(
   if (!cur) return;
   getDb()
     .prepare(
-      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, output_path = ?, error = ? WHERE id = ? AND user_email = ?"
+      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, output_path = ?, error = ? WHERE id = ? AND user_email = ?"
     )
     .run(
       patch.status ?? cur.status,
       patch.style ?? cur.style,
       patch.position ?? cur.position,
       patch.focus ?? cur.focus,
+      patch.tight ?? cur.tight,
       patch.outputPath !== undefined ? patch.outputPath : cur.outputPath,
       patch.error !== undefined ? patch.error : cur.error,
       id,
