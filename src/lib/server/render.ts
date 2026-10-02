@@ -347,8 +347,10 @@ export async function probeDuration(absPath: string): Promise<number | null> {
  * Returns null when there's nothing worth cutting (or no usable words) —
  * the render then proceeds untouched.
  */
-const TIGHT_GAP = 0.35;
-const TIGHT_PAD = 0.1;
+// 0.5s keeps natural breath pauses and only removes true dead air — tighter
+// values made normal speech feel like it was skipping.
+const TIGHT_GAP = 0.5;
+const TIGHT_PAD = 0.12;
 
 function tightSegments(
   words: TranscriptWord[],
@@ -460,10 +462,13 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
       String(Math.max(1, clip.endSec - clip.startSec))];
     if (segs) {
       // -ss before -i resets timestamps, so select() sees window-relative t.
+      // fps=30 FIRST: phone sources are variable-frame-rate, and re-timing
+      // with N/FRAME_RATE on VFR makes playback stutter/skip — force CFR,
+      // then re-time against the known rate.
       const expr = segs
         .map((r) => `between(t,${(r.a - clip.startSec).toFixed(3)},${(r.b - clip.startSec).toFixed(3)})`)
         .join("+");
-      vf += `,select='${expr}',setpts=N/FRAME_RATE/TB`;
+      vf += `,fps=30,select='${expr}',setpts=N/(30*TB)`;
       args.push("-af", `aselect='${expr}',asetpts=N/SR/TB`);
     }
     vf += ",ass=subs.ass";
