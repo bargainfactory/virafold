@@ -134,14 +134,15 @@ export const INTEGRATIONS: IntegrationDef[] = [
   },
   {
     name: "stockmedia",
-    label: "Stock b-roll (Pixabay / Pexels)",
+    label: "Stock media (b-roll + nature sound)",
     description:
-      "Lets script-videos cut to real licensed stock footage where the narration calls for it. Either key works; without one, those scenes render as AI imagery instead.",
+      "Real licensed stock: Pixabay/Pexels footage for script-video b-roll, and Freesound CC0 field recordings as the beds for ambient videos. Any key is optional — missing ones fall back to AI imagery / synthesized sound.",
     docsHint:
-      "Free key at pixabay.com/api/docs (instant, shown on the docs page once signed in). Pexels works too, but their new-key issuance is paused as of Oct 2026.",
+      "Pixabay: free key at pixabay.com/api/docs. Freesound: free key at freesound.org/apiv2/apply. Pexels new-key issuance is paused as of Oct 2026.",
     fields: [
       { key: "pixabayApiKey", label: "Pixabay API key", envVar: "PIXABAY_API_KEY", secret: true },
       { key: "pexelsApiKey", label: "Pexels API key", envVar: "PEXELS_API_KEY", secret: true },
+      { key: "freesoundApiKey", label: "Freesound API key", envVar: "FREESOUND_API_KEY", secret: true },
     ],
   },
   {

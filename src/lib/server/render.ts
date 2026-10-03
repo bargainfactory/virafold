@@ -747,8 +747,17 @@ export const AMBIENT_SOUNDSCAPES = [
   "purr",
 ] as const;
 
-function soundscapeGraph(kind: string, durationSec: number): string {
-  const base: Record<string, string> = {
+/** Freesound search phrases for the scapes that exist as real recordings.
+ *  Synthetic-by-nature scapes (noise colors, binaural, purr) are absent. */
+const AMBIENT_REAL_QUERIES: Record<string, string> = {
+  ocean: "ocean waves shore loop",
+  rain: "steady rain ambience loop",
+  thunder: "rain distant thunder ambience",
+  waterfall: "waterfall ambience",
+  wind: "wind trees ambience",
+};
+
+const SOUNDSCAPE_BASE: Record<string, string> = {
     // NB tremolo's minimum frequency is 0.1 Hz — slower "wave" cycles are
     // rejected with a range error (verified on the prod ffmpeg).
     // Water texture: droplet "plinks" come from VELVET noise (sparse random
@@ -779,7 +788,8 @@ function soundscapeGraph(kind: string, durationSec: number): string {
     // with a slow second modulation as the breathing cycle.
     purr: "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=160,highpass=f=25,tremolo=f=2.3:d=0.85,tremolo=f=0.12:d=0.5,volume=0.6",
   };
-  const g = base[kind] ?? base.ocean;
+function soundscapeGraph(kind: string, durationSec: number): string {
+  const g = SOUNDSCAPE_BASE[kind] ?? SOUNDSCAPE_BASE.ocean;
   // Gentle entry and exit — nothing in a sleep video should startle.
   return `${g},afade=t=in:st=0:d=4,afade=t=out:st=${Math.max(0, durationSec - 6).toFixed(1)}:d=6`;
 }
@@ -864,19 +874,51 @@ async function renderAmbientLoop(clip: Clip & { userEmail: string }): Promise<vo
     );
     if (r.code !== 0) throw new Error(`ambient concat failed: ${r.err.slice(-200)}`);
 
-    // One continuous audio bed for the whole runtime (no loop seams).
-    r = await run(
-      "ffmpeg",
-      [
-        "-y", "-i", "long.mp4",
-        "-f", "lavfi", "-t", String(totalSec), "-i", soundscapeGraph(soundscape, totalSec),
-        "-map", "0:v", "-map", "1:a",
-        "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-        "-shortest", "-movflags", "+faststart",
-        outAbs,
-      ],
-      jobDir
-    );
+    // Audio bed. Preferred: a REAL CC0 field recording (Freesound), looped
+    // for the runtime and layered over a quiet synth bed — the synth layer
+    // masks the loop seams and fills the spectrum. Fallback: synth only,
+    // continuous for the whole runtime.
+    let bed: string | null = null;
+    const realQuery = AMBIENT_REAL_QUERIES[soundscape];
+    if (realQuery) {
+      const { fetchFieldRecording } = await import("./scenes");
+      bed = await fetchFieldRecording(jobDir, "bed.mp3", realQuery);
+    }
+    if (bed) {
+      const fades = `afade=t=in:st=0:d=4,afade=t=out:st=${Math.max(0, totalSec - 6).toFixed(1)}:d=6`;
+      r = await run(
+        "ffmpeg",
+        [
+          "-y", "-i", "long.mp4",
+          "-stream_loop", "-1", "-t", String(totalSec), "-i", bed,
+          "-f", "lavfi", "-t", String(totalSec), "-i",
+          SOUNDSCAPE_BASE[soundscape] ?? SOUNDSCAPE_BASE.ocean,
+          "-filter_complex",
+          `[1:a]volume=0.85[real];[2:a]volume=0.3[synth];[real][synth]amix=inputs=2:duration=first,${fades}[a]`,
+          "-map", "0:v", "-map", "[a]",
+          "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+          "-shortest", "-movflags", "+faststart",
+          outAbs,
+        ],
+        jobDir
+      );
+      // A bad recording must never fail the render — retry synth-only.
+      if (r.code !== 0) bed = null;
+    }
+    if (!bed) {
+      r = await run(
+        "ffmpeg",
+        [
+          "-y", "-i", "long.mp4",
+          "-f", "lavfi", "-t", String(totalSec), "-i", soundscapeGraph(soundscape, totalSec),
+          "-map", "0:v", "-map", "1:a",
+          "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+          "-shortest", "-movflags", "+faststart",
+          outAbs,
+        ],
+        jobDir
+      );
+    }
     if (r.code !== 0) throw new Error(`ambient mux failed: ${r.err.slice(-200)}`);
     if (!fs.existsSync(outAbs) || fs.statSync(outAbs).size === 0) {
       throw new Error("render produced no output");

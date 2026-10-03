@@ -420,6 +420,42 @@ async function pixabayBroll(key: string, query: string, dest: string): Promise<b
   return false;
 }
 
+/**
+ * Fetch a real field recording from Freesound, CC0-ONLY (public domain — no
+ * attribution needed, commercial use fine; CC-BY/NC results are excluded at
+ * the query). HQ preview MP3s download with just the token and are plenty
+ * for a low-passed ambient bed. Null on any miss — ambient audio then stays
+ * fully synthesized.
+ */
+export async function fetchFieldRecording(
+  jobDir: string,
+  name: string,
+  query: string
+): Promise<string | null> {
+  const { resolveField } = await import("./integrations");
+  const key = resolveField("stockmedia", "freesoundApiKey");
+  if (!key) return null;
+  try {
+    const filter = encodeURIComponent('license:"Creative Commons 0" duration:[40 TO 600]');
+    const res = await fetch(
+      `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(query)}&filter=${filter}&fields=name,username,duration,previews&sort=rating_desc&page_size=5&token=${encodeURIComponent(key)}`,
+      { signal: AbortSignal.timeout(12000) }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      results?: { duration: number; previews?: Record<string, string> }[];
+    };
+    for (const r of data.results ?? []) {
+      const url = r.previews?.["preview-hq-mp3"] ?? r.previews?.["preview-lq-mp3"];
+      if (!url) continue;
+      if (await downloadClip(url, path.join(jobDir, name))) return name;
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
 export type BrollProvider = "Pexels" | "Pixabay";
 
 /**
