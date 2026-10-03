@@ -346,25 +346,28 @@ function runFfmpeg(args: string[], cwd: string): Promise<{ code: number; err: st
 
 const BROLL_MAX_BYTES = 45 * 1024 * 1024;
 
-/**
- * Fetch a portrait stock clip matching the query into jobDir. Null on any
- * miss (no key, no results, oversize, network) — the beat then falls back to
- * AI imagery, so b-roll is strictly additive.
- */
-export async function fetchBrollVideo(
-  jobDir: string,
-  name: string,
-  query: string
-): Promise<string | null> {
-  const { resolveField } = await import("./integrations");
-  const key = resolveField("stockmedia", "pexelsApiKey");
-  if (!key) return null;
+async function downloadClip(url: string, dest: string): Promise<boolean> {
+  try {
+    const dl = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    if (!dl.ok) return false;
+    const len = Number(dl.headers.get("content-length") ?? 0);
+    if (len > BROLL_MAX_BYTES) return false;
+    const bytes = Buffer.from(await dl.arrayBuffer());
+    if (!bytes.length || bytes.length > BROLL_MAX_BYTES) return false;
+    fs.writeFileSync(dest, bytes);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function pexelsBroll(key: string, query: string, dest: string): Promise<boolean> {
   try {
     const res = await fetch(
       `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=portrait&per_page=3`,
       { headers: { Authorization: key }, signal: AbortSignal.timeout(12000) }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return false;
     const data = (await res.json()) as {
       videos?: { video_files?: { link: string; width: number; height: number; file_type: string }[] }[];
     };
@@ -373,19 +376,60 @@ export async function fetchBrollVideo(
       const file = (v.video_files ?? [])
         .filter((f) => f.file_type === "video/mp4" && f.height >= 1280 && f.height <= 2200)
         .sort((a, b) => a.height - b.height)[0];
-      if (!file) continue;
-      const dl = await fetch(file.link, { signal: AbortSignal.timeout(30000) });
-      if (!dl.ok) continue;
-      const len = Number(dl.headers.get("content-length") ?? 0);
-      if (len > BROLL_MAX_BYTES) continue;
-      const bytes = Buffer.from(await dl.arrayBuffer());
-      if (!bytes.length || bytes.length > BROLL_MAX_BYTES) continue;
-      fs.writeFileSync(path.join(jobDir, name), bytes);
-      return name;
+      if (file && (await downloadClip(file.link, dest))) return true;
     }
   } catch {
     /* fall through */
   }
+  return false;
+}
+
+async function pixabayBroll(key: string, query: string, dest: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://pixabay.com/api/videos/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&per_page=5&safesearch=true`,
+      { signal: AbortSignal.timeout(12000) }
+    );
+    if (!res.ok) return false;
+    const data = (await res.json()) as {
+      hits?: { videos?: Record<string, { url: string; width: number; height: number }> }[];
+    };
+    // Pixabay's video search has no orientation filter — prefer genuinely
+    // portrait hits, else take landscape ≥1080p (the renderer center-crops
+    // to 9:16 either way).
+    const candidates = (data.hits ?? [])
+      .map((h) => {
+        const r = h.videos?.large ?? h.videos?.medium;
+        return r?.url ? r : null;
+      })
+      .filter((r): r is { url: string; width: number; height: number } => !!r && r.height >= 1080)
+      .sort((a, b) => Number(b.height > b.width) - Number(a.height > a.width));
+    for (const r of candidates) {
+      if (await downloadClip(r.url, dest)) return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  return false;
+}
+
+/**
+ * Fetch a stock clip matching the query into jobDir — Pexels first when
+ * keyed (portrait-native), else Pixabay (free keys still issued). Null on
+ * any miss — the beat then falls back to AI imagery, so b-roll is strictly
+ * additive.
+ */
+export async function fetchBrollVideo(
+  jobDir: string,
+  name: string,
+  query: string
+): Promise<string | null> {
+  const { resolveField } = await import("./integrations");
+  const dest = path.join(jobDir, name);
+  const pexels = resolveField("stockmedia", "pexelsApiKey");
+  if (pexels && (await pexelsBroll(pexels, query, dest))) return name;
+  const pixabay = resolveField("stockmedia", "pixabayApiKey");
+  if (pixabay && (await pixabayBroll(pixabay, query, dest))) return name;
   return null;
 }
 
