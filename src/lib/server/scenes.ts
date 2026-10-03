@@ -392,17 +392,24 @@ async function pixabayBroll(key: string, query: string, dest: string): Promise<b
     );
     if (!res.ok) return false;
     const data = (await res.json()) as {
-      hits?: { videos?: Record<string, { url: string; width: number; height: number }> }[];
+      hits?: {
+        videos?: Record<string, { url: string; width: number; height: number; size?: number }>;
+      }[];
     };
-    // Pixabay's video search has no orientation filter — prefer genuinely
-    // portrait hits, else take landscape ≥1080p (the renderer center-crops
-    // to 9:16 either way).
+    // medium is 1080p and "available for all Pixabay videos" (large is often
+    // 4K and blows the size cap). No orientation filter exists on the video
+    // search — prefer genuinely portrait hits; landscape center-crops to
+    // 9:16 in the renderer. The per-API-docs `size` field screens downloads.
     const candidates = (data.hits ?? [])
       .map((h) => {
-        const r = h.videos?.large ?? h.videos?.medium;
+        const m = h.videos?.medium;
+        const r = m?.url && m.height >= 1080 ? m : h.videos?.large;
         return r?.url ? r : null;
       })
-      .filter((r): r is { url: string; width: number; height: number } => !!r && r.height >= 1080)
+      .filter(
+        (r): r is { url: string; width: number; height: number; size?: number } =>
+          !!r && r.height >= 1080 && (r.size ?? 0) <= BROLL_MAX_BYTES
+      )
       .sort((a, b) => Number(b.height > b.width) - Number(a.height > a.width));
     for (const r of candidates) {
       if (await downloadClip(r.url, dest)) return true;
@@ -413,23 +420,28 @@ async function pixabayBroll(key: string, query: string, dest: string): Promise<b
   return false;
 }
 
+export type BrollProvider = "Pexels" | "Pixabay";
+
 /**
  * Fetch a stock clip matching the query into jobDir — Pexels first when
- * keyed (portrait-native), else Pixabay (free keys still issued). Null on
- * any miss — the beat then falls back to AI imagery, so b-roll is strictly
- * additive.
+ * keyed (portrait-native), else Pixabay (free keys still issued; their API
+ * terms ask that the source be shown, so the provider is returned and lands
+ * in the video description as a credit). Null on any miss — the beat then
+ * falls back to AI imagery, so b-roll is strictly additive.
  */
 export async function fetchBrollVideo(
   jobDir: string,
   name: string,
   query: string
-): Promise<string | null> {
+): Promise<{ file: string; provider: BrollProvider } | null> {
   const { resolveField } = await import("./integrations");
   const dest = path.join(jobDir, name);
   const pexels = resolveField("stockmedia", "pexelsApiKey");
-  if (pexels && (await pexelsBroll(pexels, query, dest))) return name;
+  if (pexels && (await pexelsBroll(pexels, query, dest))) return { file: name, provider: "Pexels" };
   const pixabay = resolveField("stockmedia", "pixabayApiKey");
-  if (pixabay && (await pixabayBroll(pixabay, query, dest))) return name;
+  if (pixabay && (await pixabayBroll(pixabay, query, dest))) {
+    return { file: name, provider: "Pixabay" };
+  }
   return null;
 }
 

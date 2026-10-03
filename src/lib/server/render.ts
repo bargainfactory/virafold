@@ -557,6 +557,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     const beats = splitBeats(clip.script, duration);
     const images: string[] = [];
     const kinds: string[] = [];
+    // Stock providers used — credited in the publish description per their
+    // API terms (Pixabay asks that the source be shown).
+    const brollProviders = new Set<string>();
     if (beats.length >= 3) {
       try {
         const { planScenes, renderSceneStill, imagePromptFor, fetchBrollVideo } = await import(
@@ -566,13 +569,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         const scenes = await planScenes(beats, clip.title);
         for (let i = 0; i < scenes.length; i++) {
           const scene = scenes[i];
-          // Real stock footage where the narration calls for it (needs the
-          // Pexels key); misses fall through to AI imagery below.
+          // Real stock footage where the narration calls for it (needs a
+          // stock key); misses fall through to AI imagery below.
           if (scene.kind === "broll" && scene.brollQuery) {
             const vid = await fetchBrollVideo(jobDir, `beat${i}.mp4`, scene.brollQuery);
             if (vid) {
-              images.push(vid);
+              images.push(vid.file);
               kinds.push("broll");
+              brollProviders.add(vid.provider);
               continue;
             }
           }
@@ -707,6 +711,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       status: "ready",
       outputPath: path.relative(process.cwd(), outAbs),
       error: null,
+      // Source credit rides the reason field into the publish description —
+      // Pixabay's API terms ask that the footage source be shown.
+      ...(brollProviders.size
+        ? {
+            reason:
+              `${clip.reason ?? ""}`.trim() +
+              `${clip.reason?.trim() ? "\n\n" : ""}Stock footage: ${[...brollProviders].join(", ")}.`,
+          }
+        : {}),
     });
     insertNotification(clip.userEmail, {
       id: `n-${crypto.randomUUID()}`,
