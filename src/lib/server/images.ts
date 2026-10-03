@@ -93,9 +93,14 @@ function sanitizeTitle(title: string): string {
 export async function generateThumbnail(
   id: string,
   topic: string,
-  title: string
+  title: string,
+  /** "b" renders a deliberately different art direction for A/B tests. */
+  variant: "a" | "b" = "a"
 ): Promise<{ path: string; error?: never } | { path?: never; error: string }> {
-  const prompt = `Bold, high-contrast video thumbnail background about: ${topic}. Dramatic cinematic lighting, vibrant purple and electric blue accents on near-black, abstract shapes suggesting the topic, absolutely no text or letters or words, no watermark.`;
+  const prompt =
+    variant === "b"
+      ? `Photorealistic close-up video thumbnail about: ${topic}. One clear human-scale subject filling the frame, warm golden rim light against deep shadow, strong emotional expression or tension, shallow depth of field, absolutely no text or letters or words, no watermark.`
+      : `Bold, high-contrast video thumbnail background about: ${topic}. Dramatic cinematic lighting, vibrant purple and electric blue accents on near-black, abstract shapes suggesting the topic, absolutely no text or letters or words, no watermark.`;
   const bg = await generateBackground(prompt);
   if (!bg) {
     return { error: "no image provider — connect an xAI or OpenAI key in the Operator Console" };

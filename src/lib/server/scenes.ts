@@ -28,10 +28,12 @@ export interface SceneBar {
 }
 
 export interface Scene {
-  kind: "image" | "stat" | "chart" | "list" | "quote";
+  kind: "image" | "stat" | "chart" | "list" | "quote" | "broll";
   text: string;
   dur: number;
   imageSubject?: string;
+  /** Stock-footage search phrase (concrete, filmable) for b-roll scenes. */
+  brollQuery?: string;
   stat?: { value: string; label: string };
   chart?: { title: string; bars: SceneBar[] };
   list?: { title: string; items: string[] };
@@ -70,8 +72,9 @@ const PLAN_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          kind: { type: "string", enum: ["image", "stat", "chart", "list", "quote"] },
+          kind: { type: "string", enum: ["image", "stat", "chart", "list", "quote", "broll"] },
           imageSubject: { type: "string" },
+          brollQuery: { type: "string" },
           statValue: { type: "string" },
           statLabel: { type: "string" },
           chartTitle: { type: "string" },
@@ -137,6 +140,7 @@ export async function planScenes(
       "- chart: the beat compares 2-4 numbers → chartTitle + chartBars [{label (max 3 words), value (number)}]. ONLY numbers spoken in the beat.",
       "- list: the beat enumerates 2-4 concrete steps/items → listTitle + listItems (max 5 words each).",
       "- quote: the beat is one punchy declarative line worth reading on screen → quote (the line, max 12 words, verbatim or lightly trimmed).",
+      "- broll: the beat describes a real-world activity, place, or object that stock footage definitely has (someone typing, rain on a window, a busy street, pouring coffee) → brollQuery: a 2-5 word stock-footage search phrase, concrete and literal.",
       "- image: everything else → imageSubject: a concrete, filmable subject (max 12 words), literal not abstract — a person doing something, an object, a place. Never 'abstract concept of growth'.",
       "HARD RULE: every number you output must appear verbatim in that beat's narration. Never invent or round numbers.",
       "Return scenes in the same order and count as the beats. Vary the kinds — a run of three identical kinds is a failure unless the narration demands it.",
@@ -154,6 +158,7 @@ export async function planScenes(
       scenes: {
         kind: string;
         imageSubject?: string;
+        brollQuery?: string;
         statValue?: string;
         statLabel?: string;
         chartTitle?: string;
@@ -195,6 +200,16 @@ export async function planScenes(
         case "quote":
           if (s.quote && s.quote.length <= 90) {
             return { kind: "quote", ...base, quote: s.quote };
+          }
+          break;
+        case "broll":
+          if (s.brollQuery && s.brollQuery.trim().length >= 3) {
+            return {
+              kind: "broll",
+              ...base,
+              brollQuery: s.brollQuery.trim().slice(0, 60),
+              imageSubject: s.brollQuery.trim().slice(0, 120), // fallback art
+            };
           }
           break;
       }
@@ -325,6 +340,53 @@ function runFfmpeg(args: string[], cwd: string): Promise<{ code: number; err: st
     child.on("error", () => resolve({ code: -1, err: "ENOENT" }));
     child.on("close", (code) => resolve({ code: code ?? -1, err }));
   });
+}
+
+// --- Stock b-roll (Pexels; free API, license permits commercial reuse) ---
+
+const BROLL_MAX_BYTES = 45 * 1024 * 1024;
+
+/**
+ * Fetch a portrait stock clip matching the query into jobDir. Null on any
+ * miss (no key, no results, oversize, network) — the beat then falls back to
+ * AI imagery, so b-roll is strictly additive.
+ */
+export async function fetchBrollVideo(
+  jobDir: string,
+  name: string,
+  query: string
+): Promise<string | null> {
+  const { resolveField } = await import("./integrations");
+  const key = resolveField("stockmedia", "pexelsApiKey");
+  if (!key) return null;
+  try {
+    const res = await fetch(
+      `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=portrait&per_page=3`,
+      { headers: { Authorization: key }, signal: AbortSignal.timeout(12000) }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      videos?: { video_files?: { link: string; width: number; height: number; file_type: string }[] }[];
+    };
+    for (const v of data.videos ?? []) {
+      // Smallest portrait file that still covers 1080x1920.
+      const file = (v.video_files ?? [])
+        .filter((f) => f.file_type === "video/mp4" && f.height >= 1280 && f.height <= 2200)
+        .sort((a, b) => a.height - b.height)[0];
+      if (!file) continue;
+      const dl = await fetch(file.link, { signal: AbortSignal.timeout(30000) });
+      if (!dl.ok) continue;
+      const len = Number(dl.headers.get("content-length") ?? 0);
+      if (len > BROLL_MAX_BYTES) continue;
+      const bytes = Buffer.from(await dl.arrayBuffer());
+      if (!bytes.length || bytes.length > BROLL_MAX_BYTES) continue;
+      fs.writeFileSync(path.join(jobDir, name), bytes);
+      return name;
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
 }
 
 /** Draw a data/text scene to a PNG in jobDir. Null → caller falls back to imagery. */

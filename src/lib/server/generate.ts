@@ -341,7 +341,7 @@ export function generateForFormat(
 }
 
 const LLM_SYSTEM = `You are Virafold's content-repurposing engine. Given a title and a transcript/script of long-form content, produce a set of ready-to-post short-form assets derived from the ACTUAL content (never generic filler).
-Produce 8-10 assets spanning: several short-form video clips (each with a hook line, body, on-screen caption idea, and 2-3 hashtags), one LinkedIn carousel (numbered slides), one email newsletter edition, and one X/Twitter thread. Use the "type" field to label each (e.g. "YouTube Short", "TikTok Clip", "Instagram Reel", "LinkedIn Carousel", "Newsletter", "X Thread"). "content" is the full ready-to-post text. "name" is a short human label.`;
+Produce 9-11 assets spanning: several short-form video clips (each with a hook line, body, on-screen caption idea, and 2-3 hashtags), one LinkedIn carousel (numbered slides), one email newsletter edition, one X/Twitter thread, and exactly one "YouTube SEO" asset. The YouTube SEO asset's content must be: an SEO-optimized YouTube description (2-3 short paragraphs naturally using the search phrases people would type to find this topic, ending with the call to action), then a blank line, then "Tags: " followed by 15-20 comma-separated search tags drawn from the ACTUAL content (topic terms, question phrasings, related tool/person names actually mentioned — never invented). Use the "type" field to label each (e.g. "YouTube Short", "TikTok Clip", "Instagram Reel", "LinkedIn Carousel", "Newsletter", "X Thread", "YouTube SEO"). "content" is the full ready-to-post text. "name" is a short human label.`;
 
 const LLM_SCHEMA = {
   type: "object",

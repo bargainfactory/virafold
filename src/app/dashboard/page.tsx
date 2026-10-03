@@ -2072,6 +2072,23 @@ function ScheduleTab({ onNavigate }: { onNavigate: () => void }) {
                     {savingMetrics ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
                     {t("sched.saveResults")}
                   </button>
+                  {/* Thumbnail A/B — published YouTube videos only. Two AI
+                      thumbnails, B swapped in at 72h, winner set at 144h. */}
+                  {selected.platform === "YouTube" && (
+                    <button
+                      onClick={async () => {
+                        const res = await fetch(`/api/schedule/${selected.id}/thumb-ab`, {
+                          method: "POST",
+                        });
+                        const d = await res.json().catch(() => null);
+                        if (res.ok) addToast(t("sched.abThumbStarted"), "success");
+                        else addToast(d?.error ?? t("sched.toastFailed"), "error");
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-cyber-dark border border-electric-blue/40 text-electric-blue text-sm font-medium hover:bg-electric-blue/10 transition-colors"
+                    >
+                      {t("sched.abThumb")}
+                    </button>
+                  )}
                 </div>
               )}
 

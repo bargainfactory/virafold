@@ -824,6 +824,8 @@ export const en: Record<string, string> = {
   "clips.schedule": "Schedule",
   "clips.scheduled": "Clip scheduled for {p}",
   "clips.updateTime": "Update time",
+  "sched.abThumb": "A/B test the thumbnail",
+  "sched.abThumbStarted": "Thumbnail test started — variant B swaps in at 72h, the winner is set automatically at 144h.",
   "clips.tight": "Tight cut",
   "clips.tightHint": "Removes silences longer than a third of a second — the final clip runs tighter than the preview. Captions stay in sync.",
   "amb.title": "Ambient sleep videos",

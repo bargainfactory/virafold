@@ -289,6 +289,20 @@ export function getDb(): DatabaseSync {
       secret_enc TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS thumb_tests (
+      post_id        TEXT PRIMARY KEY,
+      user_email     TEXT NOT NULL,
+      video_id       TEXT NOT NULL,
+      image_a        TEXT NOT NULL,
+      image_b        TEXT NOT NULL,
+      phase          TEXT NOT NULL DEFAULT 'a',
+      started_at     TEXT NOT NULL,
+      swap_at        TEXT NOT NULL,
+      decide_at      TEXT NOT NULL,
+      views_at_start INTEGER NOT NULL DEFAULT 0,
+      views_at_swap  INTEGER,
+      winner         TEXT
+    );
     CREATE TABLE IF NOT EXISTS content_translations (
       id         TEXT NOT NULL,
       locale     TEXT NOT NULL,
@@ -1694,6 +1708,7 @@ export function deleteAccount(email: string): { files: string[] } {
   conn.prepare("DELETE FROM site_monitor_checks WHERE monitor_id IN (SELECT id FROM site_monitors WHERE user_email = ?)").run(e);
   conn.prepare("DELETE FROM site_monitors WHERE user_email = ?").run(e);
   conn.prepare("DELETE FROM wp_connections WHERE user_email = ?").run(e);
+  conn.prepare("DELETE FROM thumb_tests WHERE user_email = ?").run(e);
   conn.prepare("DELETE FROM users WHERE email = ?").run(e);
   return { files };
 }
@@ -3162,6 +3177,120 @@ export function consumeBonusProject(email: string): boolean {
     .prepare("UPDATE users SET bonus_projects = bonus_projects - 1 WHERE email = ? AND bonus_projects > 0")
     .run(email.toLowerCase());
   return Number(res.changes) > 0;
+}
+
+// --- Thumbnail A/B tests (YouTube custom-thumbnail swap experiments) ---
+
+export interface ThumbTest {
+  postId: string;
+  userEmail: string;
+  videoId: string;
+  imageA: string;
+  imageB: string;
+  phase: "a" | "b" | "done";
+  startedAt: string;
+  swapAt: string;
+  decideAt: string;
+  viewsAtStart: number;
+  viewsAtSwap: number | null;
+  winner: string | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToThumbTest(r: any): ThumbTest {
+  return {
+    postId: r.post_id,
+    userEmail: r.user_email,
+    videoId: r.video_id,
+    imageA: r.image_a,
+    imageB: r.image_b,
+    phase: r.phase,
+    startedAt: r.started_at,
+    swapAt: r.swap_at,
+    decideAt: r.decide_at,
+    viewsAtStart: r.views_at_start ?? 0,
+    viewsAtSwap: r.views_at_swap ?? null,
+    winner: r.winner ?? null,
+  };
+}
+
+export function insertThumbTest(t: {
+  postId: string;
+  userEmail: string;
+  videoId: string;
+  imageA: string;
+  imageB: string;
+  swapAt: string;
+  decideAt: string;
+  viewsAtStart: number;
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO thumb_tests (post_id, user_email, video_id, image_a, image_b, phase, started_at, swap_at, decide_at, views_at_start)
+       VALUES (?, ?, ?, ?, ?, 'a', ?, ?, ?, ?)`
+    )
+    .run(
+      t.postId,
+      t.userEmail.toLowerCase(),
+      t.videoId,
+      t.imageA,
+      t.imageB,
+      new Date().toISOString(),
+      t.swapAt,
+      t.decideAt,
+      t.viewsAtStart
+    );
+}
+
+export function getThumbTest(email: string, postId: string): ThumbTest | null {
+  const r = getDb()
+    .prepare("SELECT * FROM thumb_tests WHERE post_id = ? AND user_email = ?")
+    .get(postId, email.toLowerCase());
+  return r ? rowToThumbTest(r) : null;
+}
+
+/** Tests whose next action (swap or decide) is due. */
+export function listDueThumbTests(nowIso: string): ThumbTest[] {
+  return (
+    getDb()
+      .prepare(
+        `SELECT * FROM thumb_tests
+         WHERE (phase = 'a' AND swap_at <= ?) OR (phase = 'b' AND decide_at <= ?)
+         LIMIT 10`
+      )
+      .all(nowIso, nowIso) as unknown[]
+  ).map(rowToThumbTest);
+}
+
+export function updateThumbTest(
+  postId: string,
+  patch: { phase?: string; viewsAtSwap?: number; winner?: string }
+): void {
+  const sets: string[] = [];
+  const args: unknown[] = [];
+  if (patch.phase !== undefined) {
+    sets.push("phase = ?");
+    args.push(patch.phase);
+  }
+  if (patch.viewsAtSwap !== undefined) {
+    sets.push("views_at_swap = ?");
+    args.push(patch.viewsAtSwap);
+  }
+  if (patch.winner !== undefined) {
+    sets.push("winner = ?");
+    args.push(patch.winner);
+  }
+  if (!sets.length) return;
+  getDb()
+    .prepare(`UPDATE thumb_tests SET ${sets.join(", ")} WHERE post_id = ?`)
+    .run(...args, postId);
+}
+
+export function getPostViews(email: string, postId: string): number {
+  const r = getDb()
+    .prepare("SELECT views FROM post_metrics WHERE post_id = ?")
+    .get(postId) as { views: number } | undefined;
+  return r?.views ?? 0;
 }
 
 // --- White-label reports (agencies resell audits under their own name) ---

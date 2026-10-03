@@ -415,6 +415,44 @@ export async function deliverPost(
  * for audited apps; the creator flips it public in the TikTok app.
  * Returns null when the platform has no usable connection.
  */
+/**
+ * Set a published YouTube video's custom thumbnail (thumbnails.set — covered
+ * by the youtube.upload scope we already request). Note: YouTube requires a
+ * phone-verified channel for custom thumbnails; an unverified channel gets a
+ * 403 here, which we surface honestly.
+ */
+export async function setYouTubeThumbnail(
+  email: string,
+  videoId: string,
+  png: Buffer
+): Promise<{ ok: boolean; detail: string }> {
+  const { getPlatformAccount } = await import("./db");
+  const acct = getPlatformAccount(email, "youtube");
+  if (!acct) return { ok: false, detail: "YouTube is not connected for this account" };
+  const token = await freshToken(email, acct);
+  if (!token) return { ok: false, detail: "YouTube token expired — reconnect the account" };
+  try {
+    const res = await fetch(
+      `https://uploads.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(videoId)}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "image/png" },
+        body: new Uint8Array(png),
+      }
+    );
+    if (res.status === 403) {
+      return {
+        ok: false,
+        detail: "YouTube rejected the thumbnail (403) — custom thumbnails need a phone-verified channel",
+      };
+    }
+    if (!res.ok) return { ok: false, detail: `thumbnails.set ${res.status}` };
+    return { ok: true, detail: "thumbnail set" };
+  } catch {
+    return { ok: false, detail: "could not reach YouTube" };
+  }
+}
+
 export async function deliverVideo(
   email: string,
   platform: string,

@@ -559,15 +559,27 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     const kinds: string[] = [];
     if (beats.length >= 3) {
       try {
-        const { planScenes, renderSceneStill, imagePromptFor } = await import("./scenes");
+        const { planScenes, renderSceneStill, imagePromptFor, fetchBrollVideo } = await import(
+          "./scenes"
+        );
         const { generateBackground } = await import("./images");
         const scenes = await planScenes(beats, clip.title);
         for (let i = 0; i < scenes.length; i++) {
           const scene = scenes[i];
+          // Real stock footage where the narration calls for it (needs the
+          // Pexels key); misses fall through to AI imagery below.
+          if (scene.kind === "broll" && scene.brollQuery) {
+            const vid = await fetchBrollVideo(jobDir, `beat${i}.mp4`, scene.brollQuery);
+            if (vid) {
+              images.push(vid);
+              kinds.push("broll");
+              continue;
+            }
+          }
           const name = `beat${i}.png`;
           // Data/text scenes render locally (drawtext); anything that can't
           // becomes imagery, so one bad slide never kills the whole style.
-          if (scene.kind !== "image") {
+          if (scene.kind !== "image" && scene.kind !== "broll") {
             const drawn = await renderSceneStill(jobDir, name, scene);
             if (drawn) {
               images.push(drawn);
@@ -596,11 +608,21 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // Slideshow: imagery gets alternating push-in/pull-back moves plus film
       // grain and a vignette; drawn cards stay static and crisp (zooming text
       // shimmers). A short fade-in on every segment masks the cuts.
-      const inputs = images.flatMap((name) => ["-i", name]);
+      const inputs = images.flatMap((name, i) =>
+        kinds[i] === "broll"
+          ? // Loop short stock clips to fill the beat; -t bounds the read.
+            ["-stream_loop", "-1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-i", name]
+          : ["-i", name]
+      );
       const segs = images
         .map((_, i) => {
           const frames = Math.max(30, Math.round(beats[i].dur * 30));
           const base = `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`;
+          if (kinds[i] === "broll") {
+            // Real footage: normalize fps, exact-trim to the beat, no
+            // synthetic grain (it already has texture).
+            return `${base},fps=30,trim=duration=${Math.max(1, beats[i].dur).toFixed(2)},setpts=PTS-STARTPTS,fade=t=in:st=0:d=0.35,setsar=1[v${i}]`;
+          }
           if (kinds[i] === "image") {
             const zoom =
               i % 2 === 0

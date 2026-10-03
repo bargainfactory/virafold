@@ -384,6 +384,51 @@ export function startScheduler(): void {
           .then(({ runOpsDigest }) => runOpsDigest())
           .catch(() => {});
       }
+      // Thumbnail A/B tests: swap B in at 72h, decide by views/hour at 144h.
+      (async () => {
+        const { listDueThumbTests, updateThumbTest, getPostViews, insertNotification: notif } =
+          await import("./db");
+        const { setYouTubeThumbnail } = await import("./connect");
+        const fsx = await import("node:fs");
+        const pathx = await import("node:path");
+        for (const t of listDueThumbTests(new Date().toISOString())) {
+          try {
+            const views = getPostViews(t.userEmail, t.postId);
+            if (t.phase === "a") {
+              const r = await setYouTubeThumbnail(
+                t.userEmail,
+                t.videoId,
+                fsx.readFileSync(pathx.join(process.cwd(), t.imageB))
+              );
+              if (r.ok) updateThumbTest(t.postId, { phase: "b", viewsAtSwap: views });
+            } else if (t.phase === "b") {
+              const hoursA = (new Date(t.swapAt).getTime() - new Date(t.startedAt).getTime()) / 3600_000;
+              const hoursB = (Date.now() - new Date(t.swapAt).getTime()) / 3600_000;
+              const rateA = ((t.viewsAtSwap ?? 0) - t.viewsAtStart) / Math.max(1, hoursA);
+              const rateB = (views - (t.viewsAtSwap ?? 0)) / Math.max(1, hoursB);
+              // Decay favors A, so B must only match A to count as the winner.
+              const winner = rateB >= rateA ? "b" : "a";
+              const img = winner === "b" ? t.imageB : t.imageA;
+              await setYouTubeThumbnail(
+                t.userEmail,
+                t.videoId,
+                fsx.readFileSync(pathx.join(process.cwd(), img))
+              );
+              updateThumbTest(t.postId, { phase: "done", winner });
+              notif(t.userEmail, {
+                id: `n-${crypto.randomUUID()}`,
+                title: "Thumbnail A/B decided",
+                message: `Thumbnail ${winner.toUpperCase()} won (${rateA.toFixed(1)} vs ${rateB.toFixed(1)} views/hour) and is now set on the video. Note: natural view decay favors the first thumbnail, so a B win is strong evidence; an A win is weaker.`,
+                time: "Just now",
+                read: false,
+                type: "info",
+              });
+            }
+          } catch {
+            /* one bad test must not block the rest */
+          }
+        }
+      })().catch(() => {});
       // Site monitors: weekly re-scores, a few per hour (polite crawling).
       import("./site-monitor")
         .then(({ runSiteMonitors }) => runSiteMonitors())

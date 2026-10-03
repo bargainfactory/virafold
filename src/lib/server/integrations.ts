@@ -133,6 +133,16 @@ export const INTEGRATIONS: IntegrationDef[] = [
     ],
   },
   {
+    name: "stockmedia",
+    label: "Stock b-roll (Pexels)",
+    description:
+      "Lets script-videos cut to real licensed stock footage where the narration calls for it. Without a key, those scenes render as AI imagery instead.",
+    docsHint: "Free API key at pexels.com/api — instant, no card.",
+    fields: [
+      { key: "pexelsApiKey", label: "Pexels API key", envVar: "PEXELS_API_KEY", secret: true, required: true },
+    ],
+  },
+  {
     name: "publishing",
     label: "Publish & schedule (X / LinkedIn / TikTok / YouTube)",
     description:
