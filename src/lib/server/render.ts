@@ -406,6 +406,82 @@ function compressTime(t: number, segs: { a: number; b: number }[]): number {
   return out;
 }
 
+/**
+ * The clip render recipe — extracted pure so the regression route exercises
+ * the EXACT production filter construction (the VFR-stutter bug lived here;
+ * a replica test would have passed while the real path failed).
+ */
+export function buildClipRenderPlan(opts: {
+  srcAbs: string;
+  outAbs: string;
+  startSec: number;
+  endSec: number;
+  words: TranscriptWord[];
+  style: CaptionStyle;
+  position: CaptionPosition;
+  focus: string;
+  tight: boolean;
+  watermark: boolean;
+}): { args: string[]; ass: string; effDur: number; cut: boolean } {
+  // Tight cut (default on): drop dead air >0.5s inside the clip window —
+  // the retention tactic from the Mathis Bolt playbook. Captions are
+  // re-timed onto the compressed timeline so they stay in sync.
+  const segs = opts.tight ? tightSegments(opts.words, opts.startSec, opts.endSec) : null;
+  let effWords = opts.words;
+  let effDur = Math.max(1, opts.endSec - opts.startSec);
+  if (segs) {
+    effDur = Math.max(1, segs.reduce((s, r) => s + (r.b - r.a), 0));
+    effWords = opts.words
+      .filter((w) => w.e > opts.startSec && w.s < opts.endSec)
+      .map((w) => ({
+        ...w,
+        s: opts.startSec + compressTime(w.s, segs),
+        e: opts.startSec + Math.max(compressTime(w.e, segs), compressTime(w.s, segs) + 0.05),
+      }));
+  }
+
+  let ass = buildAss(effWords, opts.startSec, opts.startSec + effDur, opts.style, opts.position);
+  if (opts.watermark) {
+    ass = withWatermark(ass, { w: 1080, h: 1920 }, effDur);
+  }
+
+  // Crop focus: where the subject sits in the source frame — left, center,
+  // or right slice of the 9:16 cut (the pragmatic talking-head fix until
+  // true face tracking).
+  const cropX = opts.focus === "left" ? "0" : opts.focus === "right" ? "iw-ow" : "(iw-ow)/2";
+  let vf = `crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':${cropX}:'(ih-oh)/2',scale=1080:1920`;
+  const args = ["-y", "-ss", String(opts.startSec), "-i", opts.srcAbs, "-t",
+    String(Math.max(1, opts.endSec - opts.startSec))];
+  if (segs) {
+    // -ss before -i resets timestamps, so select() sees window-relative t.
+    // fps=30 FIRST: phone sources are variable-frame-rate, and re-timing
+    // with N/FRAME_RATE on VFR makes playback stutter/skip — force CFR,
+    // then re-time against the known rate.
+    const expr = segs
+      .map((r) => `between(t,${(r.a - opts.startSec).toFixed(3)},${(r.b - opts.startSec).toFixed(3)})`)
+      .join("+");
+    vf += `,fps=30,select='${expr}',setpts=N/(30*TB)`;
+    args.push("-af", `aselect='${expr}',asetpts=N/SR/TB`);
+  }
+  vf += ",ass=subs.ass";
+  args.push(
+    "-vf", vf,
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+    "-c:a", "aac", "-b:a", "128k",
+    "-movflags", "+faststart",
+    opts.outAbs
+  );
+  return { args, ass, effDur, cut: !!segs };
+}
+
+/** The regression route needs the same nice-wrapped ffmpeg runner. */
+export async function runFfmpeg(
+  args: string[],
+  cwd: string
+): Promise<{ code: number; err: string }> {
+  return run("ffmpeg", args, cwd);
+}
+
 async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
   const media = getProjectMedia(clip.userEmail, clip.projectId);
   if (!media?.storagePath) throw new Error("source video is no longer stored for this project");
@@ -423,63 +499,20 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
   const outAbs = path.join(RENDERS_DIR, `${clip.id}.mp4`);
 
   try {
-    // Tight cut (default on): drop dead air >0.35s inside the clip window —
-    // the retention tactic from the Mathis Bolt playbook. Captions are
-    // re-timed onto the compressed timeline so they stay in sync.
-    const segs = clip.tight !== 0 ? tightSegments(words, clip.startSec, clip.endSec) : null;
-    let effWords = words;
-    let effDur = Math.max(1, clip.endSec - clip.startSec);
-    if (segs) {
-      effDur = Math.max(1, segs.reduce((s, r) => s + (r.b - r.a), 0));
-      effWords = words
-        .filter((w) => w.e > clip.startSec && w.s < clip.endSec)
-        .map((w) => ({
-          ...w,
-          s: clip.startSec + compressTime(w.s, segs),
-          e: clip.startSec + Math.max(compressTime(w.e, segs), compressTime(w.s, segs) + 0.05),
-        }));
-    }
-
-    let ass = buildAss(
-      effWords,
-      clip.startSec,
-      clip.startSec + effDur,
-      clip.style as CaptionStyle,
-      clip.position as CaptionPosition
-    );
-    if (needsWatermark(clip.userEmail)) {
-      ass = withWatermark(ass, { w: 1080, h: 1920 }, effDur);
-    }
-    fs.writeFileSync(path.join(jobDir, "subs.ass"), ass, "utf8");
-
-    // Crop focus: where the subject sits in the source frame — left, center,
-    // or right slice of the 9:16 cut (the pragmatic talking-head fix until
-    // true face tracking).
-    const cropX =
-      clip.focus === "left" ? "0" : clip.focus === "right" ? "iw-ow" : "(iw-ow)/2";
-    let vf = `crop='min(iw,ih*9/16)':'min(ih,iw*16/9)':${cropX}:'(ih-oh)/2',scale=1080:1920`;
-    const args = ["-y", "-ss", String(clip.startSec), "-i", srcAbs, "-t",
-      String(Math.max(1, clip.endSec - clip.startSec))];
-    if (segs) {
-      // -ss before -i resets timestamps, so select() sees window-relative t.
-      // fps=30 FIRST: phone sources are variable-frame-rate, and re-timing
-      // with N/FRAME_RATE on VFR makes playback stutter/skip — force CFR,
-      // then re-time against the known rate.
-      const expr = segs
-        .map((r) => `between(t,${(r.a - clip.startSec).toFixed(3)},${(r.b - clip.startSec).toFixed(3)})`)
-        .join("+");
-      vf += `,fps=30,select='${expr}',setpts=N/(30*TB)`;
-      args.push("-af", `aselect='${expr}',asetpts=N/SR/TB`);
-    }
-    vf += ",ass=subs.ass";
-    args.push(
-      "-vf", vf,
-      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-      "-c:a", "aac", "-b:a", "128k",
-      "-movflags", "+faststart",
-      outAbs
-    );
-    const res = await run("ffmpeg", args, jobDir);
+    const plan = buildClipRenderPlan({
+      srcAbs,
+      outAbs,
+      startSec: clip.startSec,
+      endSec: clip.endSec,
+      words,
+      style: clip.style as CaptionStyle,
+      position: clip.position as CaptionPosition,
+      focus: clip.focus,
+      tight: clip.tight !== 0,
+      watermark: needsWatermark(clip.userEmail),
+    });
+    fs.writeFileSync(path.join(jobDir, "subs.ass"), plan.ass, "utf8");
+    const res = await run("ffmpeg", plan.args, jobDir);
     if (res.code !== 0) {
       const missing = res.err.includes("ENOENT");
       throw new Error(
@@ -620,36 +653,52 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       );
       const segs = images
         .map((_, i) => {
-          const frames = Math.max(30, Math.round(beats[i].dur * 30));
+          const dur = Math.max(1, beats[i].dur);
+          const frames = Math.max(30, Math.round(dur * 30));
+          // Fade in AND out per beat — the brief dip reads as an edit, not a
+          // glitch, and sells the documentary rhythm.
+          const fades = `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
           const base = `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`;
           if (kinds[i] === "broll") {
             // Real footage: normalize fps, exact-trim to the beat, no
             // synthetic grain (it already has texture).
-            return `${base},fps=30,trim=duration=${Math.max(1, beats[i].dur).toFixed(2)},setpts=PTS-STARTPTS,fade=t=in:st=0:d=0.35,setsar=1[v${i}]`;
+            return `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,${fades},setsar=1[v${i}]`;
           }
           if (kinds[i] === "image") {
             const zoom =
               i % 2 === 0
                 ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30`
                 : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
-            return `${base},${zoom},vignette=PI/5,noise=alls=5:allf=t,fade=t=in:st=0:d=0.35,setsar=1[v${i}]`;
+            return `${base},${zoom},vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1[v${i}]`;
           }
-          return `${base},zoompan=z=1:d=${frames}:s=1080x1920:fps=30,fade=t=in:st=0:d=0.35,setsar=1[v${i}]`;
+          return `${base},zoompan=z=1:d=${frames}:s=1080x1920:fps=30,${fades},setsar=1[v${i}]`;
         })
         .join(";");
       const concatIn = images.map((_, i) => `[v${i}]`).join("");
-      const fc = `${segs};${concatIn}concat=n=${images.length}:v=1:a=0[vc];[vc]ass=subs.ass[v]`;
+      const voiceIdx = images.length;
+      const bedIdx = images.length + 1;
+      // A barely-there room-tone bed under the narration — the silence
+      // between sentences stops sounding like dropped audio.
+      const fc =
+        `${segs};${concatIn}concat=n=${images.length}:v=1:a=0[vc];[vc]ass=subs.ass[v];` +
+        `[${bedIdx}:a]volume=0.05[bed];[${voiceIdx}:a][bed]amix=inputs=2:duration=first[aout]`;
       args = [
         "-y",
         ...inputs,
         "-i",
         "voice.mp3",
+        "-f",
+        "lavfi",
+        "-t",
+        String(duration),
+        "-i",
+        "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=300",
         "-filter_complex",
         fc,
         "-map",
         "[v]",
         "-map",
-        `${images.length}:a`,
+        "[aout]",
         "-shortest",
         "-c:v",
         "libx264",

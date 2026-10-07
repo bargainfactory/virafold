@@ -166,12 +166,45 @@ function chunkWords(words: PreviewWord[], clip: ClipRow, style: string): Caption
 /** Instant clip preview, rendered entirely in the browser: the real source
  *  video center-cropped to 9:16 with live caption overlay — no server render
  *  spent until the creator likes what they see. */
+/** Client replica of the server's tight-cut segmenting (render.ts) so the
+ *  preview plays the same cuts the final render will make. Constants must
+ *  match the server's TIGHT_GAP / TIGHT_PAD. */
+function previewTightSegments(
+  words: PreviewWord[],
+  start: number,
+  end: number
+): { a: number; b: number }[] | null {
+  const GAP = 0.5;
+  const PAD = 0.12;
+  const inWin = words.filter((w) => w.e > start && w.s < end).sort((x, y) => x.s - y.s);
+  if (inWin.length < 3) return null;
+  const runs: { a: number; b: number }[] = [];
+  let cur = { a: inWin[0].s, b: inWin[0].e };
+  for (let i = 1; i < inWin.length; i++) {
+    const w = inWin[i];
+    if (w.s - cur.b > GAP) {
+      runs.push(cur);
+      cur = { a: w.s, b: w.e };
+    } else cur.b = Math.max(cur.b, w.e);
+  }
+  runs.push(cur);
+  const merged: { a: number; b: number }[] = [];
+  for (const r of runs.map((x) => ({ a: Math.max(start, x.a - PAD), b: Math.min(end, x.b + PAD) }))) {
+    const last = merged[merged.length - 1];
+    if (last && r.a <= last.b + 0.01) last.b = Math.max(last.b, r.b);
+    else merged.push({ ...r });
+  }
+  const removed = end - start - merged.reduce((s, r) => s + (r.b - r.a), 0);
+  return removed < 0.25 ? null : merged;
+}
+
 function ClipPreviewModal({
   clip,
   words,
   style,
   position,
   focus,
+  tight,
   onStyleChange,
   onPositionChange,
   onFocusChange,
@@ -179,6 +212,7 @@ function ClipPreviewModal({
   onClose,
 }: {
   clip: ClipRow;
+  tight: boolean;
   words: PreviewWord[];
   style: string;
   position: string;
@@ -206,10 +240,22 @@ function ClipPreviewModal({
     };
     if (v.readyState >= 1) seekAndPlay();
     v.addEventListener("loadedmetadata", seekAndPlay);
+    // Preview parity: when tight cut is on, skip playback over the same
+    // gaps the render will remove — captions stay keyed to source time, so
+    // they remain in sync through the jumps.
+    const segs = tight ? previewTightSegments(words, clip.startSec, clip.endSec) : null;
     let raf = 0;
     const tick = () => {
       // Loop the clip window and keep the caption in sync with playback.
       if (v.currentTime >= clip.endSec) v.currentTime = clip.startSec;
+      if (segs) {
+        const now0 = v.currentTime;
+        const inSeg = segs.some((s) => now0 >= s.a && now0 <= s.b);
+        if (!inSeg) {
+          const next = segs.find((s) => s.a > now0);
+          v.currentTime = next ? next.a : segs[0].a;
+        }
+      }
       const now = v.currentTime;
       setCaption(chunks.find((c) => now >= c.s && now <= c.e)?.text ?? "");
       raf = requestAnimationFrame(tick);
@@ -220,7 +266,7 @@ function ClipPreviewModal({
       cancelAnimationFrame(raf);
       v.pause();
     };
-  }, [clip, chunks]);
+  }, [clip, chunks, tight, words]);
 
   return (
     <div
@@ -1278,6 +1324,7 @@ export default function ClipsTab({
           style={styleSel[preview.clip.id] ?? preview.clip.style ?? "bold"}
           position={posSel[preview.clip.id] ?? preview.clip.position ?? "bottom"}
           focus={focusSel[preview.clip.id] ?? preview.clip.focus ?? "center"}
+          tight={tightSel[preview.clip.id] ?? preview.clip.tight !== 0}
           onStyleChange={(s) =>
             setStyleSel((prev) => ({ ...prev, [preview.clip.id]: s }))
           }

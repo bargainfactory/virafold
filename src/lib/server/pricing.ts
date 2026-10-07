@@ -53,7 +53,7 @@ export interface PricingConfig {
  * the stored DB copy when the stored version differs, so pricing edits ship
  * with the deploy instead of being shadowed by the first-ever seeded config.
  */
-export const PRICING_VERSION = 4;
+export const PRICING_VERSION = 5;
 
 /** Checkout priceId → the plan name stored on users. */
 export const PRICE_ID_TO_PLAN: Record<string, string> = {
@@ -203,8 +203,9 @@ export const DEFAULT_PRICING: PricingConfig = {
     { id: "episodeKit", name: "Podcast Episode Kit", price: 29, items: "+1 project: episode → clips, notes, newsletter" },
   ],
   comparison: [
+    // Honest rows only — each maps to a real enforced difference.
     { freeKey: "pricing.watermarked", paidKey: "pricing.cleanBranded", labelKey: "pricing.yourClips" },
-    { freeKey: "pricing.days7", paidKey: "pricing.sameDay", labelKey: "pricing.turnaround" },
-    { freeKey: "pricing.clips3", paidKey: "pricing.clips160", labelKey: "pricing.monthlyOutput" },
+    { freeKey: "pricing.cmpFreeProjects", paidKey: "pricing.cmpPaidProjects", labelKey: "pricing.cmpProjects" },
+    { freeKey: "pricing.cmpFreeVoice", paidKey: "pricing.cmpPaidVoice", labelKey: "pricing.cmpVoice" },
   ],
 };

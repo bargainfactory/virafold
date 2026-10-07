@@ -13,6 +13,7 @@ export default function SignupPage() {
   const { signup } = useApp();
   const { t } = useTranslation();
   const [name, setName] = useState("");
+  const [company, setCompany] = useState(""); // honeypot — humans never see it
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +35,7 @@ export default function SignupPage() {
     if (password.length < 8) return setError(t("auth.passwordLength"));
     setSubmitting(true);
     try {
-      const ok = await signup(name, email, password);
+      const ok = await signup(name, email, password, company);
       if (ok) router.push("/dashboard");
       else setError(t("auth.signupFailed"));
     } catch {
@@ -49,6 +50,8 @@ export default function SignupPage() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-purple/5 rounded-full blur-[128px]" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-electric-blue/5 rounded-full blur-[128px]" />
 
+      {/* Honeypot: invisible to humans, bots fill it; the API quietly drops
+          those signups (returns success-shaped, creates nothing). */}
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
@@ -71,6 +74,18 @@ export default function SignupPage() {
             <div className="h-px flex-1 bg-cyber-border" />
             <span className="text-xs text-cyber-muted">or</span>
             <div className="h-px flex-1 bg-cyber-border" />
+          </div>
+
+          <div className="absolute -left-[9999px] top-0 h-0 overflow-hidden" aria-hidden="true">
+            <label htmlFor="vf-company">Company</label>
+            <input
+              id="vf-company"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+            />
           </div>
 
           <div>

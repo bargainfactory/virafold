@@ -98,6 +98,24 @@ export default function AdminGrowthTools() {
     }
   }
 
+  // --- Render regression ---
+  const [regr, setRegr] = useState<{ pass: boolean; checks: { name: string; pass: boolean; detail: string }[] } | null>(null);
+  const [regrBusy, setRegrBusy] = useState(false);
+
+  async function runRegression() {
+    if (regrBusy) return;
+    setRegrBusy(true);
+    setRegr(null);
+    try {
+      const res = await fetch("/api/admin/render-regression", { method: "POST" });
+      const d = await res.json().catch(() => null);
+      if (res.ok && d?.checks) setRegr(d);
+      else setRegr({ pass: false, checks: [{ name: "run", pass: false, detail: String(d?.error ?? `HTTP ${res.status}`) }] });
+    } finally {
+      setRegrBusy(false);
+    }
+  }
+
   // --- Digest ---
   const [digest, setDigest] = useState<{ lines: string[]; attention: boolean } | null>(null);
   const [digestBusy, setDigestBusy] = useState(false);
@@ -200,6 +218,43 @@ export default function AdminGrowthTools() {
             </div>
           )}
           {purgeResult && <p className="mt-3 text-xs text-success">{purgeResult}</p>}
+        </div>
+      </div>
+
+      {/* Render regression */}
+      <div className="bg-cyber-card border border-cyber-border rounded-xl mt-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cyber-border">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-electric-blue" />
+            <h2 className="font-semibold text-foreground">Render regression</h2>
+          </div>
+          <button
+            onClick={runRegression}
+            disabled={regrBusy}
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {regrBusy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {regrBusy ? "Rendering…" : "Run regression"}
+          </button>
+        </div>
+        <div className="p-6">
+          <p className="text-xs text-cyber-muted">
+            Runs the real clip-render recipe against a committed variable-frame-rate fixture —
+            plain and tight-cut — and asserts duration, constant 30fps output, and audio. Run it
+            after any renderer deploy; takes ~30 seconds of server CPU.
+          </p>
+          {regr && (
+            <div className="mt-3 space-y-1.5">
+              <p className={`text-sm font-semibold ${regr.pass ? "text-success" : "text-red-400"}`}>
+                {regr.pass ? "PASS — all checks green" : "FAIL"}
+              </p>
+              {regr.checks.map((c, i) => (
+                <p key={i} className={`text-xs ${c.pass ? "text-cyber-muted" : "text-red-400"}`}>
+                  {c.pass ? "✓" : "✗"} {c.name} — {c.detail}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

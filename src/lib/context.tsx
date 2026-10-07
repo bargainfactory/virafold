@@ -39,7 +39,7 @@ interface AppState {
   notifications: Notification[];
   toasts: Toast[];
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string, company?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   uploadProject: (
     file: File | null,
@@ -196,13 +196,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const signup = useCallback(
-    async (name: string, email: string, password: string) => {
+    async (name: string, email: string, password: string, company?: string) => {
       const res = await api("/api/auth/signup", {
         method: "POST",
         body: JSON.stringify({
           name,
           email,
           password,
+          company: company || undefined, // honeypot passthrough
           ref: localStorage.getItem("ef_ref") || undefined,
         }),
       });
