@@ -19,6 +19,7 @@ import { auditExemplars } from "@/lib/server/audit";
 import { fetchArticleText } from "@/lib/server/article";
 import { watchExemplars } from "@/lib/server/watch";
 import { generateAssets } from "@/lib/server/generate";
+import { honestyFlags } from "@/lib/server/honesty";
 import { PLAN_MONTHLY_PROJECTS } from "@/lib/server/pricing";
 import { createManifest, signManifest } from "@/lib/server/provenance";
 import { rateLimit } from "@/lib/server/rate-limit";
@@ -224,6 +225,14 @@ export async function POST(req: NextRequest) {
     exemplars
   );
 
+  // Honesty linter: flag numbers the model wrote that the source never said.
+  // Only meaningful when there is real source text to check against.
+  const lintSource = transcript && transcript.length > 120 ? `${title}\n${transcript}` : "";
+  const linted = generated.map((a) => ({
+    ...a,
+    flags: lintSource ? honestyFlags(a.content, lintSource) : undefined,
+  }));
+
   const { project, assets } = createProjectWithAssets(
     user.email,
     {
@@ -234,7 +243,7 @@ export async function POST(req: NextRequest) {
       transcript: transcript || undefined,
       storagePath,
     },
-    generated
+    linted
   );
 
   if (transcriptWords || durationSec) {

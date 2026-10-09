@@ -753,6 +753,18 @@ export default function Dashboard() {
                 </button>
               </div>
               <div className="p-6 overflow-y-auto">
+                {viewingAsset.flags && viewingAsset.flags.length > 0 && (
+                  <div className="mb-4 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 text-warning shrink-0" />
+                      <span className="text-xs font-medium text-foreground">{t("honesty.title")}</span>
+                    </div>
+                    <p className="text-xs text-cyber-muted mt-1.5">
+                      {t("honesty.body")}{" "}
+                      <span className="text-foreground/90 font-medium">{viewingAsset.flags.join(", ")}</span>
+                    </p>
+                  </div>
+                )}
                 {editDraft !== null ? (
                   <textarea
                     value={editDraft}
@@ -1115,7 +1127,12 @@ function OverviewTab({
                 <Eye className="w-4 h-4 text-cyber-muted" />
               </button>
               <button onClick={() => onView(asset)} className="flex-1 min-w-0 text-left">
-                <p className="text-sm text-foreground truncate hover:text-neon-purple transition-colors">{asset.name}</p>
+                <p className="text-sm text-foreground truncate hover:text-neon-purple transition-colors flex items-center gap-1.5">
+                  {asset.flags && asset.flags.length > 0 && (
+                    <ShieldAlert className="w-3.5 h-3.5 text-warning shrink-0" aria-label={t("honesty.title")} />
+                  )}
+                  <span className="truncate">{asset.name}</span>
+                </p>
                 <p className="text-xs text-cyber-muted">{asset.type}</p>
               </button>
               <span className="text-xs text-cyber-muted hidden sm:inline">{asset.views}</span>

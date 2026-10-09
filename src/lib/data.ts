@@ -36,6 +36,8 @@ export interface Asset {
   evergreen?: boolean;
   /** Set when this asset is one variant of an A/B hook test. */
   abGroup?: string;
+  /** Honesty-linter warnings: numeric claims not found in the source material. */
+  flags?: string[];
 }
 
 export interface Notification {

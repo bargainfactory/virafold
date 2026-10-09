@@ -544,6 +544,10 @@ export const en: Record<string, string> = {
   "dash.recentPublishes": "Recently published",
   "dash.noAnalytics": "No activity yet — generate assets, schedule them to your platforms, and your real performance will appear here.",
 
+  // Honesty linter
+  "honesty.title": "Numbers to verify",
+  "honesty.body": "These figures appear in this asset but were not found in your source material — double-check or remove them before publishing:",
+
   // Policy lint
   "lint.title": "Policy check",
   "lint.clean": "no risks detected",

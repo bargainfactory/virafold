@@ -26,6 +26,7 @@ import {
   insertAudit,
   insertNotification,
   listAllScheduledPending,
+  listPostsNeedingVerify,
   listPublishedWithExternalId,
   listScheduledPosts,
   listRevenue,
@@ -33,6 +34,7 @@ import {
   markAbGroupDecided,
   requeueStuckRenders,
   setLastBriefAt,
+  setPostVerified,
   setScheduledExternalId,
   setScheduledStatus,
   topPerformers,
@@ -237,6 +239,63 @@ export async function ingestMetrics(): Promise<void> {
   settleAbTests();
 }
 
+/**
+ * Publish-verification loop: "marked published locally" is a claim until the
+ * platform confirms it. For recent YouTube publishes, ask the Data API whether
+ * the video actually processed — a deleted, rejected, or stuck upload gets the
+ * creator a notification instead of silently showing "published" forever.
+ */
+export async function verifyRecentPublishes(): Promise<void> {
+  const ytKey = resolveField("audit", "youtubeApiKey");
+  if (!ytKey) return; // nothing to verify with — leave posts unchecked, not failed
+
+  const since = new Date(Date.now() - 48 * 3600_000);
+  const posts = listPostsNeedingVerify(toLocalStamp(since)).filter((p) => {
+    // Give uploads 10 minutes to settle before judging them.
+    const t = new Date(p.scheduledAt).getTime();
+    return !Number.isNaN(t) && Date.now() - t > 10 * 60 * 1000;
+  });
+  if (posts.length === 0) return;
+
+  try {
+    const ids = posts.map((p) => p.externalId).join(",");
+    const resp = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=status&id=${ids}&key=${ytKey}`
+    );
+    if (!resp.ok) return; // quota/outage — retry next hour, decide nothing
+    const data = await resp.json();
+    const byId = new Map<string, Record<string, string>>(
+      (data?.items ?? []).map((v: { id: string; status: Record<string, string> }) => [
+        v.id,
+        v.status,
+      ])
+    );
+    for (const p of posts) {
+      const status = byId.get(p.externalId!);
+      const upload = status?.uploadStatus;
+      if (upload === "processed" || upload === "uploaded") {
+        setPostVerified(p.id, 1);
+      } else if (!status || upload === "failed" || upload === "rejected" || upload === "deleted") {
+        setPostVerified(p.id, -1);
+        const why = status
+          ? status.failureReason || status.rejectionReason || upload
+          : "the video no longer exists on YouTube";
+        insertNotification(p.userEmail, {
+          id: `n-${crypto.randomUUID()}`,
+          title: "Published Post Needs Attention",
+          message: `"${p.assetName}" shows as published here, but YouTube reports a problem: ${why}. Open YouTube Studio to check, then re-schedule if needed.`,
+          time: "Just now",
+          read: false,
+          type: "warning",
+        });
+      }
+      // Any other transient uploadStatus: leave verified=0, re-check next hour.
+    }
+  } catch {
+    /* verification is best-effort — never let it affect publishing */
+  }
+}
+
 /** Declare A/B hook winners once both variants have measured posts. */
 function settleAbTests(): void {
   const rows = abGroupStats();
@@ -369,8 +428,19 @@ export function startScheduler(): void {
     if (tick % METRICS_EVERY_TICKS === 0) {
       ingestMetrics().catch(() => {});
     }
+    // Outbound heartbeat: ping a dead-man's-switch URL (healthchecks.io,
+    // UptimeRobot push) every 5 minutes so the OPERATOR gets paged when the
+    // process dies — inbound /api/health monitoring can't see a dead box
+    // behind a still-alive Caddy.
+    if (tick % 5 === 0) {
+      const hb = resolveField("ops", "heartbeatUrl");
+      if (hb && /^https:\/\//.test(hb)) {
+        fetch(hb, { method: "GET", signal: AbortSignal.timeout(10_000) }).catch(() => {});
+      }
+    }
     if (tick % BRIEF_CHECK_EVERY_TICKS === 0) {
       sendWeeklyBriefs().catch(() => {});
+      verifyRecentPublishes().catch(() => {});
       // Storage retention: one sweep per day, in the quiet early hours.
       const today = new Date().toISOString().slice(0, 10);
       if (new Date().getHours() >= 4 && lastSweepDay !== today) {

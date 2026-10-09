@@ -1061,6 +1061,8 @@ function splitBeats(script: string, duration: number): { text: string; dur: numb
 declare global {
   // One render at a time, surviving dev-mode module reloads.
   var __virafoldRenderBusy: boolean | undefined;
+  // Last low-disk admin alert, so the guard warns at most every 6 hours.
+  var __virafoldDiskAlertAt: number | undefined;
 }
 
 /** Drain the render queue sequentially. Safe to call from anywhere, any time —
@@ -1071,6 +1073,32 @@ export function kickRenderWorker(): void {
   (async () => {
     try {
       for (;;) {
+        // Disk guard: a render onto a full disk produces a truncated mp4 that
+        // ffmpeg may not even flag. Leave the queue intact (jobs retry next
+        // tick once space returns) and alert admins instead of failing jobs.
+        try {
+          const { freeDiskBytes } = await import("./ops-digest");
+          const free = freeDiskBytes(RENDERS_DIR);
+          if (free !== null && free < 1024 ** 3) {
+            const now = Date.now();
+            if (now - (globalThis.__virafoldDiskAlertAt ?? 0) > 6 * 3600_000) {
+              globalThis.__virafoldDiskAlertAt = now;
+              for (const admin of (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) {
+                insertNotification(admin, {
+                  id: `n-${crypto.randomUUID()}`,
+                  title: "Renders paused — disk almost full",
+                  message: `Under 1 GB free on the render volume. Queued renders are held (not failed) and will resume automatically once space is freed.`,
+                  time: "Just now",
+                  read: false,
+                  type: "warning",
+                });
+              }
+            }
+            break;
+          }
+        } catch {
+          /* guard is best-effort — never block rendering on it */
+        }
         const next = listQueuedClips()[0];
         if (!next) break;
         updateClip(next.userEmail, next.id, { status: "rendering" });

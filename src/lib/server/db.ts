@@ -356,6 +356,8 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE users ADD COLUMN bonus_projects INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN report_brand TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE clips ADD COLUMN tight INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE assets ADD COLUMN flags TEXT",
+    "ALTER TABLE scheduled_posts ADD COLUMN verified INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       conn.exec(stmt);
@@ -1100,7 +1102,7 @@ export function createProjectWithAssets(
     transcript?: string;
     storagePath?: string;
   },
-  generated: { name: string; type: string; content: string }[]
+  generated: { name: string; type: string; content: string; flags?: string[] }[]
 ): { project: Project; assets: Asset[] } {
   const lower = email.toLowerCase();
   const now = new Date().toISOString();
@@ -1131,10 +1133,19 @@ export function createProjectWithAssets(
     const id = `a-${crypto.randomUUID()}`;
     conn
       .prepare(
-        `INSERT INTO assets (id, user_email, project_id, name, type, views, status, liked, content, sort)
-         VALUES (?, ?, ?, ?, ?, '—', 'draft', 0, ?, ?)`
+        `INSERT INTO assets (id, user_email, project_id, name, type, views, status, liked, content, sort, flags)
+         VALUES (?, ?, ?, ?, ?, '—', 'draft', 0, ?, ?, ?)`
       )
-      .run(id, lower, meta.id, a.name, a.type, a.content, i);
+      .run(
+        id,
+        lower,
+        meta.id,
+        a.name,
+        a.type,
+        a.content,
+        i,
+        a.flags && a.flags.length > 0 ? JSON.stringify(a.flags) : null
+      );
     return {
       id,
       projectId: meta.id,
@@ -1144,6 +1155,7 @@ export function createProjectWithAssets(
       status: "draft",
       liked: false,
       content: a.content,
+      flags: a.flags && a.flags.length > 0 ? a.flags : undefined,
     };
   });
 
@@ -1225,7 +1237,18 @@ function mapAsset(row: Record<string, unknown>): Asset {
     content: (row.content as string) ?? undefined,
     evergreen: Boolean(row.evergreen),
     abGroup: (row.ab_group as string | null) ?? undefined,
+    flags: parseFlags(row.flags),
   };
+}
+
+function parseFlags(raw: unknown): string[] | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? arr.map(String) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function setAssetEvergreen(
@@ -1269,7 +1292,7 @@ export function getAsset(email: string, id: string): Asset | null {
 export function updateAsset(
   email: string,
   id: string,
-  updates: { name?: string; content?: string }
+  updates: { name?: string; content?: string; flags?: string[] }
 ): Asset | null {
   const conn = getDb();
   const sets: string[] = [];
@@ -1281,6 +1304,10 @@ export function updateAsset(
   if (updates.content !== undefined) {
     sets.push("content = ?");
     values.push(updates.content);
+  }
+  if (updates.flags !== undefined) {
+    sets.push("flags = ?");
+    values.push(updates.flags.length > 0 ? JSON.stringify(updates.flags) : "");
   }
   if (sets.length > 0) {
     values.push(id, email.toLowerCase());
@@ -2063,6 +2090,32 @@ export function listPublishedWithExternalId(): (ScheduledPost & { userEmail: str
       )
       .all() as Record<string, unknown>[]
   ).map((row) => ({ ...mapScheduled(row), userEmail: row.user_email as string }));
+}
+
+/**
+ * Recently published YouTube posts whose platform-side state has not been
+ * verified yet — the publish-verification loop's worklist. `verified` is
+ * 0 = unchecked, 1 = confirmed live, -1 = confirmed failed/removed.
+ */
+export function listPostsNeedingVerify(
+  sinceIso: string
+): (ScheduledPost & { userEmail: string })[] {
+  return (
+    getDb()
+      .prepare(
+        `SELECT * FROM scheduled_posts
+         WHERE status = 'published' AND external_id IS NOT NULL
+           AND platform = 'YouTube' AND verified = 0 AND scheduled_at >= ?
+         LIMIT 10`
+      )
+      .all(sinceIso) as Record<string, unknown>[]
+  ).map((row) => ({ ...mapScheduled(row), userEmail: row.user_email as string }));
+}
+
+export function setPostVerified(postId: string, v: 1 | -1): void {
+  getDb()
+    .prepare("UPDATE scheduled_posts SET verified = ? WHERE id = ?")
+    .run(v, postId);
 }
 
 /** Every still-scheduled post across all users — the scheduler tick's worklist. */

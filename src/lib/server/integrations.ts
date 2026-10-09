@@ -163,6 +163,17 @@ export const INTEGRATIONS: IntegrationDef[] = [
       { key: "youtubeClientSecret", label: "YouTube client secret", envVar: "YOUTUBE_CLIENT_SECRET", secret: true },
     ],
   },
+  {
+    name: "ops",
+    label: "Ops monitoring (heartbeat)",
+    description:
+      "Dead-man's-switch heartbeat: the scheduler pings this URL every 5 minutes. If the pings stop, the monitoring service alerts you — the only way to catch a dead app process from the outside.",
+    docsHint:
+      "Create a free check at healthchecks.io (or an UptimeRobot heartbeat monitor) and paste its ping URL here.",
+    fields: [
+      { key: "heartbeatUrl", label: "Heartbeat ping URL", envVar: "OPS_HEARTBEAT_URL", placeholder: "https://hc-ping.com/..." },
+    ],
+  },
 ];
 
 export function getIntegrationDef(name: string): IntegrationDef | undefined {

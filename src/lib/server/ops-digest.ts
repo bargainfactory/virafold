@@ -7,10 +7,40 @@
  * so instead of inventing activity.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import { getDb, insertNotification, listErrorLogs, llmUsage } from "./db";
 import { sendEmail, emailConfigured } from "./email";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Where the nightly dump lands on the production box; overridable for other hosts.
+const BACKUP_DIR = process.env.BACKUP_DIR ?? "/home/echoforge/backups";
+// Daily backups: anything older than 30h means last night's run didn't happen.
+const BACKUP_STALE_MS = 30 * 3600_000;
+
+/** Age of the newest file in the backup directory, or null if unreadable/empty. */
+function latestBackupAgeMs(): number | null {
+  try {
+    let newest = 0;
+    for (const name of fs.readdirSync(BACKUP_DIR)) {
+      const st = fs.statSync(path.join(BACKUP_DIR, name));
+      if (st.isFile() && st.mtimeMs > newest) newest = st.mtimeMs;
+    }
+    return newest > 0 ? Date.now() - newest : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Free bytes on the volume holding the app, or null where statfs is unavailable. */
+export function freeDiskBytes(dir = process.cwd()): number | null {
+  try {
+    const s = fs.statfsSync(dir);
+    return Number(s.bavail) * Number(s.bsize);
+  } catch {
+    return null;
+  }
+}
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? "")
@@ -95,6 +125,27 @@ export function compileOpsDigest(): { lines: string[]; attention: boolean } {
     .prepare("SELECT COUNT(*) AS c FROM site_monitor_checks WHERE ts >= ?")
     .get(sinceIso) as { c: number };
   lines.push(`Site-monitor checks run (24h): ${checks.c}.`);
+
+  // Backup freshness: a backup that stopped running is a loss waiting to be
+  // discovered on the worst possible day.
+  const backupAge = latestBackupAgeMs();
+  if (backupAge === null) {
+    attention = true;
+    lines.push(`⚠ Backups: no readable backup files in ${BACKUP_DIR} — check the backup job.`);
+  } else if (backupAge > BACKUP_STALE_MS) {
+    attention = true;
+    lines.push(`⚠ Backups: newest backup is ${Math.round(backupAge / 3600_000)}h old (expected daily) — check the backup job.`);
+  } else {
+    lines.push(`Backups: newest is ${Math.round(backupAge / 3600_000)}h old — on schedule.`);
+  }
+
+  // Disk headroom: renders and uploads eat space; a full disk fails silently.
+  const free = freeDiskBytes();
+  if (free !== null) {
+    const gb = free / 1024 ** 3;
+    if (gb < 3) attention = true;
+    lines.push(`${gb < 3 ? "⚠ " : ""}Disk free: ${gb.toFixed(1)} GB${gb < 3 ? " — low, clean up or resize soon" : ""}.`);
+  }
 
   // Spend signal: cumulative LLM usage by tier (trend beats absolutes).
   const usage = llmUsage();

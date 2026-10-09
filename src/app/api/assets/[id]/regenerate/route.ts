@@ -11,6 +11,7 @@ import {
   updateAsset,
 } from "@/lib/server/db";
 import { regenerateAsset } from "@/lib/server/generate";
+import { honestyFlags } from "@/lib/server/honesty";
 import {
   appendAction,
   signManifest,
@@ -77,9 +78,14 @@ export async function POST(
     }
   );
 
+  const lintSource =
+    source?.transcript && source.transcript.length > 120
+      ? `${source.title}\n${source.transcript}`
+      : "";
   const updated = updateAsset(user.email, id, {
     name: generated.name,
     content: generated.content,
+    flags: lintSource ? honestyFlags(generated.content, lintSource) : [],
   });
 
   const raw = getProvenanceRaw(id);
