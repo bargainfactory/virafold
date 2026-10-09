@@ -759,6 +759,8 @@ export const zh: Record<string, string> = {
   "dash.noAnalytics": "暂无活动——生成内容并排期到你的平台后,真实表现将显示在这里。",
 
   // Policy lint
+  "honesty.title": "待核实的数字",
+  "honesty.body": "这些数字出现在此内容中，但未在您的源素材中找到——发布前请核实或删除：",
   "lint.title": "政策检查",
   "lint.clean": "未检测到风险",
   "lint.riskHigh": "较高的取消变现风险",

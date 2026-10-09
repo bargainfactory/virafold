@@ -759,6 +759,8 @@ export const tr: Record<string, string> = {
   "dash.noAnalytics": "Henüz etkinlik yok — varlık üretin, platformlarınıza planlayın; gerçek performansınız burada görünecek.",
 
   // Policy lint
+  "honesty.title": "Doğrulanacak sayılar",
+  "honesty.body": "Bu rakamlar bu içerikte yer alıyor ancak kaynak materyalinizde bulunamadı — yayınlamadan önce kontrol edin veya kaldırın:",
   "lint.title": "Politika denetimi",
   "lint.clean": "risk tespit edilmedi",
   "lint.riskHigh": "yüksek gelir kısıtlama riski",

@@ -759,6 +759,8 @@ export const id: Record<string, string> = {
   "dash.noAnalytics": "Belum ada aktivitas — buat aset, jadwalkan ke platform Anda, dan performa nyata Anda akan muncul di sini.",
 
   // Policy lint
+  "honesty.title": "Angka yang perlu diverifikasi",
+  "honesty.body": "Angka-angka ini muncul di aset ini tetapi tidak ditemukan di materi sumber Anda — periksa kembali atau hapus sebelum menerbitkan:",
   "lint.title": "Pemeriksaan kebijakan",
   "lint.clean": "tidak ada risiko terdeteksi",
   "lint.riskHigh": "risiko demonetisasi tinggi",

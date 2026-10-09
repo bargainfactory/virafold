@@ -759,6 +759,8 @@ export const nl: Record<string, string> = {
   "dash.noAnalytics": "Nog geen activiteit — genereer assets, plan ze in op je platforms en je echte prestaties verschijnen hier.",
 
   // Policy lint
+  "honesty.title": "Cijfers om te controleren",
+  "honesty.body": "Deze cijfers staan in dit asset maar zijn niet gevonden in je bronmateriaal — controleer of verwijder ze vóór publicatie:",
   "lint.title": "Beleidscontrole",
   "lint.clean": "geen risico's gevonden",
   "lint.riskHigh": "hoog demonetisatierisico",

@@ -792,6 +792,8 @@ export const es: Record<string, string> = {
   "dash.noAnalytics": "Aún no hay actividad: genera activos, prográmalos en tus plataformas y tu rendimiento real aparecerá aquí.",
 
   // Policy lint
+  "honesty.title": "Cifras por verificar",
+  "honesty.body": "Estas cifras aparecen en este contenido pero no se encontraron en tu material original — verifícalas o elimínalas antes de publicar:",
   "lint.title": "Revisión de políticas",
   "lint.clean": "sin riesgos detectados",
   "lint.riskHigh": "alto riesgo de desmonetización",

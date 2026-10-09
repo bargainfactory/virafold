@@ -759,6 +759,8 @@ export const pl: Record<string, string> = {
   "dash.noAnalytics": "Brak aktywności — wygeneruj materiały, zaplanuj je na swoich platformach, a Twoje prawdziwe wyniki pojawią się tutaj.",
 
   // Policy lint
+  "honesty.title": "Liczby do zweryfikowania",
+  "honesty.body": "Te liczby pojawiają się w tym materiale, ale nie znaleziono ich w materiale źródłowym — sprawdź je lub usuń przed publikacją:",
   "lint.title": "Kontrola zasad",
   "lint.clean": "nie wykryto ryzyka",
   "lint.riskHigh": "wysokie ryzyko demonetyzacji",

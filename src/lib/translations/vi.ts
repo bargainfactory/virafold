@@ -759,6 +759,8 @@ export const vi: Record<string, string> = {
   "dash.noAnalytics": "Chưa có hoạt động — hãy tạo nội dung, lên lịch đăng lên các nền tảng và hiệu suất thực của bạn sẽ hiển thị tại đây.",
 
   // Policy lint
+  "honesty.title": "Số liệu cần kiểm tra",
+  "honesty.body": "Các số liệu này xuất hiện trong nội dung nhưng không có trong tài liệu gốc của bạn — hãy kiểm tra hoặc xóa trước khi đăng:",
   "lint.title": "Kiểm tra chính sách",
   "lint.clean": "không phát hiện rủi ro",
   "lint.riskHigh": "rủi ro tắt kiếm tiền cao",

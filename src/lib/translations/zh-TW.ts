@@ -759,6 +759,8 @@ export const zhTW: Record<string, string> = {
   "dash.noAnalytics": "尚無活動——生成內容並排程到你的平台後,真實表現將顯示在這裡。",
 
   // Policy lint
+  "honesty.title": "待核實的數字",
+  "honesty.body": "這些數字出現在此內容中，但未在您的來源素材中找到——發布前請核實或刪除：",
   "lint.title": "政策檢查",
   "lint.clean": "未偵測到風險",
   "lint.riskHigh": "高度取消營利風險",

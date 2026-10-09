@@ -792,6 +792,8 @@ export const ja: Record<string, string> = {
   "dash.noAnalytics": "まだアクティビティがありません。アセットを生成してプラットフォームに予約すると、実際のパフォーマンスがここに表示されます。",
 
   // Policy lint
+  "honesty.title": "要確認の数値",
+  "honesty.body": "これらの数値はこのアセットに含まれていますが、元の素材には見つかりませんでした。公開前に確認するか削除してください:",
   "lint.title": "ポリシーチェック",
   "lint.clean": "リスクは検出されませんでした",
   "lint.riskHigh": "収益化停止リスク大",
