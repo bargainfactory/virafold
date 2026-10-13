@@ -15,6 +15,7 @@
 - Trust rails: every generated asset carries a cryptographically signed, C2PA-shaped provenance manifest (source hash, engine, edit trail) and a pre-publish policy/demonetization lint.
 - Localized end-to-end in 19 languages: English, Spanish, French, German, Portuguese, Japanese, Chinese (Simplified and Traditional), Korean, Arabic, Hindi, Russian, Italian, Indonesian, Turkish, Vietnamese, Dutch, Polish, and Thai.
 - Website Content Score (free, ~1 minute, no signup) grades any website across content depth, headlines, discovery, AI findability, and repurposing potential; the $49 Complete Content Audit crawls up to 120 pages and returns written fixes — ready-to-paste page titles and meta descriptions, a complete llms.txt, per-page rewrites, and a 30-day plan — with one-click apply for WordPress sites and weekly Site Monitor re-scores with drop alerts on paid plans.
+- Animation Studio: type an idea or paste a script and get a finished vertical video in a chosen visual style — 2D cartoon (with a consistent recurring character), flat-vector animated explainer, cinematic, documentary, or a sleep-length ambient loop — narrated, captioned, and optionally AI-animated scene by scene.
 - Article-to-video for writers: paste an article URL (or text) and it becomes a narrated video with AI visuals and captions, plus threads, carousels, and newsletters.
 
 ## Who it is for

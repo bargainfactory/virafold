@@ -62,6 +62,125 @@ export function imagePromptFor(subject: string, index: number): string {
   return `${style}; depicting ${subject}. Vertical 9:16 composition, realistic and grounded, absolutely no text or letters or words or logos, no watermark.`;
 }
 
+// --- Visual styles (Animation Studio) ---
+//
+// Preset-driven looks in the Higgsfield mold: each style bakes its own art
+// direction AND its own camera/motion language, so creators pick a style
+// instead of writing prompts. `castSheet` styles get OpenArt-style character
+// consistency — one character described once, injected into every scene.
+
+export interface VideoStyle {
+  key: string;
+  /** Full image prompt for a beat (replaces the documentary rotation). */
+  imagePrompt: (subject: string, index: number, cast?: string) => string;
+  /** Motion prompt for AI animation of this style's stills. */
+  motionPrompt: (subject: string) => string;
+  /** Real stock footage clashes with drawn/graphic styles. */
+  allowBroll: boolean;
+  /** Branded data cards fit explainers, break cartoons. */
+  allowCards: boolean;
+  /** Generate a recurring-character sheet for visual continuity. */
+  castSheet: boolean;
+}
+
+const NO_TEXT = "absolutely no text or letters or words or logos, no watermark";
+
+const CARTOON_LOOKS = [
+  "warm golden-hour palette, soft rim lighting",
+  "cool evening palette, glowing accents",
+  "bright daylight palette, crisp shadows",
+];
+
+export const VIDEO_STYLES: Record<string, VideoStyle> = {
+  cartoon: {
+    key: "cartoon",
+    imagePrompt: (subject, index, cast) =>
+      `Flat 2D cartoon illustration in the style of a modern animated series: bold clean outlines, vibrant saturated colors, expressive poses, ${CARTOON_LOOKS[index % CARTOON_LOOKS.length]}; depicting ${subject}.` +
+      (cast ? ` Recurring main character (EXACT same design in every scene): ${cast}.` : "") +
+      ` Vertical 9:16 composition, ${NO_TEXT}.`,
+    motionPrompt: (subject) =>
+      `Smooth 2D cartoon animation of ${subject}: gentle character movement, soft bouncy secondary motion, slow background parallax. Keep the exact same flat cartoon art style and character design throughout. Add no new characters, no new objects, no text.`,
+    allowBroll: false,
+    allowCards: false,
+    castSheet: true,
+  },
+  explainer: {
+    key: "explainer",
+    imagePrompt: (subject, _index, cast) =>
+      `Flat vector explainer-video illustration: minimal modern infographic style, simple geometric shapes, clean composition, deep indigo background with violet and electric-blue accents; depicting ${subject}.` +
+      (cast ? ` Recurring mascot character (EXACT same design in every scene): ${cast}.` : "") +
+      ` Vertical 9:16 composition, ${NO_TEXT}.`,
+    motionPrompt: (subject) =>
+      `Smooth explainer-video motion for ${subject}: flat vector elements glide and float gently, subtle looping movement, steady locked camera. Keep the flat vector style exactly. Add no new elements, no text.`,
+    allowBroll: false,
+    allowCards: true,
+    castSheet: false,
+  },
+  cinematic: {
+    key: "cinematic",
+    imagePrompt: (subject, index) =>
+      `Cinematic film still, anamorphic framing, dramatic motivated lighting, shallow depth of field, rich filmic color grade ${index % 2 === 0 ? "with warm highlights and teal shadows" : "with cool moonlit tones"}; depicting ${subject}. Vertical 9:16 composition, photorealistic, ${NO_TEXT}.`,
+    motionPrompt: (subject) =>
+      `Slow cinematic camera move on ${subject}: gentle dolly push-in with soft parallax and natural ambient motion. Preserve the scene exactly; no new objects, no people appearing, no text.`,
+    allowBroll: true,
+    allowCards: true,
+    castSheet: false,
+  },
+};
+
+export function getVideoStyle(key: string | null | undefined): VideoStyle | null {
+  return key ? (VIDEO_STYLES[key] ?? null) : null;
+}
+
+const CAST_SCHEMA = {
+  type: "object",
+  properties: { character: { type: "string" } },
+  required: ["character"],
+  additionalProperties: false,
+};
+
+/**
+ * OpenArt-style consistency, approximated at the prompt level: one recurring
+ * character described once, repeated verbatim in every scene prompt. Null on
+ * any failure — scenes still render, just without a shared protagonist.
+ */
+export async function castSheetFor(title: string, script: string): Promise<string | null> {
+  const res = await llmComplete(
+    [
+      "Invent ONE recurring main character for an animated short telling this story.",
+      "Return a purely VISUAL description (max 40 words): kind of character, build, outfit, 2-3 signature colors, one distinctive accessory.",
+      "No name, no backstory, no camera directions — only what they look like.",
+    ].join("\n"),
+    `Title: ${title}\n\nScript:\n${script.slice(0, 1500)}`,
+    CAST_SCHEMA as unknown as Record<string, unknown>,
+    { tier: "standard", maxTokens: 200, context: "cast-sheet" }
+  );
+  if (!res) return null;
+  try {
+    const parsed = JSON.parse(res.text) as { character?: unknown };
+    const c = typeof parsed.character === "string" ? parsed.character.trim() : "";
+    return c.length > 10 ? c.slice(0, 300) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fit a planned scene list to a style's constraints: kinds the style can't
+ * carry are downgraded to imagery, never dropped.
+ */
+export function constrainScenes(scenes: Scene[], style: VideoStyle): Scene[] {
+  return scenes.map((s) => {
+    if (s.kind === "broll" && !style.allowBroll) {
+      return { ...s, kind: "image" as const, imageSubject: s.imageSubject ?? s.brollQuery ?? s.text.slice(0, 120) };
+    }
+    if (!style.allowCards && (s.kind === "stat" || s.kind === "chart" || s.kind === "list" || s.kind === "quote")) {
+      return { ...s, kind: "image" as const, imageSubject: s.imageSubject ?? s.text.slice(0, 120) };
+    }
+    return s;
+  });
+}
+
 // --- Planning ---
 
 const PLAN_SCHEMA = {

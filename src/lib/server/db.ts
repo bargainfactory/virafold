@@ -359,6 +359,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE assets ADD COLUMN flags TEXT",
     "ALTER TABLE scheduled_posts ADD COLUMN verified INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE clips ADD COLUMN animate INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE clips ADD COLUMN vstyle TEXT",
   ]) {
     try {
       conn.exec(stmt);
@@ -2230,6 +2231,8 @@ export interface Clip {
   focus: string;
   /** Script videos only: 1 = animate AI-imagery beats with xAI Imagine Video. */
   animate: number;
+  /** Script videos only: visual style preset (cartoon | explainer | cinematic); null = documentary. */
+  vstyle: string | null;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
   kind: string;
   script: string | null;
@@ -2254,6 +2257,7 @@ function mapClip(row: Record<string, unknown>): Clip {
     position: (row.position as string) ?? "bottom",
     focus: (row.focus as string) ?? "center",
     animate: (row.animate as number) ?? 0,
+    vstyle: (row.vstyle as string | null) ?? null,
     kind: (row.kind as string) ?? "clip",
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
@@ -2289,6 +2293,7 @@ export function insertCaptionJob(
     focus: "center",
     tight: 1,
     animate: 0,
+    vstyle: null,
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2326,6 +2331,7 @@ export function insertAmbientVideo(
     focus: "center",
     tight: 1,
     animate: 0,
+    vstyle: null,
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2336,15 +2342,15 @@ export function insertAmbientVideo(
 
 export function insertScriptVideo(
   email: string,
-  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean }
+  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean; vstyle?: string }
 ): Clip {
   const now = new Date().toISOString();
   getDb()
     .prepare(
-      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate)
-       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?)`
+      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle)
+       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?)`
     )
-    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0);
+    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0, v.vstyle ?? null);
   return {
     id: v.id,
     projectId: "",
@@ -2360,6 +2366,7 @@ export function insertScriptVideo(
     focus: "center",
     tight: 1,
     animate: v.animate ? 1 : 0,
+    vstyle: v.vstyle ?? null,
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2370,7 +2377,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2398,6 +2405,7 @@ export function insertClip(
     focus: "center",
     tight: 1,
     animate: 0,
+    vstyle: null,
     kind: "clip",
     script: null,
     outputPath: null,

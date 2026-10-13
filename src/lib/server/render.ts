@@ -598,11 +598,26 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     let animUsed = false;
     if (beats.length >= 3) {
       try {
-        const { planScenes, renderSceneStill, imagePromptFor, fetchBrollVideo } = await import(
-          "./scenes"
-        );
+        const {
+          planScenes,
+          renderSceneStill,
+          imagePromptFor,
+          fetchBrollVideo,
+          getVideoStyle,
+          constrainScenes,
+          castSheetFor,
+        } = await import("./scenes");
         const { generateBackground } = await import("./images");
-        const scenes = await planScenes(beats, clip.title);
+        // Visual style preset (Animation Studio): bakes art direction + motion
+        // language per beat; null = the documentary default.
+        const styleDef = getVideoStyle(clip.vstyle);
+        // Character consistency, OpenArt-style: one recurring character
+        // described once and repeated verbatim in every scene prompt.
+        const cast = styleDef?.castSheet
+          ? await castSheetFor(clip.title, clip.script).catch(() => null)
+          : null;
+        let scenes = await planScenes(beats, clip.title);
+        if (styleDef) scenes = constrainScenes(scenes, styleDef);
         for (let i = 0; i < scenes.length; i++) {
           const scene = scenes[i];
           // Real stock footage where the narration calls for it (needs a
@@ -627,8 +642,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               continue;
             }
           }
+          const beatSubject = scene.imageSubject ?? scene.text.slice(0, 120);
           const bg = await generateBackground(
-            imagePromptFor(scene.imageSubject ?? scene.text.slice(0, 120), i)
+            styleDef
+              ? styleDef.imagePrompt(beatSubject, i, cast ?? undefined)
+              : imagePromptFor(beatSubject, i)
           );
           if (!bg) {
             images.length = 0;
@@ -659,7 +677,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               animateStill({
                 email: clip.userEmail,
                 pngPath: path.join(jobDir, images[idx]),
-                motion: `Subtle cinematic motion for a documentary: ${subject}. Slow camera drift and gentle natural movement. Keep the scene's content unchanged; add no new objects, no people, no text.`,
+                motion: styleDef
+                  ? styleDef.motionPrompt(subject)
+                  : `Subtle cinematic motion for a documentary: ${subject}. Slow camera drift and gentle natural movement. Keep the scene's content unchanged; add no new objects, no people, no text.`,
                 durationSec: beats[idx].dur,
                 model: ANIM_MODELS.lite,
               })
