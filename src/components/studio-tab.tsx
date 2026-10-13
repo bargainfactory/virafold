@@ -65,21 +65,29 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
           placeholder={t("studio.placeholder")}
           className="w-full px-3 py-2.5 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50 resize-y"
         />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        {/* 3D push-buttons: raised bevel at rest (hard bottom edge + top
+            highlight), lifted on hover, physically pressed-in + glowing when
+            selected — all in the brand purple/blue. */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 pb-1">
           {(["cartoon", "explainer", "cinematic", "documentary", "ambient"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStyle(s)}
-              className={`px-3 py-2.5 rounded-lg border text-left transition-colors ${
+              aria-pressed={style === s}
+              className={`px-3.5 py-3 rounded-xl text-left border transition-all duration-150 ${
                 style === s
-                  ? "border-fuchsia-500/60 bg-fuchsia-500/10"
-                  : "border-cyber-border bg-cyber-dark hover:border-cyber-muted"
+                  ? "translate-y-[3px] bg-gradient-to-b from-neon-purple/35 via-neon-purple/15 to-electric-blue/25 border-fuchsia-400/70 shadow-[inset_0_2px_8px_rgba(0,0,0,0.65),inset_0_-1px_0_rgba(255,255,255,0.06),0_0_22px_rgba(168,85,247,0.45)]"
+                  : "bg-gradient-to-b from-[#241a3d] to-[#120c22] border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_5px_0_#07040f,0_10px_20px_rgba(0,0,0,0.55)] hover:-translate-y-0.5 hover:border-neon-purple/50 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_7px_0_#07040f,0_14px_26px_rgba(168,85,247,0.3)] active:translate-y-[3px] active:shadow-[inset_0_2px_8px_rgba(0,0,0,0.6)]"
               }`}
             >
-              <span className={`block text-xs font-medium ${style === s ? "text-fuchsia-300" : "text-foreground"}`}>
+              <span
+                className={`block text-xs font-semibold tracking-wide ${
+                  style === s ? "text-fuchsia-300 drop-shadow-[0_0_6px_rgba(217,70,239,0.6)]" : "text-foreground"
+                }`}
+              >
                 {t(`studio.s.${s}`)}
               </span>
-              <span className="block text-[11px] text-cyber-muted mt-0.5">{t(`studio.d.${s}`)}</span>
+              <span className="block text-[11px] text-cyber-muted mt-1 leading-snug">{t(`studio.d.${s}`)}</span>
             </button>
           ))}
         </div>
