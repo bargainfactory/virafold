@@ -596,7 +596,62 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     // Whether any beat carries AI-generated motion — disclosed in the publish
     // description, same honesty rule as stock credits.
     let animUsed = false;
-    if (beats.length >= 3) {
+    // UGC spokesperson mode: every beat is the SAME presenter frame (persona
+    // image), animated with speaking-style motion. No scene planning, no
+    // cards, no b-roll — one person talking to camera, captions on top.
+    let ugcUsed = false;
+    if (clip.vstyle === "ugc" && clip.personaId) {
+      try {
+        const { personaImagePath } = await import("./db");
+        const personaAbs = personaImagePath(clip.personaId);
+        if (fs.existsSync(personaAbs) && beats.length >= 1) {
+          for (let i = 0; i < beats.length; i++) {
+            const name = `beat${i}.png`;
+            fs.copyFileSync(personaAbs, path.join(jobDir, name));
+            images.push(name);
+            kinds.push("image");
+          }
+          ugcUsed = true;
+          if (clip.animate) {
+            const { animateStill, ANIM_MODELS, animSecondsLeft } = await import("./video-gen");
+            const { getVideoStyle } = await import("./scenes");
+            const { bestPlanFor } = await import("./db");
+            const motion = getVideoStyle("ugc")!.motionPrompt("");
+            let left = animSecondsLeft(bestPlanFor(clip.userEmail), clip.userEmail);
+            const jobs: Promise<void>[] = [];
+            for (let i = 0; i < beats.length && jobs.length < 8; i++) {
+              const want = Math.min(15, Math.max(1, Math.ceil(beats[i].dur)));
+              if (want > left) continue;
+              left -= want;
+              const idx = i;
+              jobs.push(
+                animateStill({
+                  email: clip.userEmail,
+                  pngPath: path.join(jobDir, images[idx]),
+                  motion,
+                  durationSec: beats[idx].dur,
+                  model: ANIM_MODELS.lite,
+                })
+                  .then((res) => {
+                    if (!res) return;
+                    const vname = `anim${idx}.mp4`;
+                    fs.copyFileSync(res.file, path.join(jobDir, vname));
+                    images[idx] = vname;
+                    kinds[idx] = "anim";
+                    animUsed = true;
+                  })
+                  .catch(() => {})
+              );
+            }
+            await Promise.all(jobs);
+          }
+        }
+      } catch {
+        images.length = 0;
+        kinds.length = 0;
+      }
+    }
+    if (images.length === 0 && beats.length >= 3) {
       try {
         const {
           planScenes,
@@ -824,14 +879,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // Source credit + AI-motion disclosure ride the reason field into the
       // publish description — Pixabay's API terms ask that the footage source
       // be shown, and generated motion is disclosed as a matter of honesty.
-      ...(brollProviders.size || animUsed
+      ...(brollProviders.size || animUsed || ugcUsed
         ? {
             reason:
               `${clip.reason ?? ""}`.trim() +
               `${clip.reason?.trim() ? "\n\n" : ""}` +
               [
                 brollProviders.size ? `Stock footage: ${[...brollProviders].join(", ")}.` : "",
-                animUsed ? "Some scenes feature AI-generated motion (xAI Imagine)." : "",
+                ugcUsed ? "The presenter in this video is AI-generated and AI-animated." : "",
+                !ugcUsed && animUsed ? "Some scenes feature AI-generated motion (xAI Imagine)." : "",
               ]
                 .filter(Boolean)
                 .join(" "),

@@ -116,6 +116,18 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
     allowCards: true,
     castSheet: false,
   },
+  ugc: {
+    key: "ugc",
+    // The persona image replaces generation for UGC beats; this prompt only
+    // serves the rare fallback where a beat has no persona frame.
+    imagePrompt: (subject) =>
+      `Photorealistic UGC creator-style shot, person facing the camera, natural smartphone look; depicting ${subject}. Vertical 9:16 composition, ${NO_TEXT}.`,
+    motionPrompt: () =>
+      "The same person speaking directly to the camera: natural mouth movement while talking, small hand gestures, subtle head motion and blinking. Keep the person's identity, outfit, framing, and background EXACTLY the same. No new people, no new objects, no text.",
+    allowBroll: false,
+    allowCards: false,
+    castSheet: false,
+  },
   cinematic: {
     key: "cinematic",
     imagePrompt: (subject, index) =>

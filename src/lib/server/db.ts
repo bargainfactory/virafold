@@ -362,6 +362,14 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN vstyle TEXT",
     "ALTER TABLE users ADD COLUMN autopilot INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE ideas ADD COLUMN video_made INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE clips ADD COLUMN persona_id TEXT",
+    `CREATE TABLE IF NOT EXISTS personas (
+      id         TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      name       TEXT NOT NULL DEFAULT '',
+      source     TEXT NOT NULL DEFAULT 'generated',
+      created_at TEXT NOT NULL
+    )`,
   ]) {
     try {
       conn.exec(stmt);
@@ -2237,8 +2245,10 @@ export interface Clip {
   focus: string;
   /** Script videos only: 1 = animate AI-imagery beats with xAI Imagine Video. */
   animate: number;
-  /** Script videos only: visual style preset (cartoon | explainer | cinematic); null = documentary. */
+  /** Script videos only: visual style preset (cartoon | explainer | cinematic | ugc); null = documentary. */
   vstyle: string | null;
+  /** UGC script videos: the presenter persona fronting every beat. */
+  personaId: string | null;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
   kind: string;
   script: string | null;
@@ -2264,6 +2274,7 @@ function mapClip(row: Record<string, unknown>): Clip {
     focus: (row.focus as string) ?? "center",
     animate: (row.animate as number) ?? 0,
     vstyle: (row.vstyle as string | null) ?? null,
+    personaId: (row.persona_id as string | null) ?? null,
     kind: (row.kind as string) ?? "clip",
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
@@ -2300,6 +2311,7 @@ export function insertCaptionJob(
     tight: 1,
     animate: 0,
     vstyle: null,
+    personaId: null,
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2338,6 +2350,7 @@ export function insertAmbientVideo(
     tight: 1,
     animate: 0,
     vstyle: null,
+    personaId: null,
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2348,15 +2361,15 @@ export function insertAmbientVideo(
 
 export function insertScriptVideo(
   email: string,
-  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean; vstyle?: string }
+  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean; vstyle?: string; personaId?: string }
 ): Clip {
   const now = new Date().toISOString();
   getDb()
     .prepare(
-      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle)
-       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?)`
+      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle, persona_id)
+       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?, ?)`
     )
-    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0, v.vstyle ?? null);
+    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0, v.vstyle ?? null, v.personaId ?? null);
   return {
     id: v.id,
     projectId: "",
@@ -2373,6 +2386,7 @@ export function insertScriptVideo(
     tight: 1,
     animate: v.animate ? 1 : 0,
     vstyle: v.vstyle ?? null,
+    personaId: v.personaId ?? null,
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2383,7 +2397,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2412,6 +2426,7 @@ export function insertClip(
     tight: 1,
     animate: 0,
     vstyle: null,
+    personaId: null,
     kind: "clip",
     script: null,
     outputPath: null,
@@ -3400,6 +3415,59 @@ export function setReportBrand(email: string, brand: string): void {
   getDb()
     .prepare("UPDATE users SET report_brand = ? WHERE email = ?")
     .run(brand, email.toLowerCase());
+}
+
+// --- Personas (UGC presenters) ---
+
+export interface Persona {
+  id: string;
+  name: string;
+  source: "generated" | "uploaded";
+  createdAt: string;
+}
+
+const PERSONAS_DIR = path.join(process.cwd(), "data", "personas");
+
+/** Where a persona's image lives on disk. */
+export function personaImagePath(id: string): string {
+  return path.join(PERSONAS_DIR, `${id}.png`);
+}
+
+export function insertPersona(
+  email: string,
+  p: { id: string; name: string; source: "generated" | "uploaded"; image: Buffer }
+): Persona {
+  const now = new Date().toISOString();
+  fs.mkdirSync(PERSONAS_DIR, { recursive: true });
+  fs.writeFileSync(personaImagePath(p.id), p.image);
+  getDb()
+    .prepare("INSERT INTO personas (id, user_email, name, source, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(p.id, email.toLowerCase(), p.name, p.source, now);
+  return { id: p.id, name: p.name, source: p.source, createdAt: now };
+}
+
+export function listPersonas(email: string): Persona[] {
+  return (
+    getDb()
+      .prepare("SELECT id, name, source, created_at AS createdAt FROM personas WHERE user_email = ? ORDER BY created_at DESC")
+      .all(email.toLowerCase()) as unknown as Persona[]
+  );
+}
+
+export function getPersona(email: string, id: string): Persona | null {
+  const row = getDb()
+    .prepare("SELECT id, name, source, created_at AS createdAt FROM personas WHERE id = ? AND user_email = ?")
+    .get(id, email.toLowerCase()) as unknown as Persona | undefined;
+  return row ?? null;
+}
+
+export function deletePersona(email: string, id: string): void {
+  getDb().prepare("DELETE FROM personas WHERE id = ? AND user_email = ?").run(id, email.toLowerCase());
+  try {
+    fs.rmSync(personaImagePath(id), { force: true });
+  } catch {
+    /* file already gone */
+  }
 }
 
 // --- Autopilot + Review Inbox ---

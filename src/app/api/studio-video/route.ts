@@ -4,6 +4,7 @@ import {
   bestPlanFor,
   getBrandVoice,
   getFlags,
+  getPersona,
   insertAmbientVideo,
   insertScriptVideo,
 } from "@/lib/server/db";
@@ -104,6 +105,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ clip }, { status: 201 });
   }
 
+  // UGC spokesperson mode needs a presenter the user owns.
+  let personaId: string | undefined;
+  if (style === "ugc") {
+    personaId = String(b?.personaId ?? "");
+    if (!personaId || !getPersona(user.email, personaId)) {
+      return NextResponse.json(
+        { error: "Pick or create a presenter first — UGC videos are fronted by one." },
+        { status: 400 }
+      );
+    }
+  }
+
   if (animate && animSecondsLeft(bestPlanFor(user.email), user.email) <= 0) {
     return NextResponse.json(
       {
@@ -141,6 +154,7 @@ export async function POST(req: NextRequest) {
     position: "middle",
     animate,
     vstyle: style === "documentary" ? undefined : style,
+    personaId,
   });
   kickRenderWorker();
   return NextResponse.json({ clip }, { status: 201 });

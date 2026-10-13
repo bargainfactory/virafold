@@ -8,10 +8,16 @@
  * through the Clips tab, where the creator is sent after submitting.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
-import { Check, Film, Loader2, Sparkles } from "lucide-react";
+import { Check, Film, Loader2, Paperclip, Sparkles, Trash2, UserRound } from "lucide-react";
+
+interface Persona {
+  id: string;
+  name: string;
+  source: string;
+}
 
 export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { addToast } = useApp();
@@ -20,6 +26,76 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
   const [style, setStyle] = useState("cartoon");
   const [animate, setAnimate] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [personaId, setPersonaId] = useState("");
+  const [presPrompt, setPresPrompt] = useState("");
+  const [presBusy, setPresBusy] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const loadPersonas = useCallback(() => {
+    fetch("/api/personas", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.personas) return;
+        setPersonas(d.personas);
+        setPersonaId((cur) => cur || d.personas[0]?.id || "");
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    loadPersonas();
+  }, [loadPersonas]);
+
+  const generatePersona = useCallback(async () => {
+    if (presBusy || presPrompt.trim().length < 5) return;
+    setPresBusy(true);
+    try {
+      const res = await fetch("/api/personas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: presPrompt.trim() }),
+      });
+      const d = await res.json().catch(() => null);
+      if (res.ok) {
+        setPresPrompt("");
+        setPersonaId(d.persona.id);
+        loadPersonas();
+      } else addToast(d?.error ?? t("clips.renderFailed"), "error");
+    } finally {
+      setPresBusy(false);
+    }
+  }, [presBusy, presPrompt, addToast, t, loadPersonas]);
+
+  const uploadPersona = useCallback(
+    async (file: File) => {
+      if (presBusy) return;
+      setPresBusy(true);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("consent", "true");
+        const res = await fetch("/api/personas", { method: "POST", body: form });
+        const d = await res.json().catch(() => null);
+        if (res.ok) {
+          setPersonaId(d.persona.id);
+          loadPersonas();
+        } else addToast(d?.error ?? t("clips.renderFailed"), "error");
+      } finally {
+        setPresBusy(false);
+      }
+    },
+    [presBusy, addToast, t, loadPersonas]
+  );
+
+  const removePersona = useCallback(
+    async (id: string) => {
+      await fetch(`/api/personas/${id}`, { method: "DELETE" }).catch(() => {});
+      setPersonaId((cur) => (cur === id ? "" : cur));
+      loadPersonas();
+    },
+    [loadPersonas]
+  );
 
   const create = useCallback(async () => {
     if (busy || input.trim().length < 10) return;
@@ -32,6 +108,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
           input: input.trim(),
           style,
           animate: style === "ambient" ? false : animate,
+          personaId: style === "ugc" ? personaId : undefined,
           locale: localStorage.getItem("ef_locale") || "en",
         }),
       });
@@ -46,7 +123,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
     } finally {
       setBusy(false);
     }
-  }, [busy, input, style, animate, addToast, t, onNavigate]);
+  }, [busy, input, style, animate, personaId, addToast, t, onNavigate]);
 
   return (
     <div className="space-y-5">
@@ -68,8 +145,8 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
         {/* 3D push-buttons: raised bevel at rest (hard bottom edge + top
             highlight), lifted on hover, physically pressed-in + glowing when
             selected — all in the brand purple/blue. */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 pb-1">
-          {(["cartoon", "explainer", "cinematic", "documentary", "ambient"] as const).map((s) => (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 pb-1">
+          {(["ugc", "cartoon", "explainer", "cinematic", "documentary", "ambient"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStyle(s)}
@@ -91,6 +168,91 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
             </button>
           ))}
         </div>
+        {/* UGC presenter panel: pick a saved persona, generate one from a
+            description, or attach a photo (with a recorded rights attestation
+            — animate-a-photo is deepfake-adjacent, so consent is explicit). */}
+        {style === "ugc" && (
+          <div className="bg-cyber-dark/60 border border-cyber-border rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <UserRound className="w-3.5 h-3.5 text-fuchsia-400" /> {t("studio.presenter")}
+            </p>
+            {personas.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {personas.map((p) => (
+                  <div key={p.id} className="relative group">
+                    <button
+                      onClick={() => setPersonaId(p.id)}
+                      title={p.name}
+                      className={`block w-16 h-24 rounded-lg overflow-hidden border-2 transition-colors ${
+                        personaId === p.id
+                          ? "border-fuchsia-400 shadow-[0_0_12px_rgba(217,70,239,0.4)]"
+                          : "border-cyber-border hover:border-neon-purple/50"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/api/personas/${p.id}`} alt={p.name} className="w-full h-full object-cover" />
+                    </button>
+                    <button
+                      onClick={() => removePersona(p.id)}
+                      aria-label={t("inbox.dismiss")}
+                      className="absolute -top-1.5 -right-1.5 hidden group-hover:flex w-5 h-5 items-center justify-center rounded-full bg-cyber-card border border-cyber-border text-cyber-muted hover:text-red-400"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={presPrompt}
+                onChange={(e) => setPresPrompt(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && generatePersona()}
+                placeholder={t("studio.presenterGenPh")}
+                className="flex-1 min-w-[200px] px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50"
+              />
+              <button
+                onClick={generatePersona}
+                disabled={presBusy || presPrompt.trim().length < 5}
+                className="px-3 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {presBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {t("studio.presenterGen")}
+              </button>
+              <button
+                onClick={() => consent && fileRef.current?.click()}
+                disabled={presBusy || !consent}
+                title={consent ? undefined : t("studio.consent")}
+                className="px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs font-medium text-foreground hover:border-neon-purple/50 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Paperclip className="w-3.5 h-3.5" /> {t("studio.presenterAttach")}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadPersona(f);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-0.5 accent-fuchsia-500"
+              />
+              <span className="text-[11px] text-cyber-muted leading-snug">{t("studio.consent")}</span>
+            </label>
+            <p className="text-[11px] text-cyber-muted leading-snug">{t("studio.presenterNote")}</p>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           {style !== "ambient" ? (
             <button
@@ -111,7 +273,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
           )}
           <button
             onClick={create}
-            disabled={busy || input.trim().length < 10}
+            disabled={busy || input.trim().length < 10 || (style === "ugc" && !personaId)}
             className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Film className="w-4 h-4" />}
