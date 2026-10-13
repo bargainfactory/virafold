@@ -2514,20 +2514,22 @@ function IdeasTab() {
         </div>
       </div>
 
-      <label className="flex items-start gap-2.5 bg-cyber-card border border-cyber-border rounded-xl px-4 py-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={animateVideos}
-          onChange={(e) => setAnimateVideos(e.target.checked)}
-          className="mt-0.5 accent-fuchsia-500"
-        />
-        <span className="min-w-0">
-          <span className="text-sm text-foreground flex items-center gap-1.5">
-            <Film className="w-3.5 h-3.5 text-fuchsia-400" /> {t("ideas.animate")}
-          </span>
-          <span className="block text-xs text-cyber-muted mt-0.5">{t("ideas.animateHint")}</span>
-        </span>
-      </label>
+      <div className="flex flex-wrap items-center gap-3 bg-cyber-card border border-cyber-border rounded-xl px-4 py-3">
+        <button
+          onClick={() => setAnimateVideos((v) => !v)}
+          aria-pressed={animateVideos}
+          className={`px-4 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors shrink-0 ${
+            animateVideos
+              ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.25)]"
+              : "bg-cyber-dark border-cyber-border text-cyber-muted hover:text-foreground hover:border-fuchsia-500/40"
+          }`}
+        >
+          <Film className="w-3.5 h-3.5" />
+          {t("ideas.animate")}
+          {animateVideos && <Check className="w-3.5 h-3.5" />}
+        </button>
+        <span className="text-xs text-cyber-muted flex-1 min-w-[200px]">{t("ideas.animateHint")}</span>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

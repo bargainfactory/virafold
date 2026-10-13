@@ -1261,15 +1261,19 @@ export default function ClipsTab({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             {stStyle !== "ambient" ? (
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={stAnimate}
-                  onChange={(e) => setStAnimate(e.target.checked)}
-                  className="accent-fuchsia-500"
-                />
-                <span className="text-xs text-cyber-muted">{t("studio.motion")}</span>
-              </label>
+              <button
+                onClick={() => setStAnimate((v) => !v)}
+                aria-pressed={stAnimate}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+                  stAnimate
+                    ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.25)]"
+                    : "bg-cyber-dark border-cyber-border text-cyber-muted hover:text-foreground hover:border-fuchsia-500/40"
+                }`}
+              >
+                <Film className="w-3.5 h-3.5" />
+                {t("studio.motion")}
+                {stAnimate && <Check className="w-3.5 h-3.5" />}
+              </button>
             ) : (
               <span className="text-xs text-cyber-muted">{t("studio.ambientNote")}</span>
             )}
