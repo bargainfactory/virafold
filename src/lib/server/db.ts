@@ -361,6 +361,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN animate INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE clips ADD COLUMN vstyle TEXT",
     "ALTER TABLE users ADD COLUMN autopilot INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE ideas ADD COLUMN video_made INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       conn.exec(stmt);
@@ -420,6 +421,8 @@ export interface Idea {
   script: string;
   score: number;
   status: "idea" | "scripted" | "generated";
+  /** A script video has been rendered from this idea (pipeline stage marker). */
+  videoMade?: boolean;
   createdAt: string;
 }
 
@@ -431,6 +434,7 @@ function mapIdea(row: Record<string, unknown>): Idea {
     script: (row.script as string) ?? "",
     score: row.score as number,
     status: row.status as Idea["status"],
+    videoMade: Boolean(row.video_made),
     createdAt: row.created_at as string,
   };
 }
@@ -477,7 +481,7 @@ export function insertIdea(
 export function updateIdea(
   email: string,
   id: string,
-  updates: Partial<Pick<Idea, "title" | "notes" | "script" | "status" | "score">>
+  updates: Partial<Pick<Idea, "title" | "notes" | "script" | "status" | "score" | "videoMade">>
 ): Idea | null {
   const cols: Record<string, string> = {
     title: "title",
@@ -485,6 +489,7 @@ export function updateIdea(
     script: "script",
     status: "status",
     score: "score",
+    videoMade: "video_made",
   };
   const sets: string[] = [];
   const values: (string | number)[] = [];
@@ -492,7 +497,7 @@ export function updateIdea(
     const v = updates[key as keyof typeof updates];
     if (v !== undefined) {
       sets.push(`${col} = ?`);
-      values.push(v as string | number);
+      values.push(typeof v === "boolean" ? (v ? 1 : 0) : (v as string | number));
     }
   }
   if (sets.length > 0) {

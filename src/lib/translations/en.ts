@@ -953,6 +953,18 @@ export const en: Record<string, string> = {
   "studio.s.ambient": "Ambient",
   "studio.d.ambient": "Sleep-length relaxation loop with a real soundscape.",
 
+  // Ideas pipeline stepper
+  "ideas.pipelineHint": "Each idea walks the same path: Script, then Video and Assets, then review and schedule. Click a filled stage dot to open what it made.",
+  "ideas.stIdea": "Idea",
+  "ideas.stScript": "Script",
+  "ideas.stVideo": "Video",
+  "ideas.stAssets": "Assets",
+  "ideas.tierStrong": "strong",
+  "ideas.tierOk": "decent",
+  "ideas.tierLow": "weak",
+  "ideas.reviewSchedule": "Review & schedule",
+  "ideas.videoOptions": "Video style & motion",
+
   // Script-to-video (Ideas)
   "ideas.animate": "Animate scenes with AI motion",
   "ideas.animateHint": "Turns the AI imagery in your script videos into moving shots (xAI Imagine). Paid plans include a monthly animation allowance; scenes beyond it keep the cinematic stills.",

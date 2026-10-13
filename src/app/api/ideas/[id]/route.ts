@@ -33,6 +33,7 @@ export async function PATCH(
   if (typeof b.script === "string") updates.script = b.script.slice(0, 60000);
   if (typeof b.status === "string" && STATUSES.has(b.status))
     updates.status = b.status as "idea" | "scripted" | "generated";
+  if (typeof b.videoMade === "boolean") updates.videoMade = b.videoMade;
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }

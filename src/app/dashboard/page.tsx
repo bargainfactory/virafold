@@ -37,6 +37,7 @@ import {
   ShieldAlert,
   Fingerprint,
   Plus,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   List,
@@ -576,7 +577,7 @@ export default function Dashboard() {
               onStart={() => setShowUploadModal(true)}
             />
           )}
-          {activeTab === "Ideas" && <IdeasTab />}
+          {activeTab === "Ideas" && <IdeasTab onNavigate={(tb) => setActiveTab(tb as Tab)} />}
           {activeTab === "Clips" && (
             <ClipsTab
               initialProject={clipsProject}
@@ -2292,16 +2293,11 @@ interface IdeaRow {
   script: string;
   score: number;
   status: "idea" | "scripted" | "generated";
+  videoMade?: boolean;
   createdAt: string;
 }
 
-const ideaStatusColor: Record<string, string> = {
-  idea: "text-electric-blue bg-electric-blue/10",
-  scripted: "text-warning bg-warning/10",
-  generated: "text-success bg-success/10",
-};
-
-function IdeasTab() {
+function IdeasTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { uploadProject, addToast } = useApp();
   const { t } = useTranslation();
   const [ideas, setIdeas] = useState<IdeaRow[]>([]);
@@ -2310,7 +2306,19 @@ function IdeasTab() {
   const [notes, setNotes] = useState("");
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [animateVideos, setAnimateVideos] = useState(false);
+  // Video defaults persist per browser: last style + AI-motion preference.
+  const [vidStyle, setVidStyle] = useState("documentary");
+  const [vidMotion, setVidMotion] = useState(true);
+  const [optionsFor, setOptionsFor] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("vf_video_style");
+      if (s) setVidStyle(s);
+      setVidMotion(localStorage.getItem("vf_video_motion") !== "0");
+    } catch {
+      /* private mode */
+    }
+  }, []);
   const [scriptIdea, setScriptIdea] = useState<IdeaRow | null>(null);
   const [scriptDraft, setScriptDraft] = useState("");
   const [savingScript, setSavingScript] = useState(false);
@@ -2370,22 +2378,39 @@ function IdeasTab() {
     [patchIdea, addToast, t]
   );
 
-  // Script-to-video: TTS narration + waveform + captions, no recording.
+  // Script-to-video with the remembered style + motion defaults; marks the
+  // idea's Video pipeline stage on success.
   const makeVideo = useCallback(
     async (idea: IdeaRow) => {
       if (!idea.script) return;
+      setOptionsFor(null);
       setBusyId(idea.id);
       const res = await fetch("/api/script-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: idea.title, script: idea.script, animate: animateVideos }),
+        body: JSON.stringify({
+          title: idea.title,
+          script: idea.script,
+          animate: vidMotion,
+          vstyle: vidStyle === "documentary" ? undefined : vidStyle,
+        }),
       });
       setBusyId(null);
       const d = await res.json().catch(() => null);
-      if (res.ok) addToast(t("ideas.videoQueued"));
-      else addToast(d?.error ?? t("ideas.videoFailed"), "error");
+      if (res.ok) {
+        addToast(t("ideas.videoQueued"));
+        const r2 = await fetch(`/api/ideas/${idea.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videoMade: true }),
+        });
+        if (r2.ok) {
+          const { idea: updated } = await r2.json();
+          patchIdea(updated);
+        }
+      } else addToast(d?.error ?? t("ideas.videoFailed"), "error");
     },
-    [addToast, t, animateVideos]
+    [addToast, t, vidMotion, vidStyle, patchIdea]
   );
 
   const saveScript = useCallback(async () => {
@@ -2438,8 +2463,12 @@ function IdeasTab() {
 
   return (
     <div className="space-y-5">
-      {/* The pipeline, spelled out: what to do, what the score means, and
-          what each button produces — mirrors the actual controls below. */}
+      {/* The pipeline, spelled out — but only while the tab is empty. Once
+          ideas exist, each row's stage stepper IS the explanation. */}
+      {!loading && ideas.length > 0 && (
+        <p className="text-xs text-cyber-muted">{t("ideas.pipelineHint")}</p>
+      )}
+      {!loading && ideas.length === 0 && (
       <div className="bg-cyber-card border border-neon-purple/30 rounded-xl p-5">
         <p className="text-sm font-semibold text-foreground mb-4">{t("ideas.ctaTitle")}</p>
         <div className="grid sm:grid-cols-3 gap-4">
@@ -2472,6 +2501,7 @@ function IdeasTab() {
           </div>
         </div>
       </div>
+      )}
 
       <div className="bg-cyber-card border border-cyber-border rounded-xl p-4 space-y-3">
         <div>
@@ -2514,23 +2544,6 @@ function IdeasTab() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 bg-cyber-card border border-cyber-border rounded-xl px-4 py-3">
-        <button
-          onClick={() => setAnimateVideos((v) => !v)}
-          aria-pressed={animateVideos}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors shrink-0 ${
-            animateVideos
-              ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.25)]"
-              : "bg-cyber-dark border-cyber-border text-cyber-muted hover:text-foreground hover:border-fuchsia-500/40"
-          }`}
-        >
-          <Film className="w-3.5 h-3.5" />
-          {t("ideas.animate")}
-          {animateVideos && <Check className="w-3.5 h-3.5" />}
-        </button>
-        <span className="text-xs text-cyber-muted flex-1 min-w-[200px]">{t("ideas.animateHint")}</span>
-      </div>
-
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 rounded-full border-2 border-cyber-border border-t-neon-purple animate-spin" />
@@ -2539,69 +2552,182 @@ function IdeasTab() {
         <div className="text-center py-16 text-cyber-muted">{t("ideas.empty")}</div>
       ) : (
         <div className="space-y-3">
-          {ideas.map((idea) => (
-            <div
-              key={idea.id}
-              className="bg-cyber-card border border-cyber-border rounded-xl p-4 flex items-start gap-4"
-            >
+          {ideas.map((idea) => {
+            const hasScript = Boolean(idea.script);
+            const hasVideo = Boolean(idea.videoMade);
+            const hasAssets = idea.status === "generated";
+            const stages: { key: string; label: string; done: boolean; onClick?: () => void }[] = [
+              { key: "idea", label: t("ideas.stIdea"), done: true },
+              {
+                key: "script",
+                label: t("ideas.stScript"),
+                done: hasScript,
+                onClick: hasScript
+                  ? () => (setScriptIdea(idea), setScriptDraft(idea.script))
+                  : undefined,
+              },
+              { key: "video", label: t("ideas.stVideo"), done: hasVideo },
+              { key: "assets", label: t("ideas.stAssets"), done: hasAssets },
+            ];
+            const tier =
+              idea.score >= 7 ? t("ideas.tierStrong") : idea.score >= 4 ? t("ideas.tierOk") : t("ideas.tierLow");
+            const busy = busyId === idea.id;
+            const primaryCls =
+              "px-3.5 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shrink-0";
+            const ghostCls =
+              "px-3 py-2 text-xs font-medium rounded-lg bg-cyber-dark border border-cyber-border text-cyber-muted hover:text-foreground hover:border-neon-purple/40 transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0";
+            return (
               <div
-                title={t("ideas.scoreHint")}
-                className="w-10 h-10 rounded-xl bg-neon-purple/10 border border-neon-purple/30 flex items-center justify-center shrink-0 text-sm font-bold text-neon-purple"
+                key={idea.id}
+                className="bg-cyber-card border border-cyber-border rounded-xl p-4 flex items-start gap-4"
               >
-                {idea.score}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{idea.title}</p>
-                {idea.notes && (
-                  <p className="text-xs text-cyber-muted mt-0.5 line-clamp-2">{idea.notes}</p>
-                )}
-                <span
-                  className={`inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full ${ideaStatusColor[idea.status]}`}
-                >
-                  {t(`ideas.status.${idea.status}`)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                <button
-                  onClick={() =>
-                    idea.script
-                      ? (setScriptIdea(idea), setScriptDraft(idea.script))
-                      : writeScript(idea)
-                  }
-                  disabled={busyId === idea.id}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-electric-blue/10 border border-electric-blue/40 text-electric-blue hover:bg-electric-blue/20 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {busyId === idea.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <FileText className="w-3.5 h-3.5" />
+                <div className="shrink-0 text-center" title={t("ideas.scoreHint")}>
+                  <div className="w-10 h-10 rounded-xl bg-neon-purple/10 border border-neon-purple/30 flex items-center justify-center text-sm font-bold text-neon-purple">
+                    {idea.score}
+                  </div>
+                  <p className="text-[10px] text-cyber-muted mt-1">{tier}</p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                  {idea.notes && (
+                    <p className="text-xs text-cyber-muted mt-0.5 line-clamp-2">{idea.notes}</p>
                   )}
-                  {idea.script ? t("ideas.viewScript") : t("ideas.writeScript")}
-                </button>
-                <button
-                  onClick={() => genAssets(idea)}
-                  disabled={busyId === idea.id}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" /> {t("ideas.genAssets")}
-                </button>
-                <button
-                  onClick={() => makeVideo(idea)}
-                  disabled={busyId === idea.id || !idea.script}
-                  title={idea.script ? t("ideas.makeVideoHint") : t("ideas.makeVideoNeedsScript")}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/40 text-fuchsia-400 hover:bg-fuchsia-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                >
-                  <Film className="w-3.5 h-3.5" /> {t("ideas.makeVideo")}
-                </button>
-                <button
-                  onClick={() => remove(idea.id)}
-                  className="p-1.5 text-cyber-muted hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  {/* Stage stepper: the whole pipeline, visible on every row. */}
+                  <div className="flex items-center mt-2.5 flex-wrap gap-y-1">
+                    {stages.map((s, i) => (
+                      <div key={s.key} className="flex items-center">
+                        {i > 0 && (
+                          <span
+                            className={`w-5 h-px mx-1 ${stages[i - 1].done && s.done ? "bg-neon-purple/60" : "bg-cyber-border"}`}
+                          />
+                        )}
+                        <button
+                          onClick={s.onClick}
+                          disabled={!s.onClick}
+                          className={`flex items-center gap-1 text-[11px] ${
+                            s.done ? "text-foreground" : "text-cyber-muted"
+                          } ${s.onClick ? "hover:text-neon-purple cursor-pointer" : "cursor-default"}`}
+                        >
+                          <span
+                            className={`w-2.5 h-2.5 rounded-full border ${
+                              s.done
+                                ? "bg-neon-purple border-neon-purple"
+                                : "bg-transparent border-cyber-muted/60"
+                            }`}
+                          />
+                          {s.label}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="relative flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  {!hasScript ? (
+                    <button onClick={() => writeScript(idea)} disabled={busy} className={primaryCls}>
+                      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                      {t("ideas.writeScript")}
+                    </button>
+                  ) : !hasVideo ? (
+                    <>
+                      <button onClick={() => genAssets(idea)} disabled={busy} className={ghostCls}>
+                        <Sparkles className="w-3.5 h-3.5" /> {t("ideas.genAssets")}
+                      </button>
+                      <div className="flex shrink-0">
+                        <button
+                          onClick={() => makeVideo(idea)}
+                          disabled={busy}
+                          className={`${primaryCls} rounded-r-none`}
+                        >
+                          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Film className="w-3.5 h-3.5" />}
+                          {t("ideas.makeVideo")}
+                        </button>
+                        <button
+                          onClick={() => setOptionsFor(optionsFor === idea.id ? null : idea.id)}
+                          aria-label={t("ideas.videoOptions")}
+                          className="px-1.5 rounded-r-lg bg-gradient-to-r from-electric-blue to-electric-blue text-white border-l border-white/20 hover:opacity-90"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </>
+                  ) : !hasAssets ? (
+                    <>
+                      <button onClick={() => makeVideo(idea)} disabled={busy} className={ghostCls}>
+                        <Film className="w-3.5 h-3.5" /> {t("ideas.makeVideo")}
+                      </button>
+                      <button onClick={() => genAssets(idea)} disabled={busy} className={primaryCls}>
+                        {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        {t("ideas.genAssets")}
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => onNavigate?.("Inbox")} className={primaryCls}>
+                      <Send className="w-3.5 h-3.5" /> {t("ideas.reviewSchedule")}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => remove(idea.id)}
+                    aria-label={t("sched.cancelPost")}
+                    className="p-1.5 text-cyber-muted hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  {/* Video options popover: Studio styles + AI motion, remembered. */}
+                  {optionsFor === idea.id && (
+                    <div className="absolute right-0 top-full mt-2 z-20 w-64 bg-cyber-card border border-cyber-border rounded-xl p-3 shadow-xl space-y-2">
+                      <p className="text-xs font-semibold text-foreground">{t("ideas.videoOptions")}</p>
+                      {["documentary", "cartoon", "explainer", "cinematic"].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setVidStyle(s);
+                            try {
+                              localStorage.setItem("vf_video_style", s);
+                            } catch {}
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-lg border text-xs ${
+                            vidStyle === s
+                              ? "border-fuchsia-500/60 bg-fuchsia-500/10 text-fuchsia-300"
+                              : "border-cyber-border bg-cyber-dark text-foreground hover:border-cyber-muted"
+                          }`}
+                        >
+                          <span className="font-medium">{t(`studio.s.${s}`)}</span>
+                          <span className="block text-[11px] text-cyber-muted mt-0.5">{t(`studio.d.${s}`)}</span>
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setVidMotion((v) => {
+                            try {
+                              localStorage.setItem("vf_video_motion", v ? "0" : "1");
+                            } catch {}
+                            return !v;
+                          });
+                        }}
+                        aria-pressed={vidMotion}
+                        className={`w-full px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+                          vidMotion
+                            ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300"
+                            : "bg-cyber-dark border-cyber-border text-cyber-muted"
+                        }`}
+                      >
+                        <Film className="w-3.5 h-3.5" />
+                        {t("ideas.animate")}
+                        {vidMotion && <Check className="w-3.5 h-3.5 ml-auto" />}
+                      </button>
+                      <button
+                        onClick={() => makeVideo(idea)}
+                        disabled={busy}
+                        className="w-full px-3 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+                      >
+                        {t("ideas.makeVideo")}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

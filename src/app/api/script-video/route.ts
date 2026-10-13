@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/server/auth";
 import { bestPlanFor, getFlags, insertScriptVideo } from "@/lib/server/db";
 import { CAPTION_POSITIONS, CAPTION_STYLES, kickRenderWorker } from "@/lib/server/render";
 import { animSecondsLeft } from "@/lib/server/video-gen";
+import { VIDEO_STYLES } from "@/lib/server/scenes";
 import { rateLimit } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Visual style preset (Animation Studio styles minus ambient, which is not
+  // a script format); unknown values fall back to the documentary default.
+  const vstyleRaw = String(b?.vstyle ?? "");
+  const vstyle = VIDEO_STYLES[vstyleRaw] ? vstyleRaw : undefined;
+
   // AI motion is per-second billed upstream — gated by the plan's monthly
   // animation allowance. Zero allowance (Free) gets a clear upgrade message;
   // a partially spent allowance still renders, animating what it can cover.
@@ -73,6 +79,7 @@ export async function POST(req: NextRequest) {
     style,
     position,
     animate,
+    vstyle,
   });
   kickRenderWorker();
   return NextResponse.json({ clip }, { status: 201 });
