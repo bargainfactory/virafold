@@ -285,6 +285,8 @@ export const fr: Record<string, string> = {
   "ideas.ctaS3d": "Transforme le script en un ensemble complet d'assets — shorts, carrousel, newsletter et thread — dans la voix de votre marque, prêt à relire et à planifier.",
   "ideas.ctaS3t": "3. Générer les assets",
   "ideas.ctaTitle": "De l'étincelle au contenu planifié — trois clics :",
+  "ideas.animate": "Animer les scènes avec du mouvement IA",
+  "ideas.animateHint": "Transforme les images IA de vos vidéos scriptées en plans animés (xAI Imagine). Les forfaits payants incluent un quota mensuel d'animation ; au-delà, les scènes gardent leurs images fixes cinématographiques.",
   "ideas.makeVideo": "Créer une vidéo",
   "ideas.makeVideoHint": "Transformez ce script en vidéo verticale narrée et sous-titrée — aucun enregistrement nécessaire.",
   "ideas.makeVideoNeedsScript": "Rédigez d'abord le script — la vidéo le narre. Cliquez sur Rédiger le script, puis ceci se débloque.",

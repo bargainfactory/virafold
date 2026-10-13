@@ -358,6 +358,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN tight INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE assets ADD COLUMN flags TEXT",
     "ALTER TABLE scheduled_posts ADD COLUMN verified INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE clips ADD COLUMN animate INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       conn.exec(stmt);
@@ -1975,6 +1976,23 @@ export function insertEvent(event: string, path: string, meta: string | null): v
     .run(event.slice(0, 64), path.slice(0, 256), Date.now(), meta ? meta.slice(0, 512) : null);
 }
 
+/** AI-motion seconds billed to this account this calendar month (UTC). */
+export function animSecondsThisMonth(email: string): number {
+  const monthStart = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1);
+  const rows = getDb()
+    .prepare("SELECT meta FROM analytics_events WHERE event = 'anim_seconds' AND path = ? AND ts >= ?")
+    .all(email.toLowerCase(), monthStart) as { meta: string | null }[];
+  let total = 0;
+  for (const r of rows) {
+    try {
+      total += Number(JSON.parse(r.meta ?? "{}").s) || 0;
+    } catch {
+      /* malformed telemetry row — skip */
+    }
+  }
+  return total;
+}
+
 /** Token telemetry by tier, aggregated from llm_* analytics events. */
 export function llmUsage(): {
   tier: string;
@@ -2210,6 +2228,8 @@ export interface Clip {
   tight: number;
   /** Horizontal crop focus for the 9:16 cut: left | center | right. */
   focus: string;
+  /** Script videos only: 1 = animate AI-imagery beats with xAI Imagine Video. */
+  animate: number;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
   kind: string;
   script: string | null;
@@ -2233,6 +2253,7 @@ function mapClip(row: Record<string, unknown>): Clip {
     tight: (row.tight as number) ?? 1,
     position: (row.position as string) ?? "bottom",
     focus: (row.focus as string) ?? "center",
+    animate: (row.animate as number) ?? 0,
     kind: (row.kind as string) ?? "clip",
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
@@ -2267,6 +2288,7 @@ export function insertCaptionJob(
     position: v.position,
     focus: "center",
     tight: 1,
+    animate: 0,
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2303,6 +2325,7 @@ export function insertAmbientVideo(
     position: "middle",
     focus: "center",
     tight: 1,
+    animate: 0,
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2313,15 +2336,15 @@ export function insertAmbientVideo(
 
 export function insertScriptVideo(
   email: string,
-  v: { id: string; title: string; script: string; style: string; position: string }
+  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean }
 ): Clip {
   const now = new Date().toISOString();
   getDb()
     .prepare(
-      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script)
-       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?)`
+      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate)
+       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?)`
     )
-    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script);
+    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0);
   return {
     id: v.id,
     projectId: "",
@@ -2336,6 +2359,7 @@ export function insertScriptVideo(
     position: v.position,
     focus: "center",
     tight: 1,
+    animate: v.animate ? 1 : 0,
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2346,7 +2370,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2373,6 +2397,7 @@ export function insertClip(
     position: "bottom",
     focus: "center",
     tight: 1,
+    animate: 0,
     kind: "clip",
     script: null,
     outputPath: null,

@@ -285,6 +285,8 @@ export const ja: Record<string, string> = {
   "ideas.ctaS3d": "スクリプトから完全なアセットセットに展開 — Shorts、カルーセル、ニュースレター、スレッド — ブランドボイスで、確認して予約するだけ。",
   "ideas.ctaS3t": "3. アセットを生成",
   "ideas.ctaTitle": "ひらめきから予約済みコンテンツまで — 3クリック：",
+  "ideas.animate": "AIモーションでシーンをアニメート",
+  "ideas.animateHint": "スクリプト動画のAI画像を動くショットに変えます（xAI Imagine）。有料プランには月間アニメーション枠が含まれ、枠を超えたシーンはシネマティックな静止画のままです。",
   "ideas.makeVideo": "動画を作成",
   "ideas.makeVideoHint": "このスクリプトをナレーション付き・キャプション付きの縦型動画に — 収録不要。",
   "ideas.makeVideoNeedsScript": "先にスクリプトを書いてください — 動画はそれを読み上げます。「スクリプトを書く」をクリックすると、これが解除されます。",

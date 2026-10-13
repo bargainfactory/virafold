@@ -285,6 +285,8 @@ export const pt: Record<string, string> = {
   "ideas.ctaS3d": "Transforma o roteiro em um conjunto completo de peças — shorts, carrossel, newsletter e thread — na voz da sua marca, pronto para revisar e agendar.",
   "ideas.ctaS3t": "3. Gerar peças",
   "ideas.ctaTitle": "Da ideia ao conteúdo agendado — três cliques:",
+  "ideas.animate": "Animar cenas com movimento de IA",
+  "ideas.animateHint": "Transforma as imagens de IA dos seus vídeos com roteiro em cenas em movimento (xAI Imagine). Os planos pagos incluem uma cota mensal de animação; as cenas além dela mantêm as imagens estáticas cinematográficas.",
   "ideas.makeVideo": "Criar vídeo",
   "ideas.makeVideoHint": "Transforme este roteiro em um vídeo vertical narrado e legendado — sem precisar gravar.",
   "ideas.makeVideoNeedsScript": "Escreva o roteiro primeiro — o vídeo narra ele. Clique em Escrever roteiro e isso se desbloqueia.",

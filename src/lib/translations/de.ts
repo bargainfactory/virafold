@@ -285,6 +285,8 @@ export const de: Record<string, string> = {
   "ideas.ctaS3d": "Faltet das Skript zu einem kompletten Asset-Set — Shorts, Karussell, Newsletter und Thread — in deiner Markenstimme, bereit zum Prüfen und Planen.",
   "ideas.ctaS3t": "3. Assets erzeugen",
   "ideas.ctaTitle": "Von der Idee zum geplanten Content — drei Klicks:",
+  "ideas.animate": "Szenen mit KI-Bewegung animieren",
+  "ideas.animateHint": "Verwandelt die KI-Bilder in Ihren Skript-Videos in bewegte Aufnahmen (xAI Imagine). Bezahlte Pläne enthalten ein monatliches Animations-Kontingent; Szenen darüber hinaus behalten die filmischen Standbilder.",
   "ideas.makeVideo": "Video erstellen",
   "ideas.makeVideoHint": "Mach aus diesem Skript ein vertontes, untertiteltes vertikales Video — keine Aufnahme nötig.",
   "ideas.makeVideoNeedsScript": "Schreib zuerst das Skript — das Video vertont es. Klicke auf Skript schreiben, dann wird dies freigeschaltet.",

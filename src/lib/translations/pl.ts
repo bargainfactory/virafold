@@ -276,6 +276,8 @@ export const pl: Record<string, string> = {
   "ideas.ctaS3d": "Składa skrypt w kompletny zestaw materiałów — shorts, karuzela, newsletter i wątek — w głosie Twojej marki, gotowy do przeglądu i zaplanowania.",
   "ideas.ctaS3t": "3. Wygeneruj materiały",
   "ideas.ctaTitle": "Od iskry do zaplanowanych treści — trzy kliknięcia:",
+  "ideas.animate": "Animuj sceny ruchem AI",
+  "ideas.animateHint": "Zamienia obrazy AI w Twoich filmach ze scenariuszem w ruchome ujęcia (xAI Imagine). Płatne plany zawierają miesięczny limit animacji; sceny poza nim zachowują filmowe kadry statyczne.",
   "ideas.makeVideo": "Zrób film",
   "ideas.makeVideoHint": "Zamień ten skrypt w pionowy film z narracją i napisami — bez nagrywania.",
   "ideas.makeVideoNeedsScript": "Najpierw napisz skrypt — film go narruje. Kliknij Napisz skrypt, wtedy ta opcja się odblokuje.",

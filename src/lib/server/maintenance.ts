@@ -85,7 +85,28 @@ export function runRetentionSweep(): { removed: number } {
       }
       // gen_images rows were just purged; surviving imgs are still referenced.
       if (name.startsWith("img-")) continue;
+      // AI-motion dirs have their own TTLs below — deleting vidcache as an
+      // orphan would silently re-bill every animated re-render.
+      if (name === "vidcache" || name === "frames") continue;
       if (!known.has(path.resolve(abs)) && age > ORPHAN_TTL) {
+        rm(abs);
+        removed++;
+      }
+    }
+  }
+
+  // 3b. AI-motion housekeeping: published frames are one-time (leftovers mean
+  // a crashed generation — sweep after an hour); the generation cache follows
+  // the render TTL since re-creating it costs real per-second billing.
+  for (const [dir, ttl] of [
+    [path.join(RENDERS_DIR, "frames"), 60 * 60 * 1000],
+    [path.join(RENDERS_DIR, "vidcache"), RENDER_TTL],
+  ] as const) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) {
+      const abs = path.join(dir, name);
+      const age = ageOf(abs);
+      if (age !== null && age > ttl) {
         rm(abs);
         removed++;
       }

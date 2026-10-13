@@ -276,6 +276,8 @@ export const zhTW: Record<string, string> = {
   "ideas.ctaS3d": "把腳本整合成完整素材組 — 短影音、輪播、電子報與討論串 — 套用你的品牌語氣，可直接審核與排程。",
   "ideas.ctaS3t": "3. 產生素材",
   "ideas.ctaTitle": "從靈感到排程內容 — 三次點擊：",
+  "ideas.animate": "用 AI 動態為場景加上動畫",
+  "ideas.animateHint": "將腳本影片中的 AI 圖像變成動態鏡頭（xAI Imagine）。付費方案包含每月動畫額度；超出額度的場景保留電影感靜態畫面。",
   "ideas.makeVideo": "製作影片",
   "ideas.makeVideoHint": "把這份腳本變成有旁白、有字幕的直式影片 — 無需錄音。",
   "ideas.makeVideoNeedsScript": "請先撰寫腳本 — 影片會朗讀腳本。點選「撰寫腳本」後即可解鎖。",

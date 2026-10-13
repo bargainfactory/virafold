@@ -285,6 +285,8 @@ export const ko: Record<string, string> = {
   "ideas.ctaS3d": "스크립트를 완전한 에셋 세트로 만듭니다 — 쇼츠, 캐러셀, 뉴스레터, 스레드 — 브랜드 보이스로, 검토하고 예약할 준비가 됩니다.",
   "ideas.ctaS3t": "3. 에셋 생성",
   "ideas.ctaTitle": "아이디어에서 예약된 콘텐츠까지 — 클릭 세 번:",
+  "ideas.animate": "AI 모션으로 장면 애니메이션",
+  "ideas.animateHint": "스크립트 영상의 AI 이미지를 움직이는 샷으로 바꿉니다(xAI Imagine). 유료 플랜에는 월간 애니메이션 할당량이 포함되며, 이를 초과한 장면은 시네마틱 스틸로 유지됩니다.",
   "ideas.makeVideo": "영상 만들기",
   "ideas.makeVideoHint": "이 스크립트를 나레이션과 자막이 있는 세로 영상으로 만듭니다 — 녹화 불필요.",
   "ideas.makeVideoNeedsScript": "먼저 스크립트를 작성하세요 — 영상이 이를 나레이션합니다. 스크립트 작성을 클릭하면 잠금이 해제됩니다.",

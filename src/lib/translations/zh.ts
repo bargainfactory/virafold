@@ -272,6 +272,8 @@ export const zh: Record<string, string> = {
   "ideas.ctaS3d": "把脚本转化成完整素材包 — 短视频、轮播图、邮件通讯和帖文串 — 使用你的品牌语气，可直接审核和排期。",
   "ideas.ctaS3t": "3. 生成素材",
   "ideas.ctaTitle": "从灵感到排期内容 — 三次点击：",
+  "ideas.animate": "用 AI 动态为场景添加动画",
+  "ideas.animateHint": "将脚本视频中的 AI 图像变为动态镜头（xAI Imagine）。付费套餐包含每月动画额度；超出额度的场景保留电影感静态画面。",
   "ideas.makeVideo": "生成视频",
   "ideas.makeVideoHint": "把这份脚本变成带旁白和字幕的竖屏视频 — 无需录制。",
   "ideas.makeVideoNeedsScript": "请先撰写脚本 — 视频会朗读它。点击「撰写脚本」后即可解锁。",

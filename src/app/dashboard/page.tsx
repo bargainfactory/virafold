@@ -2286,6 +2286,7 @@ function IdeasTab() {
   const [notes, setNotes] = useState("");
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [animateVideos, setAnimateVideos] = useState(false);
   const [scriptIdea, setScriptIdea] = useState<IdeaRow | null>(null);
   const [scriptDraft, setScriptDraft] = useState("");
   const [savingScript, setSavingScript] = useState(false);
@@ -2353,14 +2354,14 @@ function IdeasTab() {
       const res = await fetch("/api/script-video", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: idea.title, script: idea.script }),
+        body: JSON.stringify({ title: idea.title, script: idea.script, animate: animateVideos }),
       });
       setBusyId(null);
       const d = await res.json().catch(() => null);
       if (res.ok) addToast(t("ideas.videoQueued"));
       else addToast(d?.error ?? t("ideas.videoFailed"), "error");
     },
-    [addToast, t]
+    [addToast, t, animateVideos]
   );
 
   const saveScript = useCallback(async () => {
@@ -2488,6 +2489,21 @@ function IdeasTab() {
           </button>
         </div>
       </div>
+
+      <label className="flex items-start gap-2.5 bg-cyber-card border border-cyber-border rounded-xl px-4 py-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={animateVideos}
+          onChange={(e) => setAnimateVideos(e.target.checked)}
+          className="mt-0.5 accent-fuchsia-500"
+        />
+        <span className="min-w-0">
+          <span className="text-sm text-foreground flex items-center gap-1.5">
+            <Film className="w-3.5 h-3.5 text-fuchsia-400" /> {t("ideas.animate")}
+          </span>
+          <span className="block text-xs text-cyber-muted mt-0.5">{t("ideas.animateHint")}</span>
+        </span>
+      </label>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

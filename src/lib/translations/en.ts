@@ -877,6 +877,8 @@ export const en: Record<string, string> = {
   "ideas.titleLabel": "1. Type your content idea",
   "ideas.notesLabel": "2. Add notes — angle, links, key points (optional)",
   // Script-to-video (Ideas)
+  "ideas.animate": "Animate scenes with AI motion",
+  "ideas.animateHint": "Turns the AI imagery in your script videos into moving shots (xAI Imagine). Paid plans include a monthly animation allowance; scenes beyond it keep the cinematic stills.",
   "ideas.makeVideo": "Make video",
   "ideas.makeVideoHint": "Turn this script into a narrated, captioned vertical video — no recording needed.",
   "ideas.makeVideoNeedsScript": "Write the script first — the video narrates it. Click Write script, then this unlocks.",

@@ -285,6 +285,8 @@ export const es: Record<string, string> = {
   "ideas.ctaS3d": "Convierte el guion en un set completo de piezas — shorts, carrusel, newsletter e hilo — en la voz de tu marca, listo para revisar y programar.",
   "ideas.ctaS3t": "3. Genera las piezas",
   "ideas.ctaTitle": "De la chispa al contenido programado — tres clics:",
+  "ideas.animate": "Animar escenas con movimiento de IA",
+  "ideas.animateHint": "Convierte las imágenes de IA de tus videos con guion en tomas en movimiento (xAI Imagine). Los planes de pago incluyen una asignación mensual de animación; las escenas que la excedan conservan las imágenes fijas cinematográficas.",
   "ideas.makeVideo": "Crear video",
   "ideas.makeVideoHint": "Convierte este guion en un video vertical narrado y subtitulado — sin necesidad de grabar.",
   "ideas.makeVideoNeedsScript": "Escribe el guion primero — el video lo narra. Haz clic en Escribe el guion y se desbloquea.",

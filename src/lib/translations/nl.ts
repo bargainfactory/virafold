@@ -276,6 +276,8 @@ export const nl: Record<string, string> = {
   "ideas.ctaS3d": "Vormt het script tot een complete assetset — shorts, carrousel, nieuwsbrief en thread — in je merkstem, klaar om te reviewen en in te plannen.",
   "ideas.ctaS3t": "3. Assets genereren",
   "ideas.ctaTitle": "Van vonk tot ingeplande content — drie klikken:",
+  "ideas.animate": "Scènes animeren met AI-beweging",
+  "ideas.animateHint": "Zet de AI-beelden in je scriptvideo's om in bewegende shots (xAI Imagine). Betaalde abonnementen bevatten een maandelijks animatietegoed; scènes daarbuiten behouden de cinematografische stills.",
   "ideas.makeVideo": "Video maken",
   "ideas.makeVideoHint": "Maak van dit script een ingesproken, ondertitelde verticale video — geen opname nodig.",
   "ideas.makeVideoNeedsScript": "Schrijf eerst het script — de video spreekt het in. Klik op Script schrijven, dan wordt dit ontgrendeld.",

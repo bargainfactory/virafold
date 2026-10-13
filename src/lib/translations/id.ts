@@ -276,6 +276,8 @@ export const id: Record<string, string> = {
   "ideas.ctaS3d": "Mengubah skrip menjadi set aset lengkap — shorts, carousel, newsletter, dan thread — dalam suara merek Anda, siap ditinjau dan dijadwalkan.",
   "ideas.ctaS3t": "3. Hasilkan aset",
   "ideas.ctaTitle": "Dari ide ke konten terjadwal — tiga klik:",
+  "ideas.animate": "Animasikan adegan dengan gerakan AI",
+  "ideas.animateHint": "Mengubah citra AI di video skrip Anda menjadi cuplikan bergerak (xAI Imagine). Paket berbayar menyertakan kuota animasi bulanan; adegan di luar kuota tetap memakai gambar diam sinematik.",
   "ideas.makeVideo": "Buat video",
   "ideas.makeVideoHint": "Ubah skrip ini menjadi video vertikal ber-narasi dan ber-caption — tanpa perlu merekam.",
   "ideas.makeVideoNeedsScript": "Tulis skripnya dulu — videonya akan menarasikannya. Klik Tulis skrip, lalu ini terbuka.",

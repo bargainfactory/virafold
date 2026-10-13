@@ -276,6 +276,8 @@ export const vi: Record<string, string> = {
   "ideas.ctaS3d": "Gói kịch bản thành bộ asset hoàn chỉnh — shorts, carousel, newsletter và thread — theo giọng thương hiệu, sẵn sàng xem và lên lịch.",
   "ideas.ctaS3t": "3. Tạo asset",
   "ideas.ctaTitle": "Từ ý tưởng đến nội dung đã lên lịch — ba cú nhấp:",
+  "ideas.animate": "Tạo chuyển động AI cho cảnh",
+  "ideas.animateHint": "Biến hình ảnh AI trong video kịch bản của bạn thành cảnh quay chuyển động (xAI Imagine). Các gói trả phí có hạn mức hoạt ảnh hằng tháng; cảnh vượt hạn mức sẽ giữ ảnh tĩnh điện ảnh.",
   "ideas.makeVideo": "Tạo video",
   "ideas.makeVideoHint": "Biến kịch bản này thành video dọc có lời đọc và phụ đề — không cần ghi hình.",
   "ideas.makeVideoNeedsScript": "Hãy viết kịch bản trước — video sẽ đọc kịch bản đó. Nhấp Viết kịch bản, rồi mục này sẽ mở khóa.",

@@ -276,6 +276,8 @@ export const tr: Record<string, string> = {
   "ideas.ctaS3d": "Senaryoyu marka sesinizde tam bir varlık setine dönüştürür — shorts, karusel, bülten ve thread — incelemeye ve planlamaya hazır.",
   "ideas.ctaS3t": "3. Varlıkları oluştur",
   "ideas.ctaTitle": "Kıvılcımdan planlanmış içeriğe — üç tık:",
+  "ideas.animate": "Sahneleri yapay zekâ hareketiyle canlandır",
+  "ideas.animateHint": "Senaryo videolarınızdaki yapay zekâ görsellerini hareketli çekimlere dönüştürür (xAI Imagine). Ücretli planlar aylık animasyon hakkı içerir; hakkı aşan sahneler sinematik sabit görsellerle kalır.",
   "ideas.makeVideo": "Video oluştur",
   "ideas.makeVideoHint": "Bu senaryoyu anlatımlı, altyazılı dikey videoya dönüştürün — kayıt gerekmez.",
   "ideas.makeVideoNeedsScript": "Önce senaryoyu yazın — video onu anlatır. Senaryo yaz'a tıklayın, ardından bu etkinleşir.",

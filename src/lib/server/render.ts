@@ -593,6 +593,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     // Stock providers used — credited in the publish description per their
     // API terms (Pixabay asks that the source be shown).
     const brollProviders = new Set<string>();
+    // Whether any beat carries AI-generated motion — disclosed in the publish
+    // description, same honesty rule as stock credits.
+    let animUsed = false;
     if (beats.length >= 3) {
       try {
         const { planScenes, renderSceneStill, imagePromptFor, fetchBrollVideo } = await import(
@@ -635,6 +638,44 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           images.push(name);
           kinds.push("image");
         }
+
+        // AI motion: animate the AI-imagery beats into moving shots when the
+        // creator asked for it and their monthly allowance covers it.
+        // Strictly additive — any failure keeps the zoompan still, and the
+        // generations run in parallel (each is a remote render).
+        if (clip.animate && images.length === beats.length) {
+          const { animateStill, ANIM_MODELS, animSecondsLeft } = await import("./video-gen");
+          const { bestPlanFor } = await import("./db");
+          let left = animSecondsLeft(bestPlanFor(clip.userEmail), clip.userEmail);
+          const jobs: Promise<void>[] = [];
+          for (let i = 0; i < scenes.length && jobs.length < 8; i++) {
+            if (kinds[i] !== "image") continue;
+            const want = Math.min(15, Math.max(1, Math.ceil(beats[i].dur)));
+            if (want > left) continue;
+            left -= want;
+            const idx = i;
+            const subject = scenes[idx].imageSubject ?? scenes[idx].text.slice(0, 120);
+            jobs.push(
+              animateStill({
+                email: clip.userEmail,
+                pngPath: path.join(jobDir, images[idx]),
+                motion: `Subtle cinematic motion for a documentary: ${subject}. Slow camera drift and gentle natural movement. Keep the scene's content unchanged; add no new objects, no people, no text.`,
+                durationSec: beats[idx].dur,
+                model: ANIM_MODELS.lite,
+              })
+                .then((res) => {
+                  if (!res) return;
+                  const name = `anim${idx}.mp4`;
+                  fs.copyFileSync(res.file, path.join(jobDir, name));
+                  images[idx] = name;
+                  kinds[idx] = "anim";
+                  animUsed = true;
+                })
+                .catch(() => {})
+            );
+          }
+          await Promise.all(jobs);
+        }
       } catch {
         images.length = 0;
       }
@@ -646,8 +687,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // grain and a vignette; drawn cards stay static and crisp (zooming text
       // shimmers). A short fade-in on every segment masks the cuts.
       const inputs = images.flatMap((name, i) =>
-        kinds[i] === "broll"
-          ? // Loop short stock clips to fill the beat; -t bounds the read.
+        kinds[i] === "broll" || kinds[i] === "anim"
+          ? // Loop short stock/generated clips to fill the beat; -t bounds the read.
             ["-stream_loop", "-1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-i", name]
           : ["-i", name]
       );
@@ -659,9 +700,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // glitch, and sells the documentary rhythm.
           const fades = `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
           const base = `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`;
-          if (kinds[i] === "broll") {
-            // Real footage: normalize fps, exact-trim to the beat, no
-            // synthetic grain (it already has texture).
+          if (kinds[i] === "broll" || kinds[i] === "anim") {
+            // Real or generated footage: normalize fps, exact-trim to the
+            // beat, no synthetic grain (it already has motion and texture).
             return `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,${fades},setsar=1[v${i}]`;
           }
           if (kinds[i] === "image") {
@@ -760,13 +801,20 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       status: "ready",
       outputPath: path.relative(process.cwd(), outAbs),
       error: null,
-      // Source credit rides the reason field into the publish description —
-      // Pixabay's API terms ask that the footage source be shown.
-      ...(brollProviders.size
+      // Source credit + AI-motion disclosure ride the reason field into the
+      // publish description — Pixabay's API terms ask that the footage source
+      // be shown, and generated motion is disclosed as a matter of honesty.
+      ...(brollProviders.size || animUsed
         ? {
             reason:
               `${clip.reason ?? ""}`.trim() +
-              `${clip.reason?.trim() ? "\n\n" : ""}Stock footage: ${[...brollProviders].join(", ")}.`,
+              `${clip.reason?.trim() ? "\n\n" : ""}` +
+              [
+                brollProviders.size ? `Stock footage: ${[...brollProviders].join(", ")}.` : "",
+                animUsed ? "Some scenes feature AI-generated motion (xAI Imagine)." : "",
+              ]
+                .filter(Boolean)
+                .join(" "),
           }
         : {}),
     });
