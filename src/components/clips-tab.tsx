@@ -409,10 +409,6 @@ export default function ClipsTab({
   const [ambScape, setAmbScape] = useState("ocean");
   const [ambBusy, setAmbBusy] = useState(false);
   const [eta, setEta] = useState<Record<string, { ahead: number; etaMin: number }>>({});
-  const [stInput, setStInput] = useState("");
-  const [stStyle, setStStyle] = useState("cartoon");
-  const [stAnimate, setStAnimate] = useState(true);
-  const [stBusy, setStBusy] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/clips", { cache: "no-store" })
@@ -472,33 +468,6 @@ export default function ClipsTab({
       setAmbBusy(false);
     }
   }, [ambBusy, ambTheme, ambMinutes, ambScape, addToast, t, load]);
-
-  const createStudio = useCallback(async () => {
-    if (stBusy || stInput.trim().length < 10) return;
-    setStBusy(true);
-    try {
-      const res = await fetch("/api/studio-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          input: stInput.trim(),
-          style: stStyle,
-          animate: stStyle === "ambient" ? false : stAnimate,
-          locale: localStorage.getItem("ef_locale") || "en",
-        }),
-      });
-      const d = await res.json().catch(() => null);
-      if (res.ok) {
-        setStInput("");
-        addToast(t("studio.queued"));
-        load();
-      } else {
-        addToast(d?.error ?? t("clips.renderFailed"), "error");
-      }
-    } finally {
-      setStBusy(false);
-    }
-  }, [stBusy, stInput, stStyle, stAnimate, addToast, t, load]);
 
   // Poll while anything is in the render queue so status flips live.
   const hasActive = clips.some((c) => c.status === "queued" || c.status === "rendering");
@@ -1221,73 +1190,6 @@ export default function ClipsTab({
           </div>
         </div>
       )}
-
-      {/* Animation Studio: one input (idea or script) + a visual style →
-          cartoon / explainer / cinematic / documentary / ambient. Style
-          presets carry art direction AND motion language; cartoon adds a
-          recurring-character sheet for scene-to-scene consistency. */}
-      <div className="pt-4">
-        <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-fuchsia-400" /> {t("studio.title")}
-        </h3>
-        <p className="text-xs text-cyber-muted mb-3">{t("studio.sub")}</p>
-        <div className="bg-cyber-card border border-cyber-border rounded-xl p-4 space-y-3">
-          <textarea
-            value={stInput}
-            onChange={(e) => setStInput(e.target.value)}
-            rows={3}
-            placeholder={t("studio.placeholder")}
-            className="w-full px-3 py-2.5 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50 resize-y"
-          />
-          <div className="flex flex-wrap gap-2">
-            {(["cartoon", "explainer", "cinematic", "documentary", "ambient"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStStyle(s)}
-                className={`px-3 py-2 rounded-lg border text-left transition-colors ${
-                  stStyle === s
-                    ? "border-fuchsia-500/60 bg-fuchsia-500/10"
-                    : "border-cyber-border bg-cyber-dark hover:border-cyber-muted"
-                }`}
-              >
-                <span className={`block text-xs font-medium ${stStyle === s ? "text-fuchsia-300" : "text-foreground"}`}>
-                  {t(`studio.s.${s}`)}
-                </span>
-                <span className="block text-[11px] text-cyber-muted mt-0.5 max-w-[180px]">
-                  {t(`studio.d.${s}`)}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {stStyle !== "ambient" ? (
-              <button
-                onClick={() => setStAnimate((v) => !v)}
-                aria-pressed={stAnimate}
-                className={`px-4 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
-                  stAnimate
-                    ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.25)]"
-                    : "bg-cyber-dark border-cyber-border text-cyber-muted hover:text-foreground hover:border-fuchsia-500/40"
-                }`}
-              >
-                <Film className="w-3.5 h-3.5" />
-                {t("studio.motion")}
-                {stAnimate && <Check className="w-3.5 h-3.5" />}
-              </button>
-            ) : (
-              <span className="text-xs text-cyber-muted">{t("studio.ambientNote")}</span>
-            )}
-            <button
-              onClick={createStudio}
-              disabled={stBusy || stInput.trim().length < 10}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {stBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Film className="w-3.5 h-3.5" />}
-              {t("studio.create")}
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Ambient loops: sleep-length seamless renders — still + glacial
           drift + synthesized soundscape. The anti-documentary style. */}

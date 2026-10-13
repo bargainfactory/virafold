@@ -57,6 +57,7 @@ import {
 import InboxTab from "@/components/inbox-tab";
 import Recipes from "@/components/recipes";
 import StarterPack from "@/components/starter-pack";
+import StudioTab from "@/components/studio-tab";
 import type { Project, Asset } from "@/lib/data";
 import IntegrationsPanel from "@/components/integrations-panel";
 import BrandVoicePanel from "@/components/brand-voice-panel";
@@ -84,6 +85,7 @@ type Tab =
   | "Ideas"
   | "Projects"
   | "Clips"
+  | "Studio"
   | "Upload"
   | "Schedule"
   | "Analytics"
@@ -101,6 +103,7 @@ const sidebarItems: { icon: typeof LayoutDashboard; label: Tab; tKey: string }[]
   { icon: Upload, label: "Upload", tKey: "dash.upload" },
   { icon: Film, label: "Projects", tKey: "dash.projects" },
   { icon: Scissors, label: "Clips", tKey: "dash.clips" },
+  { icon: Sparkles, label: "Studio", tKey: "studio.title" },
   { icon: Calendar, label: "Schedule", tKey: "dash.schedule" },
   { icon: BarChart3, label: "Analytics", tKey: "dash.analytics" },
   { icon: Gauge, label: "Audit", tKey: "dash.audit" },
@@ -114,7 +117,7 @@ const sidebarItems: { icon: typeof LayoutDashboard; label: Tab; tKey: string }[]
 // and brand voice live, the levers everything else depends on.
 const sidebarGroups: { labelKey: string | null; tabs: Tab[] }[] = [
   { labelKey: null, tabs: ["Settings", "Overview", "Inbox"] },
-  { labelKey: "dash.gCreate", tabs: ["Ideas", "Upload", "Projects", "Clips"] },
+  { labelKey: "dash.gCreate", tabs: ["Ideas", "Upload", "Projects", "Clips", "Studio"] },
   { labelKey: "dash.gPublish", tabs: ["Schedule"] },
   { labelKey: "dash.gGrow", tabs: ["Analytics", "Audit", "Audience"] },
   { labelKey: "dash.gManage", tabs: ["Business", "Notifications"] },
@@ -584,6 +587,9 @@ export default function Dashboard() {
               onNavigate={() => setActiveTab("Settings")}
               onUpload={() => setShowUploadModal(true)}
             />
+          )}
+          {activeTab === "Studio" && (
+            <StudioTab onNavigate={(tb) => setActiveTab(tb as Tab)} />
           )}
           {activeTab === "Schedule" && (
             <ScheduleTab onNavigate={() => setActiveTab("Settings")} />
