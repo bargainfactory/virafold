@@ -327,6 +327,22 @@ function settleAbTests(): void {
 /** Monday operator brief: what won, what's queued, money, one next action. */
 export async function sendWeeklyBriefs(): Promise<void> {
   if (new Date().getDay() !== 1) return; // Mondays, server-local
+
+  // Autopilot riders: draft the week for every opted-in creator (idempotent —
+  // an existing draft means this week already awaits their approval).
+  try {
+    const { listAutopilotUsers } = await import("./db");
+    const { runAutopilotFor } = await import("./autopilot");
+    for (const email of listAutopilotUsers()) {
+      try {
+        runAutopilotFor(email);
+      } catch {
+        /* one bad autopilot run must not block the rest */
+      }
+    }
+  } catch {
+    /* autopilot is best-effort */
+  }
   for (const u of listUsersDueBrief()) {
     try {
       const top = topPerformers(u.email, 3);

@@ -408,6 +408,7 @@ export default function ClipsTab({
   const [ambMinutes, setAmbMinutes] = useState(30);
   const [ambScape, setAmbScape] = useState("ocean");
   const [ambBusy, setAmbBusy] = useState(false);
+  const [eta, setEta] = useState<Record<string, { ahead: number; etaMin: number }>>({});
   const [stInput, setStInput] = useState("");
   const [stStyle, setStStyle] = useState("cartoon");
   const [stAnimate, setStAnimate] = useState(true);
@@ -420,6 +421,7 @@ export default function ClipsTab({
         if (!d) return;
         setProjects(d.projects ?? []);
         setClips(d.clips ?? []);
+        setEta(d.eta ?? {});
         setSelProject((cur) => cur || d.projects?.[0]?.id || "");
       })
       .catch(() => {});
@@ -1069,6 +1071,11 @@ export default function ClipsTab({
                 <p className="text-xs text-electric-blue flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   {clip.status === "queued" ? t("clips.queuedStatus") : t("clips.rendering")}
+                  {eta[clip.id] && (
+                    <span className="text-cyber-muted">
+                      · {t("clips.eta").replace("{m}", String(eta[clip.id].etaMin)).replace("{n}", String(eta[clip.id].ahead))}
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -1202,6 +1209,11 @@ export default function ClipsTab({
                   <p className="text-xs text-electric-blue flex items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     {clip.status === "queued" ? t("clips.svQueued") : t("clips.svRendering")}
+                    {eta[clip.id] && (
+                      <span className="text-cyber-muted">
+                        · {t("clips.eta").replace("{m}", String(eta[clip.id].etaMin)).replace("{n}", String(eta[clip.id].ahead))}
+                      </span>
+                    )}
                   </p>
                 )}
               </div>

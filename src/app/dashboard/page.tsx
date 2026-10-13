@@ -51,7 +51,11 @@ import {
   Gauge,
   Scissors,
   FlaskConical,
+  Inbox as InboxIcon,
 } from "lucide-react";
+import InboxTab from "@/components/inbox-tab";
+import Recipes from "@/components/recipes";
+import StarterPack from "@/components/starter-pack";
 import type { Project, Asset } from "@/lib/data";
 import IntegrationsPanel from "@/components/integrations-panel";
 import BrandVoicePanel from "@/components/brand-voice-panel";
@@ -75,6 +79,7 @@ import {
 
 type Tab =
   | "Overview"
+  | "Inbox"
   | "Ideas"
   | "Projects"
   | "Clips"
@@ -90,6 +95,7 @@ type Tab =
 const sidebarItems: { icon: typeof LayoutDashboard; label: Tab; tKey: string }[] = [
   { icon: Settings, label: "Settings", tKey: "dash.settings" },
   { icon: LayoutDashboard, label: "Overview", tKey: "dash.overview" },
+  { icon: InboxIcon, label: "Inbox", tKey: "dash.inbox" },
   { icon: Lightbulb, label: "Ideas", tKey: "dash.ideas" },
   { icon: Upload, label: "Upload", tKey: "dash.upload" },
   { icon: Film, label: "Projects", tKey: "dash.projects" },
@@ -106,7 +112,7 @@ const sidebarItems: { icon: typeof LayoutDashboard; label: Tab; tKey: string }[]
 // features read as a workflow. Settings leads — it is where accounts, keys,
 // and brand voice live, the levers everything else depends on.
 const sidebarGroups: { labelKey: string | null; tabs: Tab[] }[] = [
-  { labelKey: null, tabs: ["Settings", "Overview"] },
+  { labelKey: null, tabs: ["Settings", "Overview", "Inbox"] },
   { labelKey: "dash.gCreate", tabs: ["Ideas", "Upload", "Projects", "Clips"] },
   { labelKey: "dash.gPublish", tabs: ["Schedule"] },
   { labelKey: "dash.gGrow", tabs: ["Analytics", "Audit", "Audience"] },
@@ -536,6 +542,16 @@ export default function Dashboard() {
               onViewAll={() => setActiveTab("Projects")}
               onView={setViewingAsset}
               onNavigate={setActiveTab}
+            />
+          )}
+          {activeTab === "Inbox" && (
+            <InboxTab
+              projects={projects}
+              assets={assets}
+              onApprove={approveProject}
+              onViewAsset={setViewingAsset}
+              go={(tab) => setActiveTab(tab as Tab)}
+              addToast={addToast}
             />
           )}
           {activeTab === "Projects" && (
@@ -1034,6 +1050,7 @@ function OverviewTab({
   onNavigate: (tab: Tab) => void;
 }) {
   const { t } = useTranslation();
+  const { addToast } = useApp();
   const activeCount = projects.filter((p) => p.status === "processing" || p.status === "review").length;
   const publishedCount = projects.filter((p) => p.status === "published").length;
 
@@ -1049,6 +1066,12 @@ function OverviewTab({
     <div className="space-y-6">
       {/* Live activation checklist replaces the old static onboarding banner. */}
       <SetupChecklist projects={projects} onNavigate={(tab) => onNavigate(tab as Tab)} />
+
+      {/* Brand-new accounts get a niche-based starter pack before anything else. */}
+      {projects.length === 0 && <StarterPack onNavigate={(tab) => onNavigate(tab as Tab)} />}
+
+      {/* Outcome-first shortcuts: one input, one button, existing pipelines. */}
+      <Recipes onNavigate={(tab) => onNavigate(tab as Tab)} addToast={addToast} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -1512,12 +1535,13 @@ interface SchedPost {
   assetName: string;
   platform: string;
   scheduledAt: string;
-  status: "scheduled" | "published" | "canceled";
+  status: "scheduled" | "published" | "canceled" | "draft";
 }
 
 const SCHED_PLATFORMS = ["TikTok", "YouTube", "LinkedIn", "X"];
 
 const schedStatusColor: Record<string, string> = {
+  draft: "text-fuchsia-400 bg-fuchsia-500/10",
   scheduled: "text-warning bg-warning/10",
   published: "text-success bg-success/10",
   canceled: "text-cyber-muted bg-cyber-dark",

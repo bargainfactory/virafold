@@ -360,6 +360,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE scheduled_posts ADD COLUMN verified INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE clips ADD COLUMN animate INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE clips ADD COLUMN vstyle TEXT",
+    "ALTER TABLE users ADD COLUMN autopilot INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       conn.exec(stmt);
@@ -2035,7 +2036,7 @@ export interface ScheduledPost {
   assetName: string;
   platform: string;
   scheduledAt: string;
-  status: "scheduled" | "published" | "canceled";
+  status: "scheduled" | "published" | "canceled" | "draft";
   createdAt: string;
   clipId?: string | null;
   externalId?: string | null;
@@ -3394,6 +3395,105 @@ export function setReportBrand(email: string, brand: string): void {
   getDb()
     .prepare("UPDATE users SET report_brand = ? WHERE email = ?")
     .run(brand, email.toLowerCase());
+}
+
+// --- Autopilot + Review Inbox ---
+
+export function getAutopilot(email: string): boolean {
+  const r = getDb()
+    .prepare("SELECT autopilot FROM users WHERE email = ?")
+    .get(email.toLowerCase()) as { autopilot: number } | undefined;
+  return Boolean(r?.autopilot);
+}
+
+export function setAutopilot(email: string, on: boolean): void {
+  getDb()
+    .prepare("UPDATE users SET autopilot = ? WHERE email = ?")
+    .run(on ? 1 : 0, email.toLowerCase());
+}
+
+export function listAutopilotUsers(): string[] {
+  return (
+    getDb().prepare("SELECT email FROM users WHERE autopilot = 1").all() as { email: string }[]
+  ).map((r) => r.email);
+}
+
+/** Ready clips with no live scheduled/published post — inbox "schedule me" rows. */
+export function listReadyUnscheduledClips(email: string): { id: string; title: string; kind: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT c.id, c.title, c.kind FROM clips c
+       WHERE c.user_email = ? AND c.status = 'ready'
+         AND NOT EXISTS (
+           SELECT 1 FROM scheduled_posts p
+           WHERE p.clip_id = c.id AND p.status IN ('scheduled','published','draft')
+         )
+       ORDER BY c.created_at DESC LIMIT 10`
+    )
+    .all(email.toLowerCase()) as { id: string; title: string; kind: string }[];
+}
+
+export function listFailedClips(email: string): { id: string; title: string; error: string | null }[] {
+  return getDb()
+    .prepare(
+      "SELECT id, title, error FROM clips WHERE user_email = ? AND status = 'failed' ORDER BY created_at DESC LIMIT 5"
+    )
+    .all(email.toLowerCase()) as { id: string; title: string; error: string | null }[];
+}
+
+/** Posts the publish-verification loop confirmed broken (verified = -1), recent. */
+export function listFailedVerifiedPosts(
+  email: string
+): { id: string; assetName: string; platform: string }[] {
+  const since = new Date(Date.now() - 14 * 24 * 3600_000).toISOString().slice(0, 16);
+  return getDb()
+    .prepare(
+      `SELECT id, asset_name AS assetName, platform FROM scheduled_posts
+       WHERE user_email = ? AND verified = -1 AND status = 'published' AND scheduled_at >= ?
+       ORDER BY scheduled_at DESC LIMIT 5`
+    )
+    .all(email.toLowerCase(), since) as { id: string; assetName: string; platform: string }[];
+}
+
+export function listDraftPosts(
+  email: string
+): { id: string; assetName: string; platform: string; scheduledAt: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT id, asset_name AS assetName, platform, scheduled_at AS scheduledAt
+       FROM scheduled_posts WHERE user_email = ? AND status = 'draft' ORDER BY scheduled_at ASC LIMIT 20`
+    )
+    .all(email.toLowerCase()) as {
+    id: string;
+    assetName: string;
+    platform: string;
+    scheduledAt: string;
+  }[];
+}
+
+/** Queue position + minutes-ahead estimate for a user's pending renders. */
+export function renderQueueEta(
+  email: string
+): Record<string, { ahead: number; etaMin: number }> {
+  const pending = getDb()
+    .prepare(
+      `SELECT id, user_email AS userEmail, kind, animate, created_at AS createdAt
+       FROM clips WHERE status IN ('queued','rendering') ORDER BY created_at ASC`
+    )
+    .all() as { id: string; userEmail: string; kind: string; animate: number; createdAt: string }[];
+  // Rough per-job wall-clock, from observed render times on the prod box.
+  const mins = (j: { kind: string; animate: number }) =>
+    (j.kind === "script" ? 5 : j.kind === "ambient" ? 4 : j.kind === "caption" ? 3 : 2) +
+    (j.animate ? 2 : 0);
+  const out: Record<string, { ahead: number; etaMin: number }> = {};
+  let elapsed = 0;
+  for (let i = 0; i < pending.length; i++) {
+    elapsed += mins(pending[i]);
+    if (pending[i].userEmail === email.toLowerCase()) {
+      out[pending[i].id] = { ahead: i, etaMin: elapsed };
+    }
+  }
+  return out;
 }
 
 // --- WordPress connections (1-click apply; #2 adjacency) ---
