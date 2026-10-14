@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
-import { Check, Film, Loader2, Paperclip, Sparkles, Trash2, UserRound } from "lucide-react";
+import { Check, Film, Loader2, Paperclip, Rocket, Sparkles, Trash2, UserRound } from "lucide-react";
 
 interface Persona {
   id: string;
@@ -20,7 +20,7 @@ interface Persona {
   ptype: string;
 }
 
-const PROP_TYPES = ["character", "product", "setting", "style"] as const;
+const PROP_TYPES = ["character", "product", "setting", "style", "archival"] as const;
 
 export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { addToast } = useApp();
@@ -119,6 +119,34 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
 
   const presenters = personas.filter((p) => p.ptype === "presenter" || p.ptype === "character");
   const propItems = personas.filter((p) => p.ptype !== "presenter");
+
+  const [campBrief, setCampBrief] = useState("");
+  const [campBusy, setCampBusy] = useState(false);
+  const createCampaign = useCallback(async () => {
+    if (campBusy || campBrief.trim().length < 30) return;
+    setCampBusy(true);
+    try {
+      const res = await fetch("/api/campaign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brief: campBrief.trim(),
+          personaId: personaId || undefined,
+          propIds: propSel,
+        }),
+      });
+      const d = await res.json().catch(() => null);
+      if (res.ok) {
+        setCampBrief("");
+        addToast(t("camp.queued"));
+        onNavigate?.("Clips");
+      } else {
+        addToast(d?.error ?? t("clips.renderFailed"), "error");
+      }
+    } finally {
+      setCampBusy(false);
+    }
+  }, [campBusy, campBrief, personaId, propSel, addToast, t, onNavigate]);
 
   const create = useCallback(async () => {
     if (busy || input.trim().length < 10) return;
@@ -404,6 +432,33 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Film className="w-4 h-4" />}
             {t("studio.create")}
+          </button>
+        </div>
+      </div>
+
+      {/* Campaign pack: one brief → UGC ad + explainer + cinematic teaser,
+          sharing the selected presenter and props. Honest writer: scripts can
+          only claim what the brief itself says. */}
+      <div className="bg-cyber-card border border-cyber-border rounded-xl p-5 space-y-3">
+        <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Rocket className="w-4 h-4 text-electric-blue" /> {t("camp.title")}
+        </p>
+        <p className="text-xs text-cyber-muted">{t("camp.hint")}</p>
+        <textarea
+          value={campBrief}
+          onChange={(e) => setCampBrief(e.target.value)}
+          rows={3}
+          placeholder={t("camp.briefPh")}
+          className="w-full px-3 py-2.5 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50 resize-y"
+        />
+        <div className="flex justify-end">
+          <button
+            onClick={createCampaign}
+            disabled={campBusy || campBrief.trim().length < 30}
+            className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+          >
+            {campBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+            {t("camp.create")}
           </button>
         </div>
       </div>

@@ -3430,7 +3430,7 @@ export function setReportBrand(email: string, brand: string): void {
 
 // --- Personas (UGC presenters) ---
 
-export type PropType = "presenter" | "character" | "product" | "setting" | "style";
+export type PropType = "presenter" | "character" | "product" | "setting" | "style" | "archival";
 
 export interface Persona {
   id: string;

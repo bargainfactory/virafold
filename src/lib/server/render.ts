@@ -670,14 +670,24 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         // steer every scene through their vision-derived descriptions.
         let propCast: string | null = null;
         let propExtra = "";
+        // Archival props: the user's own photos, used AS the visuals (Ken
+        // Burns treatment, pixels never AI-altered — authenticity is their
+        // whole value), woven between generated scenes.
+        const archival: string[] = [];
         if (clip.props) {
           try {
-            const { getPersona } = await import("./db");
+            const { getPersona, personaImagePath } = await import("./db");
             const ids = JSON.parse(clip.props) as string[];
             const chars: string[] = [];
             for (const pid of ids.slice(0, 4)) {
               const p = getPersona(clip.userEmail, pid);
-              if (!p?.meta) continue;
+              if (!p) continue;
+              if (p.ptype === "archival") {
+                const f = personaImagePath(p.id);
+                if (fs.existsSync(f)) archival.push(f);
+                continue;
+              }
+              if (!p.meta) continue;
               if (p.ptype === "character" || p.ptype === "presenter") chars.push(p.meta);
               else if (p.ptype === "product")
                 propExtra += ` Feature this exact product prominently in the scene: ${p.meta}.`;
@@ -689,6 +699,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             /* malformed props — render without them */
           }
         }
+        let archIdx = 0;
+        let imageBeatNo = 0;
         // Character consistency, OpenArt-style: user-picked cast wins; else a
         // generated cast sheet for styles that want one.
         const cast =
@@ -725,6 +737,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               kinds.push(scene.kind);
               continue;
             }
+          }
+          // Weave archival photos into every other imagery beat; they keep the
+          // Ken Burns move but are excluded from AI animation (kind "arch").
+          if (archival.length && imageBeatNo++ % 2 === 1) {
+            fs.copyFileSync(archival[archIdx++ % archival.length], path.join(jobDir, name));
+            images.push(name);
+            kinds.push("arch");
+            continue;
           }
           const beatSubject = scene.imageSubject ?? scene.text.slice(0, 120);
           const bg = await generateBackground(
@@ -795,12 +815,19 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // Loop short stock/generated clips to fill the beat; -t bounds the read.
           return ["-stream_loop", "-1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-i", name];
         }
-        if (kinds[i] !== "image") {
+        if (kinds[i] !== "image" && kinds[i] !== "arch") {
           // Drawn data cards become real 30fps streams so their reveal can animate.
           return ["-loop", "1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-framerate", "30", "-i", name];
         }
         return ["-i", name];
       });
+      // Cinematic look: a unified teal-orange film grade on footage and
+      // imagery (not on brand data cards) — one grade across every shot is
+      // half of what reads as "produced".
+      const look =
+        clip.vstyle === "cinematic"
+          ? "curves=blue='0/0.06 0.5/0.47 1/0.92':red='0/0.02 0.5/0.53 1/1',eq=contrast=1.06:saturation=1.08,"
+          : "";
       const segs = images
         .map((_, i) => {
           const dur = Math.max(1, beats[i].dur);
@@ -812,14 +839,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           if (kinds[i] === "broll" || kinds[i] === "anim") {
             // Real or generated footage: normalize fps, exact-trim to the
             // beat, no synthetic grain (it already has motion and texture).
-            return `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,${fades},setsar=1[v${i}]`;
+            return `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,${look}${fades},setsar=1[v${i}]`;
           }
-          if (kinds[i] === "image") {
+          if (kinds[i] === "image" || kinds[i] === "arch") {
             const zoom =
               i % 2 === 0
                 ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30`
                 : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
-            return `${base},${zoom},vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1[v${i}]`;
+            return `${base},${zoom},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1[v${i}]`;
           }
           // Data cards draw themselves in: a dimmed copy slides off to the
           // right over 0.8s, revealing the card left-to-right — bars literally

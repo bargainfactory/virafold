@@ -85,6 +85,23 @@ export interface VideoStyle {
 
 const NO_TEXT = "absolutely no text or letters or words or logos, no watermark";
 
+// Cinematic director rotations: shot framing per beat index, camera move per
+// beat subject — a deterministic shot list.
+const CINE_FRAMING = [
+  "wide establishing shot",
+  "intimate close-up",
+  "medium shot at eye level",
+  "extreme detail macro shot",
+  "low-angle hero shot",
+];
+const CINE_MOVES = [
+  "slow dolly push-in",
+  "gentle lateral tracking move",
+  "slow pull-back reveal",
+  "subtle handheld drift",
+  "slow rising crane move",
+];
+
 const CARTOON_LOOKS = [
   "warm golden-hour palette, soft rim lighting",
   "cool evening palette, glowing accents",
@@ -130,10 +147,18 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
   },
   cinematic: {
     key: "cinematic",
-    imagePrompt: (subject, index) =>
-      `Cinematic film still, anamorphic framing, dramatic motivated lighting, shallow depth of field, rich filmic color grade ${index % 2 === 0 ? "with warm highlights and teal shadows" : "with cool moonlit tones"}; depicting ${subject}. Vertical 9:16 composition, photorealistic, ${NO_TEXT}.`,
+    // Director pass: framing and camera move rotate per beat the way a shot
+    // list would — wide establisher, close-up, detail, low angle — so the cut
+    // has planned variety instead of five identical dolly push-ins.
+    imagePrompt: (subject, index) => {
+      const framing = CINE_FRAMING[index % CINE_FRAMING.length];
+      const grade = index % 2 === 0 ? "warm highlights and teal shadows" : "cool moonlit tones";
+      return `Cinematic film still, ${framing}, anamorphic feel, dramatic motivated lighting, shallow depth of field, rich filmic color grade with ${grade}; depicting ${subject}. Vertical 9:16 composition, photorealistic, ${NO_TEXT}.`;
+    },
+    // Deterministic per subject (NOT random) so the animation cache still
+    // dedups re-renders of the same beat.
     motionPrompt: (subject) =>
-      `Slow cinematic camera move on ${subject}: gentle dolly push-in with soft parallax and natural ambient motion. Preserve the scene exactly; no new objects, no people appearing, no text.`,
+      `Cinematic camera move on ${subject}: ${CINE_MOVES[subject.length % CINE_MOVES.length]}, with soft parallax and natural ambient motion. Preserve the scene exactly; no new objects, no people appearing, no text.`,
     allowBroll: true,
     allowCards: true,
     castSheet: false,
