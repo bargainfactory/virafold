@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
 import { Check, Film, Loader2, Paperclip, Rocket, Sparkles, Trash2, UserRound } from "lucide-react";
+import CharacterBuilder from "@/components/character-builder";
 
 interface Persona {
   id: string;
@@ -426,6 +427,8 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
                 <span className="text-[11px] text-cyber-muted leading-snug">{t("studio.consent")}</span>
               </label>
             )}
+            {/* The deliberate path: three candidates, refine, explicit Accept. */}
+            <CharacterBuilder onAccepted={() => loadPersonas()} />
           </div>
         )}
 

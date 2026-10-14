@@ -2786,6 +2786,29 @@ export function getGenImage(email: string, id: string): { path: string } | null 
   return row ?? null;
 }
 
+export function getGenImageFull(
+  email: string,
+  id: string
+): { path: string; prompt: string } | null {
+  const row = getDb()
+    .prepare("SELECT path, prompt FROM gen_images WHERE id = ? AND user_email = ?")
+    .get(id, email.toLowerCase()) as { path: string; prompt: string } | undefined;
+  return row ?? null;
+}
+
+/** Remove a candidate image once it is accepted into the props library. */
+export function deleteGenImage(email: string, id: string): void {
+  const img = getGenImage(email, id);
+  getDb().prepare("DELETE FROM gen_images WHERE id = ? AND user_email = ?").run(id, email.toLowerCase());
+  if (img) {
+    try {
+      fs.rmSync(path.join(process.cwd(), img.path), { force: true });
+    } catch {
+      /* file already gone */
+    }
+  }
+}
+
 // --- Storage retention (maintenance sweeps) ---
 
 /** Every clip that still points at a rendered file, across users. */

@@ -52,6 +52,47 @@ export async function describeImage(image: Buffer, instruction: string): Promise
   }
 }
 
+/**
+ * Image-to-image edit via Imagine's edits endpoint (recon-verified:
+ * {prompt, image: {url}} → {data: [{url}]}). The source image is published at
+ * a one-time token URL the API can fetch, then removed. Null on any failure —
+ * callers fall back to fresh generation.
+ */
+export async function editImage(image: Buffer, prompt: string): Promise<Buffer | null> {
+  const xaiKey = resolveField("llm", "xaiApiKey");
+  if (!xaiKey) return null;
+  const { FRAMES_DIR } = await import("./video-gen");
+  const { publicOriginStatic } = await import("./base-url");
+  const crypto = await import("node:crypto");
+  fs.mkdirSync(FRAMES_DIR, { recursive: true });
+  const token = crypto.randomBytes(16).toString("hex");
+  const framePath = path.join(FRAMES_DIR, `${token}.png`);
+  fs.writeFileSync(framePath, image);
+  try {
+    const resp = await fetch("https://api.x.ai/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${xaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        image: { url: `${publicOriginStatic()}/api/frames/${token}` },
+      }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const url = data?.data?.[0]?.url;
+    if (!url) return null;
+    const dl = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+    if (!dl.ok) return null;
+    const buf = Buffer.from(await dl.arrayBuffer());
+    return buf.length > 5_000 ? buf : null;
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(framePath, { force: true });
+  }
+}
+
 export async function generateBackground(prompt: string): Promise<Buffer | null> {
   const xaiKey = resolveField("llm", "xaiApiKey");
   if (xaiKey) {
