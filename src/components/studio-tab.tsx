@@ -17,7 +17,10 @@ interface Persona {
   id: string;
   name: string;
   source: string;
+  ptype: string;
 }
+
+const PROP_TYPES = ["character", "product", "setting", "style"] as const;
 
 export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { addToast } = useApp();
@@ -31,7 +34,11 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
   const [presPrompt, setPresPrompt] = useState("");
   const [presBusy, setPresBusy] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [propSel, setPropSel] = useState<string[]>([]);
+  const [propType, setPropType] = useState<string>("character");
   const fileRef = useRef<HTMLInputElement>(null);
+  // Which panel the attach button belongs to: presenter upload or prop upload.
+  const uploadTypeRef = useRef<string>("presenter");
 
   const loadPersonas = useCallback(() => {
     fetch("/api/personas", { cache: "no-store" })
@@ -39,7 +46,12 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
       .then((d) => {
         if (!d?.personas) return;
         setPersonas(d.personas);
-        setPersonaId((cur) => cur || d.personas[0]?.id || "");
+        setPersonaId(
+          (cur) =>
+            cur ||
+            (d.personas as Persona[]).find((p) => p.ptype === "presenter" || p.ptype === "character")?.id ||
+            ""
+        );
       })
       .catch(() => {});
   }, []);
@@ -47,38 +59,45 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
     loadPersonas();
   }, [loadPersonas]);
 
-  const generatePersona = useCallback(async () => {
-    if (presBusy || presPrompt.trim().length < 5) return;
-    setPresBusy(true);
-    try {
-      const res = await fetch("/api/personas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: presPrompt.trim() }),
-      });
-      const d = await res.json().catch(() => null);
-      if (res.ok) {
-        setPresPrompt("");
-        setPersonaId(d.persona.id);
-        loadPersonas();
-      } else addToast(d?.error ?? t("clips.renderFailed"), "error");
-    } finally {
-      setPresBusy(false);
-    }
-  }, [presBusy, presPrompt, addToast, t, loadPersonas]);
+  const generatePersona = useCallback(
+    async (ptype: string) => {
+      if (presBusy || presPrompt.trim().length < 5) return;
+      setPresBusy(true);
+      try {
+        const res = await fetch("/api/personas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: presPrompt.trim(), ptype }),
+        });
+        const d = await res.json().catch(() => null);
+        if (res.ok) {
+          setPresPrompt("");
+          if (ptype === "presenter") setPersonaId(d.persona.id);
+          else setPropSel((cur) => [...cur.slice(0, 3), d.persona.id]);
+          loadPersonas();
+        } else addToast(d?.error ?? t("clips.renderFailed"), "error");
+      } finally {
+        setPresBusy(false);
+      }
+    },
+    [presBusy, presPrompt, addToast, t, loadPersonas]
+  );
 
   const uploadPersona = useCallback(
     async (file: File) => {
       if (presBusy) return;
       setPresBusy(true);
+      const ptype = uploadTypeRef.current;
       try {
         const form = new FormData();
         form.append("file", file);
         form.append("consent", "true");
+        form.append("ptype", ptype);
         const res = await fetch("/api/personas", { method: "POST", body: form });
         const d = await res.json().catch(() => null);
         if (res.ok) {
-          setPersonaId(d.persona.id);
+          if (ptype === "presenter") setPersonaId(d.persona.id);
+          else setPropSel((cur) => [...cur.slice(0, 3), d.persona.id]);
           loadPersonas();
         } else addToast(d?.error ?? t("clips.renderFailed"), "error");
       } finally {
@@ -92,10 +111,14 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
     async (id: string) => {
       await fetch(`/api/personas/${id}`, { method: "DELETE" }).catch(() => {});
       setPersonaId((cur) => (cur === id ? "" : cur));
+      setPropSel((cur) => cur.filter((x) => x !== id));
       loadPersonas();
     },
     [loadPersonas]
   );
+
+  const presenters = personas.filter((p) => p.ptype === "presenter" || p.ptype === "character");
+  const propItems = personas.filter((p) => p.ptype !== "presenter");
 
   const create = useCallback(async () => {
     if (busy || input.trim().length < 10) return;
@@ -109,6 +132,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
           style,
           animate: style === "ambient" ? false : animate,
           personaId: style === "ugc" ? personaId : undefined,
+          propIds: style === "ambient" ? [] : propSel,
           locale: localStorage.getItem("ef_locale") || "en",
         }),
       });
@@ -123,7 +147,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
     } finally {
       setBusy(false);
     }
-  }, [busy, input, style, animate, personaId, addToast, t, onNavigate]);
+  }, [busy, input, style, animate, personaId, propSel, addToast, t, onNavigate]);
 
   return (
     <div className="space-y-5">
@@ -176,9 +200,9 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
             <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <UserRound className="w-3.5 h-3.5 text-fuchsia-400" /> {t("studio.presenter")}
             </p>
-            {personas.length > 0 && (
+            {presenters.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {personas.map((p) => (
+                {presenters.map((p) => (
                   <div key={p.id} className="relative group">
                     <button
                       onClick={() => setPersonaId(p.id)}
@@ -208,12 +232,12 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
                 type="text"
                 value={presPrompt}
                 onChange={(e) => setPresPrompt(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && generatePersona()}
+                onKeyDown={(e) => e.key === "Enter" && generatePersona("presenter")}
                 placeholder={t("studio.presenterGenPh")}
                 className="flex-1 min-w-[200px] px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50"
               />
               <button
-                onClick={generatePersona}
+                onClick={() => generatePersona("presenter")}
                 disabled={presBusy || presPrompt.trim().length < 5}
                 className="px-3 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
               >
@@ -221,24 +245,16 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
                 {t("studio.presenterGen")}
               </button>
               <button
-                onClick={() => consent && fileRef.current?.click()}
+                onClick={() => {
+                  uploadTypeRef.current = "presenter";
+                  if (consent) fileRef.current?.click();
+                }}
                 disabled={presBusy || !consent}
                 title={consent ? undefined : t("studio.consent")}
                 className="px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs font-medium text-foreground hover:border-neon-purple/50 disabled:opacity-50 flex items-center gap-1.5"
               >
                 <Paperclip className="w-3.5 h-3.5" /> {t("studio.presenterAttach")}
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadPersona(f);
-                  e.target.value = "";
-                }}
-              />
             </div>
             <label className="flex items-start gap-2 cursor-pointer">
               <input
@@ -250,6 +266,116 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
               <span className="text-[11px] text-cyber-muted leading-snug">{t("studio.consent")}</span>
             </label>
             <p className="text-[11px] text-cyber-muted leading-snug">{t("studio.presenterNote")}</p>
+          </div>
+        )}
+
+        {/* Shared hidden file input — presenter and prop uploads both use it;
+            uploadTypeRef says which panel asked. */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) uploadPersona(f);
+            e.target.value = "";
+          }}
+        />
+
+        {/* Props library: characters, products, settings, and style references
+            that every scene must honor — pick up to 4. */}
+        {style !== "ambient" && (
+          <div className="bg-cyber-dark/60 border border-cyber-border rounded-xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Paperclip className="w-3.5 h-3.5 text-electric-blue" /> {t("studio.props")}
+            </p>
+            <p className="text-[11px] text-cyber-muted leading-snug">{t("studio.propsHint")}</p>
+            {propItems.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {propItems.map((p) => (
+                  <div key={p.id} className="relative group">
+                    <button
+                      onClick={() =>
+                        setPropSel((cur) =>
+                          cur.includes(p.id) ? cur.filter((x) => x !== p.id) : [...cur.slice(0, 3), p.id]
+                        )
+                      }
+                      title={p.name}
+                      className={`block w-16 h-24 rounded-lg overflow-hidden border-2 transition-colors ${
+                        propSel.includes(p.id)
+                          ? "border-electric-blue shadow-[0_0_12px_rgba(59,130,246,0.4)]"
+                          : "border-cyber-border hover:border-neon-purple/50"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/api/personas/${p.id}`} alt={p.name} className="w-full h-full object-cover" />
+                    </button>
+                    <span className="absolute bottom-0 inset-x-0 text-center text-[9px] bg-black/70 text-cyber-muted px-0.5 truncate rounded-b-md pointer-events-none">
+                      {t(`studio.pt.${p.ptype}`)}
+                    </span>
+                    <button
+                      onClick={() => removePersona(p.id)}
+                      aria-label={t("inbox.dismiss")}
+                      className="absolute -top-1.5 -right-1.5 hidden group-hover:flex w-5 h-5 items-center justify-center rounded-full bg-cyber-card border border-cyber-border text-cyber-muted hover:text-red-400"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={propType}
+                onChange={(e) => setPropType(e.target.value)}
+                className="px-2.5 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+              >
+                {PROP_TYPES.map((pt) => (
+                  <option key={pt} value={pt}>
+                    {t(`studio.pt.${pt}`)}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={presPrompt}
+                onChange={(e) => setPresPrompt(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && generatePersona(propType)}
+                placeholder={t("studio.propPh")}
+                className="flex-1 min-w-[180px] px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50"
+              />
+              <button
+                onClick={() => generatePersona(propType)}
+                disabled={presBusy || presPrompt.trim().length < 5}
+                className="px-3 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {presBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {t("studio.presenterGen")}
+              </button>
+              <button
+                onClick={() => {
+                  uploadTypeRef.current = propType;
+                  if (consent) fileRef.current?.click();
+                }}
+                disabled={presBusy || !consent}
+                title={consent ? undefined : t("studio.consent")}
+                className="px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs font-medium text-foreground hover:border-neon-purple/50 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Paperclip className="w-3.5 h-3.5" /> {t("studio.presenterAttach")}
+              </button>
+            </div>
+            {style !== "ugc" && (
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-0.5 accent-fuchsia-500"
+                />
+                <span className="text-[11px] text-cyber-muted leading-snug">{t("studio.consent")}</span>
+              </label>
+            )}
           </div>
         )}
 

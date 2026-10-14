@@ -666,11 +666,40 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         // Visual style preset (Animation Studio): bakes art direction + motion
         // language per beat; null = the documentary default.
         const styleDef = getVideoStyle(clip.vstyle);
-        // Character consistency, OpenArt-style: one recurring character
-        // described once and repeated verbatim in every scene prompt.
-        const cast = styleDef?.castSheet
-          ? await castSheetFor(clip.title, clip.script).catch(() => null)
-          : null;
+        // Props library: user-supplied characters/products/settings/style refs
+        // steer every scene through their vision-derived descriptions.
+        let propCast: string | null = null;
+        let propExtra = "";
+        if (clip.props) {
+          try {
+            const { getPersona } = await import("./db");
+            const ids = JSON.parse(clip.props) as string[];
+            const chars: string[] = [];
+            for (const pid of ids.slice(0, 4)) {
+              const p = getPersona(clip.userEmail, pid);
+              if (!p?.meta) continue;
+              if (p.ptype === "character" || p.ptype === "presenter") chars.push(p.meta);
+              else if (p.ptype === "product")
+                propExtra += ` Feature this exact product prominently in the scene: ${p.meta}.`;
+              else if (p.ptype === "setting") propExtra += ` The scene takes place in: ${p.meta}.`;
+              else if (p.ptype === "style") propExtra += ` Match this visual style exactly: ${p.meta}.`;
+            }
+            if (chars.length) propCast = chars.join(" — and a second character: ");
+          } catch {
+            /* malformed props — render without them */
+          }
+        }
+        // Character consistency, OpenArt-style: user-picked cast wins; else a
+        // generated cast sheet for styles that want one.
+        const cast =
+          propCast ??
+          (styleDef?.castSheet
+            ? await castSheetFor(clip.title, clip.script).catch(() => null)
+            : null);
+        // Documentary (no style preset) still honors a recurring character.
+        if (!styleDef && propCast) {
+          propExtra += ` Recurring character, EXACT same design in every scene: ${propCast}.`;
+        }
         let scenes = await planScenes(beats, clip.title);
         if (styleDef) scenes = constrainScenes(scenes, styleDef);
         for (let i = 0; i < scenes.length; i++) {
@@ -699,9 +728,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           }
           const beatSubject = scene.imageSubject ?? scene.text.slice(0, 120);
           const bg = await generateBackground(
-            styleDef
+            (styleDef
               ? styleDef.imagePrompt(beatSubject, i, cast ?? undefined)
-              : imagePromptFor(beatSubject, i)
+              : imagePromptFor(beatSubject, i)) + propExtra
           );
           if (!bg) {
             images.length = 0;
@@ -761,12 +790,17 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // Slideshow: imagery gets alternating push-in/pull-back moves plus film
       // grain and a vignette; drawn cards stay static and crisp (zooming text
       // shimmers). A short fade-in on every segment masks the cuts.
-      const inputs = images.flatMap((name, i) =>
-        kinds[i] === "broll" || kinds[i] === "anim"
-          ? // Loop short stock/generated clips to fill the beat; -t bounds the read.
-            ["-stream_loop", "-1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-i", name]
-          : ["-i", name]
-      );
+      const inputs = images.flatMap((name, i) => {
+        if (kinds[i] === "broll" || kinds[i] === "anim") {
+          // Loop short stock/generated clips to fill the beat; -t bounds the read.
+          return ["-stream_loop", "-1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-i", name];
+        }
+        if (kinds[i] !== "image") {
+          // Drawn data cards become real 30fps streams so their reveal can animate.
+          return ["-loop", "1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-framerate", "30", "-i", name];
+        }
+        return ["-i", name];
+      });
       const segs = images
         .map((_, i) => {
           const dur = Math.max(1, beats[i].dur);
@@ -787,7 +821,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                 : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
             return `${base},${zoom},vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1[v${i}]`;
           }
-          return `${base},zoompan=z=1:d=${frames}:s=1080x1920:fps=30,${fades},setsar=1[v${i}]`;
+          // Data cards draw themselves in: a dimmed copy slides off to the
+          // right over 0.8s, revealing the card left-to-right — bars literally
+          // grow, lists sweep in. (Verified: overlay x animates per-frame;
+          // crop w does NOT — it is evaluated once at init.)
+          return (
+            `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,split[sa${i}][sb${i}];` +
+            `[sa${i}]lutyuv=y=val*0.25[dim${i}];` +
+            `[sb${i}][dim${i}]overlay=x='min(W,W*t/0.8)':y=0,${fades},setsar=1[v${i}]`
+          );
         })
         .join(";");
       const concatIn = images.map((_, i) => `[v${i}]`).join("");
@@ -795,9 +837,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       const bedIdx = images.length + 1;
       // A barely-there room-tone bed under the narration — the silence
       // between sentences stops sounding like dropped audio.
+      // Production floor: slower preset + lower CRF for visibly cleaner
+      // output, and broadcast loudness (-14 LUFS, YouTube's target) on the
+      // mix so narration never reads as thin or clipping.
       const fc =
         `${segs};${concatIn}concat=n=${images.length}:v=1:a=0[vc];[vc]ass=subs.ass[v];` +
-        `[${bedIdx}:a]volume=0.05[bed];[${voiceIdx}:a][bed]amix=inputs=2:duration=first[aout]`;
+        `[${bedIdx}:a]volume=0.05[bed];[${voiceIdx}:a][bed]amix=inputs=2:duration=first[mix];` +
+        `[mix]loudnorm=I=-14:TP=-1.5:LRA=11[aout]`;
       args = [
         "-y",
         ...inputs,
@@ -819,13 +865,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         "-c:v",
         "libx264",
         "-preset",
-        "veryfast",
+        "medium",
         "-crf",
-        "23",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
         "-c:a",
         "aac",
         "-b:a",
-        "128k",
+        "192k",
         "-movflags",
         "+faststart",
         outAbs,

@@ -12,6 +12,46 @@ import { resolveField } from "./integrations";
 
 const RENDERS_DIR = path.join(process.cwd(), "data", "renders");
 
+/**
+ * Vision pass: describe an uploaded/generated prop image so its look can be
+ * injected verbatim into scene prompts (prompt-level consistency — the same
+ * trick as cast sheets, grounded in a real image). Best-effort: null on any
+ * failure, and props still work as plain attachments.
+ */
+export async function describeImage(image: Buffer, instruction: string): Promise<string | null> {
+  const xaiKey = resolveField("llm", "xaiApiKey");
+  if (!xaiKey) return null;
+  try {
+    const resp = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${xaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "grok-4.7",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: instruction },
+              {
+                type: "image_url",
+                image_url: { url: `data:image/png;base64,${image.toString("base64")}` },
+              },
+            ],
+          },
+        ],
+        max_tokens: 200,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const text = String(data?.choices?.[0]?.message?.content ?? "").trim();
+    return text.length > 10 ? text.slice(0, 400) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateBackground(prompt: string): Promise<Buffer | null> {
   const xaiKey = resolveField("llm", "xaiApiKey");
   if (xaiKey) {

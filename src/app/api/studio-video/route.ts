@@ -105,6 +105,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ clip }, { status: 201 });
   }
 
+  // Props: up to 4 owned library items (characters/products/settings/styles)
+  // whose vision descriptions steer every scene.
+  const propIds = Array.isArray(b?.propIds)
+    ? (b.propIds as unknown[]).map(String).slice(0, 4).filter((id) => getPersona(user.email, id))
+    : [];
+
   // UGC spokesperson mode needs a presenter the user owns.
   let personaId: string | undefined;
   if (style === "ugc") {
@@ -155,6 +161,7 @@ export async function POST(req: NextRequest) {
     animate,
     vstyle: style === "documentary" ? undefined : style,
     personaId,
+    props: propIds,
   });
   kickRenderWorker();
   return NextResponse.json({ clip }, { status: 201 });
