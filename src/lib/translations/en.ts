@@ -934,6 +934,32 @@ export const en: Record<string, string> = {
   // Render queue ETA
   "clips.eta": "~{m} min ({n} ahead)",
 
+  // Vision QA + dubbing + thumbnail lab + interviewer
+  "inbox.qaFlag": "Quality check flagged",
+  "clips.dub": "Dub",
+  "clips.dubQueued": "Dub queued — the translated version is rendering below.",
+  "lab.title": "Thumbnail Lab",
+  "lab.hint": "Three thumbnail approaches — an emotional face (your selected presenter when one is picked), one big object, and high-contrast abstract — each scored by AI for small-size impact. Scores are heuristics; the A/B test on published posts is the real judge.",
+  "lab.titlePh": "Your video title…",
+  "lab.run": "Generate 3 + score",
+  "intv.title": "Talk it out",
+  "intv.cta": "Talk it out instead",
+  "intv.sub": "No script, no blank page: answer a few questions out loud and we'll turn the conversation into your full asset pack.",
+  "intv.topicPh": "What do you want to talk about? e.g. pricing freelance work",
+  "intv.start": "Start the interview",
+  "intv.progress": "Question {n}",
+  "intv.record": "Record your answer",
+  "intv.stop": "Stop recording",
+  "intv.recordHint": "Tap the mic and answer out loud — a minute or two is perfect.",
+  "intv.stopHint": "Recording… tap the square when you've finished your answer.",
+  "intv.transcribing": "Transcribing your answer…",
+  "intv.enough": "That's enough — wrap it up",
+  "intv.reviewSub": "{n} answers captured. This becomes your source transcript — clips, carousel, newsletter, and thread follow.",
+  "intv.finish": "Create my content pack",
+  "intv.created": "Interview captured — your asset pack is generating and will land in the Inbox for review.",
+  "intv.failed": "That didn't go through — try again.",
+  "intv.micDenied": "Microphone access was blocked — allow it in your browser and retry.",
+
   // Animation Studio
   "studio.title": "Animation Studio",
   "studio.sub": "Type an idea or paste a full script — pick a style, get a finished video: narrated, captioned, and animated.",

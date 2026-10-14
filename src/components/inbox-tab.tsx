@@ -26,6 +26,7 @@ import {
 interface ServerInbox {
   clipsReady: { id: string; title: string; kind: string }[];
   clipsFailed: { id: string; title: string; error: string | null }[];
+  clipsFlagged: { id: string; title: string; qaNote: string }[];
   postsFailed: { id: string; assetName: string; platform: string }[];
   postsDraft: { id: string; assetName: string; platform: string; scheduledAt: string }[];
   autopilot: boolean;
@@ -114,6 +115,7 @@ export default function InboxTab({
     (server
       ? server.clipsReady.length +
         server.clipsFailed.length +
+        (server.clipsFlagged?.length ?? 0) +
         server.postsFailed.length +
         server.postsDraft.length
       : 0);
@@ -258,6 +260,23 @@ export default function InboxTab({
                 className={`${btn} bg-cyber-dark border border-electric-blue/40 text-electric-blue hover:bg-electric-blue/10`}
               >
                 {t("inbox.schedule")}
+              </button>
+            </Row>
+          ))}
+
+          {server?.clipsFlagged?.map((c) => (
+            <Row
+              key={c.id}
+              icon={<ShieldAlert className="w-4 h-4 text-warning" />}
+              tone="bg-warning/10 border-warning/30"
+              title={c.title}
+              detail={`${t("inbox.qaFlag")}: ${c.qaNote}`}
+            >
+              <button
+                onClick={() => go("Clips")}
+                className={`${btn} bg-cyber-dark border border-warning/40 text-foreground hover:bg-warning/10`}
+              >
+                {t("inbox.review")}
               </button>
             </Row>
           ))}

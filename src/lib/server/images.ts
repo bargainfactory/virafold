@@ -130,17 +130,74 @@ function sanitizeTitle(title: string): string {
  * Generates a thumbnail: AI background + title text burned on via ffmpeg.
  * Returns the relative path of the finished 1280x720 PNG, or null.
  */
+/**
+ * Multi-image vision call returning parsed JSON — the engine behind render QA
+ * and thumbnail scoring. Null on any failure; callers treat that as "no
+ * verdict", never as a pass or a fail.
+ */
+export async function visionJson(
+  images: Buffer[],
+  instruction: string
+): Promise<Record<string, unknown> | null> {
+  const xaiKey = resolveField("llm", "xaiApiKey");
+  if (!xaiKey || images.length === 0) return null;
+  try {
+    const resp = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${xaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "grok-4.7",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: instruction },
+              ...images.slice(0, 4).map((img) => ({
+                type: "image_url",
+                image_url: { url: `data:image/png;base64,${img.toString("base64")}` },
+              })),
+            ],
+          },
+        ],
+        max_tokens: 400,
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return JSON.parse(String(data?.choices?.[0]?.message?.content ?? "")) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Thumbnail art directions, CTR-fundamentals first. `face` uses the persona
+ *  description when one is attached — a consistent face IS the channel brand. */
+export function thumbPrompts(topic: string, personaMeta?: string | null): string[] {
+  return [
+    personaMeta
+      ? `Photorealistic YouTube thumbnail: ${personaMeta} — with an intense, exaggerated emotional expression (shock or excitement), face filling the left half of the frame, reacting to: ${topic}. Bold rim light, high contrast background, absolutely no text or letters or words, no watermark.`
+      : `Photorealistic close-up video thumbnail about: ${topic}. One person with an intense, exaggerated emotional expression filling the left half of the frame, warm rim light against deep shadow, absolutely no text or letters or words, no watermark.`,
+    `Bold video thumbnail: ONE single oversized object representing ${topic}, centered, dramatic studio lighting, vivid saturated colors against a clean dark background, extreme contrast, absolutely no text or letters or words, no watermark.`,
+    `Bold, high-contrast video thumbnail background about: ${topic}. Dramatic cinematic lighting, vibrant purple and electric blue accents on near-black, abstract shapes suggesting the topic, absolutely no text or letters or words, no watermark.`,
+  ];
+}
+
 export async function generateThumbnail(
   id: string,
   topic: string,
   title: string,
   /** "b" renders a deliberately different art direction for A/B tests. */
-  variant: "a" | "b" = "a"
+  variant: "a" | "b" = "a",
+  /** Full prompt override (Thumbnail Lab variants). */
+  promptOverride?: string
 ): Promise<{ path: string; error?: never } | { path?: never; error: string }> {
   const prompt =
-    variant === "b"
+    promptOverride ??
+    (variant === "b"
       ? `Photorealistic close-up video thumbnail about: ${topic}. One clear human-scale subject filling the frame, warm golden rim light against deep shadow, strong emotional expression or tension, shallow depth of field, absolutely no text or letters or words, no watermark.`
-      : `Bold, high-contrast video thumbnail background about: ${topic}. Dramatic cinematic lighting, vibrant purple and electric blue accents on near-black, abstract shapes suggesting the topic, absolutely no text or letters or words, no watermark.`;
+      : `Bold, high-contrast video thumbnail background about: ${topic}. Dramatic cinematic lighting, vibrant purple and electric blue accents on near-black, abstract shapes suggesting the topic, absolutely no text or letters or words, no watermark.`);
   const bg = await generateBackground(prompt);
   if (!bg) {
     return { error: "no image provider — connect an xAI or OpenAI key in the Operator Console" };

@@ -5,6 +5,7 @@ import {
   listDraftPosts,
   listFailedClips,
   listFailedVerifiedPosts,
+  listFlaggedClips,
   listReadyUnscheduledClips,
   setScheduledStatus,
 } from "@/lib/server/db";
@@ -22,6 +23,7 @@ export async function GET() {
   return NextResponse.json({
     clipsReady: listReadyUnscheduledClips(user.email),
     clipsFailed: listFailedClips(user.email),
+    clipsFlagged: listFlaggedClips(user.email),
     postsFailed: listFailedVerifiedPosts(user.email),
     postsDraft: listDraftPosts(user.email),
     autopilot: getAutopilot(user.email),

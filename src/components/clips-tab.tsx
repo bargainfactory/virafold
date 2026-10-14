@@ -24,6 +24,7 @@ import {
   Download,
   Film,
   FileVideo,
+  Globe,
   Loader2,
   Moon,
   Play,
@@ -33,6 +34,21 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+
+/** Dub target languages — labels stay in their native names on purpose
+ *  (universally recognizable, no translation needed). */
+const DUB_LANGS: [string, string][] = [
+  ["es", "Español"],
+  ["pt", "Português"],
+  ["fr", "Français"],
+  ["de", "Deutsch"],
+  ["it", "Italiano"],
+  ["hi", "हिन्दी"],
+  ["id", "Indonesia"],
+  ["ja", "日本語"],
+  ["ko", "한국어"],
+  ["tr", "Türkçe"],
+];
 
 /** Date → the local value a datetime-local input expects. */
 function toLocalInput(d: Date): string {
@@ -409,6 +425,8 @@ export default function ClipsTab({
   const [ambScape, setAmbScape] = useState("ocean");
   const [ambBusy, setAmbBusy] = useState(false);
   const [eta, setEta] = useState<Record<string, { ahead: number; etaMin: number }>>({});
+  const [dubSel, setDubSel] = useState<Record<string, string>>({});
+  const [dubBusy, setDubBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
     fetch("/api/clips", { cache: "no-store" })
@@ -468,6 +486,28 @@ export default function ClipsTab({
       setAmbBusy(false);
     }
   }, [ambBusy, ambTheme, ambMinutes, ambScape, addToast, t, load]);
+
+  const dub = useCallback(
+    async (clip: ClipRow) => {
+      if (dubBusy) return;
+      setDubBusy(clip.id);
+      try {
+        const res = await fetch(`/api/clips/${clip.id}/dub`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ language: dubSel[clip.id] ?? "es" }),
+        });
+        const d = await res.json().catch(() => null);
+        if (res.ok) {
+          addToast(t("clips.dubQueued"));
+          load();
+        } else addToast(d?.error ?? t("clips.renderFailed"), "error");
+      } finally {
+        setDubBusy(null);
+      }
+    },
+    [dubBusy, dubSel, addToast, t, load]
+  );
 
   // Poll while anything is in the render queue so status flips live.
   const hasActive = clips.some((c) => c.status === "queued" || c.status === "rendering");
@@ -1142,6 +1182,30 @@ export default function ClipsTab({
                           <Sparkles className="w-3.5 h-3.5" />
                         )}
                         {t("clips.thumb")}
+                      </button>
+                      {/* One-click dub: same video, another language. */}
+                      <select
+                        value={dubSel[clip.id] ?? "es"}
+                        onChange={(e) => setDubSel((prev) => ({ ...prev, [clip.id]: e.target.value }))}
+                        className="px-2.5 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
+                      >
+                        {DUB_LANGS.map(([code, label]) => (
+                          <option key={code} value={code}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => dub(clip)}
+                        disabled={dubBusy === clip.id}
+                        className="px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs text-cyber-muted hover:text-foreground hover:border-neon-purple/50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {dubBusy === clip.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Globe className="w-3.5 h-3.5" />
+                        )}
+                        {t("clips.dub")}
                       </button>
                     </div>
                     {schedPosts[clip.id] && (

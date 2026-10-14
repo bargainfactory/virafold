@@ -552,7 +552,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
 
   const { synthesizeSpeech } = await import("./tts");
   const { getCustomVoiceId } = await import("./db");
-  const tts = await synthesizeSpeech(clip.script, "en", getCustomVoiceId(clip.userEmail));
+  const tts = await synthesizeSpeech(clip.script, clip.lang || "en", getCustomVoiceId(clip.userEmail));
   if (!tts) {
     throw new Error(
       "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
@@ -1264,6 +1264,63 @@ declare global {
   var __virafoldDiskAlertAt: number | undefined;
 }
 
+const QA_RUBRIC = [
+  "You are QA-checking frames sampled from an AI-generated vertical video.",
+  "Look ONLY for real defects: garbled or nonsensical text, mangled faces, hands, or anatomy, blank or corrupted frames, severe rendering artifacts.",
+  "Stylistic quirks, soft focus, film grain, and bold colors are NOT defects.",
+  'Return JSON: {"ok": true|false, "issues": ["<specific defect and which frame>"]} — ok must be true unless a clear defect exists.',
+].join("\n");
+
+/**
+ * Vision QA gate: sample three frames from a finished render and have the
+ * vision model look for genuine defects. Failures flag the clip (Review
+ * Inbox + notification) — they never unpublish or delete anything, because
+ * the model is a reviewer here, not a judge.
+ */
+async function qaRender(clip: Clip & { userEmail: string }): Promise<void> {
+  const { getClip, setClipQa } = await import("./db");
+  const fresh = getClip(clip.userEmail, clip.id);
+  if (!fresh || fresh.status !== "ready" || !fresh.outputPath) return;
+  const abs = path.join(process.cwd(), fresh.outputPath);
+  const dur = await probeDuration(abs);
+  if (!dur) return;
+  const qaDir = path.join(RENDERS_DIR, `tmp-qa-${clip.id}`);
+  fs.mkdirSync(qaDir, { recursive: true });
+  try {
+    const frames: Buffer[] = [];
+    for (const frac of [0.2, 0.5, 0.8]) {
+      const f = path.join(qaDir, `f${frac}.png`);
+      const res = await run(
+        "ffmpeg",
+        ["-y", "-ss", (dur * frac).toFixed(2), "-i", abs, "-frames:v", "1", "-vf", "scale=540:-2", f],
+        qaDir
+      );
+      if (res.code === 0 && fs.existsSync(f)) frames.push(fs.readFileSync(f));
+    }
+    if (frames.length < 2) return;
+    const { visionJson } = await import("./images");
+    const verdict = await visionJson(frames, QA_RUBRIC);
+    if (!verdict || verdict.ok !== false) return; // pass, or no verdict — never flag on silence
+    const issues = Array.isArray(verdict.issues)
+      ? verdict.issues.map(String).join("; ").slice(0, 300)
+      : "possible visual defect";
+    if (!issues) return;
+    setClipQa(clip.userEmail, clip.id, issues);
+    insertNotification(clip.userEmail, {
+      id: `n-${crypto.randomUUID()}`,
+      title: "Render Quality Check",
+      message: `"${clip.title}" rendered, but the automatic quality check flagged: ${issues}. Preview it in Clips — re-render if it looks off, or ignore the flag if it looks fine.`,
+      time: "Just now",
+      read: false,
+      type: "warning",
+    });
+  } catch {
+    /* QA is best-effort — never block the queue */
+  } finally {
+    fs.rmSync(qaDir, { recursive: true, force: true });
+  }
+}
+
 /** Drain the render queue sequentially. Safe to call from anywhere, any time —
  *  returns immediately if a render is already in flight. */
 export function kickRenderWorker(): void {
@@ -1306,6 +1363,9 @@ export function kickRenderWorker(): void {
           else if (next.kind === "caption") await renderCaptionFull(next);
           else if (next.kind === "ambient") await renderAmbientLoop(next);
           else await renderOne(next);
+          // Production-grade gate: every finished short render gets a vision
+          // QA pass (ambient loops skip it — hour-long static drift).
+          if (next.kind !== "ambient") await qaRender(next).catch(() => {});
         } catch (e) {
           updateClip(next.userEmail, next.id, {
             status: "failed",

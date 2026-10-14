@@ -373,6 +373,8 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE personas ADD COLUMN ptype TEXT NOT NULL DEFAULT 'presenter'",
     "ALTER TABLE personas ADD COLUMN meta TEXT",
     "ALTER TABLE clips ADD COLUMN props TEXT",
+    "ALTER TABLE clips ADD COLUMN qa_note TEXT",
+    "ALTER TABLE clips ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'",
   ]) {
     try {
       conn.exec(stmt);
@@ -2148,6 +2150,22 @@ export function listPostsNeedingVerify(
   ).map((row) => ({ ...mapScheduled(row), userEmail: row.user_email as string }));
 }
 
+/** Vision-QA verdict on a ready render; null clears the flag. */
+export function setClipQa(email: string, id: string, note: string | null): void {
+  getDb()
+    .prepare("UPDATE clips SET qa_note = ? WHERE id = ? AND user_email = ?")
+    .run(note, id, email.toLowerCase());
+}
+
+/** Ready renders the vision QA flagged — Review Inbox rows. */
+export function listFlaggedClips(email: string): { id: string; title: string; qaNote: string }[] {
+  return getDb()
+    .prepare(
+      "SELECT id, title, qa_note AS qaNote FROM clips WHERE user_email = ? AND status = 'ready' AND qa_note IS NOT NULL ORDER BY created_at DESC LIMIT 5"
+    )
+    .all(email.toLowerCase()) as { id: string; title: string; qaNote: string }[];
+}
+
 export function setPostVerified(postId: string, v: 1 | -1): void {
   getDb()
     .prepare("UPDATE scheduled_posts SET verified = ? WHERE id = ?")
@@ -2254,6 +2272,10 @@ export interface Clip {
   personaId: string | null;
   /** Script videos: JSON array of prop ids (characters/products/settings/styles) steering generation. */
   props: string | null;
+  /** Vision QA finding on a ready render, null = passed or unchecked. */
+  qaNote: string | null;
+  /** Narration + caption language (BCP-47-ish code); dubs set this. */
+  lang: string;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
   kind: string;
   script: string | null;
@@ -2281,6 +2303,8 @@ function mapClip(row: Record<string, unknown>): Clip {
     vstyle: (row.vstyle as string | null) ?? null,
     personaId: (row.persona_id as string | null) ?? null,
     props: (row.props as string | null) ?? null,
+    qaNote: (row.qa_note as string | null) ?? null,
+    lang: (row.lang as string) ?? "en",
     kind: (row.kind as string) ?? "clip",
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
@@ -2319,6 +2343,8 @@ export function insertCaptionJob(
     vstyle: null,
     personaId: null,
     props: null,
+    qaNote: null,
+    lang: "en",
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2359,6 +2385,8 @@ export function insertAmbientVideo(
     vstyle: null,
     personaId: null,
     props: null,
+    qaNote: null,
+    lang: "en",
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2369,16 +2397,16 @@ export function insertAmbientVideo(
 
 export function insertScriptVideo(
   email: string,
-  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean; vstyle?: string; personaId?: string; props?: string[] }
+  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean; vstyle?: string; personaId?: string; props?: string[]; lang?: string }
 ): Clip {
   const now = new Date().toISOString();
   const propsJson = v.props && v.props.length > 0 ? JSON.stringify(v.props) : null;
   getDb()
     .prepare(
-      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle, persona_id, props)
-       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?, ?, ?)`
+      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle, persona_id, props, lang)
+       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?, ?, ?, ?)`
     )
-    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0, v.vstyle ?? null, v.personaId ?? null, propsJson);
+    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0, v.vstyle ?? null, v.personaId ?? null, propsJson, v.lang ?? "en");
   return {
     id: v.id,
     projectId: "",
@@ -2397,6 +2425,8 @@ export function insertScriptVideo(
     vstyle: v.vstyle ?? null,
     personaId: v.personaId ?? null,
     props: v.props && v.props.length > 0 ? JSON.stringify(v.props) : null,
+    qaNote: null,
+    lang: v.lang ?? "en",
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2407,7 +2437,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2438,6 +2468,8 @@ export function insertClip(
     vstyle: null,
     personaId: null,
     props: null,
+    qaNote: null,
+    lang: "en",
     kind: "clip",
     script: null,
     outputPath: null,

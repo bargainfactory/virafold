@@ -58,6 +58,7 @@ import InboxTab from "@/components/inbox-tab";
 import Recipes from "@/components/recipes";
 import StarterPack from "@/components/starter-pack";
 import StudioTab from "@/components/studio-tab";
+import InterviewModal from "@/components/interview-modal";
 import type { Project, Asset } from "@/lib/data";
 import IntegrationsPanel from "@/components/integrations-panel";
 import BrandVoicePanel from "@/components/brand-voice-panel";
@@ -221,6 +222,7 @@ export default function Dashboard() {
     return () => window.removeEventListener("hashchange", applyHash);
   }, []);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showInterview, setShowInterview] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadTranscript, setUploadTranscript] = useState("");
   const [uploadUrl, setUploadUrl] = useState("");
@@ -537,6 +539,11 @@ export default function Dashboard() {
 
         <div className="p-6">
           <VerifyEmailBanner />
+          <InterviewModal
+            open={showInterview}
+            onClose={() => setShowInterview(false)}
+            onDone={() => setActiveTab("Inbox")}
+          />
           {activeTab === "Overview" && (
             <OverviewTab
               projects={projects}
@@ -578,6 +585,7 @@ export default function Dashboard() {
                 setShowUploadModal(true);
               }}
               onStart={() => setShowUploadModal(true)}
+              onInterview={() => setShowInterview(true)}
             />
           )}
           {activeTab === "Ideas" && <IdeasTab onNavigate={(tb) => setActiveTab(tb as Tab)} />}
@@ -1469,9 +1477,11 @@ function ProjectsTab({
 function UploadTab({
   onPickFile,
   onStart,
+  onInterview,
 }: {
   onPickFile: (file: File) => void;
   onStart: () => void;
+  onInterview: () => void;
 }) {
   const { t } = useTranslation();
   const [dragOver, setDragOver] = useState(false);
@@ -1500,6 +1510,15 @@ function UploadTab({
           className="px-6 py-2.5 rounded-full bg-gradient-to-r from-neon-purple to-electric-blue text-white text-sm font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2"
         >
           <Sparkles className="w-4 h-4" /> {t("dash.generateBtn")}
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onInterview();
+          }}
+          className="ml-2 px-6 py-2.5 rounded-full bg-cyber-dark border border-neon-purple/40 text-neon-purple text-sm font-medium hover:bg-neon-purple/10 transition-colors inline-flex items-center gap-2"
+        >
+          <Mic2 className="w-4 h-4" /> {t("intv.cta")}
         </button>
         <p className="text-xs text-cyber-muted mt-4">Supports: MP4, MOV, MP3, WAV — plus a pasted transcript/script</p>
       </div>

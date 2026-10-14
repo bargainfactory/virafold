@@ -120,6 +120,28 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
   const presenters = personas.filter((p) => p.ptype === "presenter" || p.ptype === "character");
   const propItems = personas.filter((p) => p.ptype !== "presenter");
 
+  const [labTitle, setLabTitle] = useState("");
+  const [labBusy, setLabBusy] = useState(false);
+  const [labThumbs, setLabThumbs] = useState<
+    { id: string; score: number | null; note: string; fix: string }[]
+  >([]);
+  const runThumbLab = useCallback(async () => {
+    if (labBusy || labTitle.trim().length < 3) return;
+    setLabBusy(true);
+    try {
+      const res = await fetch("/api/thumb-lab", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: labTitle.trim(), personaId: personaId || undefined }),
+      });
+      const d = await res.json().catch(() => null);
+      if (res.ok && d?.thumbs) setLabThumbs(d.thumbs);
+      else addToast(d?.error ?? t("clips.renderFailed"), "error");
+    } finally {
+      setLabBusy(false);
+    }
+  }, [labBusy, labTitle, personaId, addToast, t]);
+
   const [campBrief, setCampBrief] = useState("");
   const [campBusy, setCampBusy] = useState(false);
   const createCampaign = useCallback(async () => {
@@ -461,6 +483,59 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
             {t("camp.create")}
           </button>
         </div>
+      </div>
+
+      {/* Thumbnail Lab: three CTR-fundamentals variants, vision-scored.
+          Scores are heuristics — the thumbnail A/B test on published posts
+          is where real views decide. */}
+      <div className="bg-cyber-card border border-cyber-border rounded-xl p-5 space-y-3">
+        <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-warning" /> {t("lab.title")}
+        </p>
+        <p className="text-xs text-cyber-muted">{t("lab.hint")}</p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="text"
+            value={labTitle}
+            onChange={(e) => setLabTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runThumbLab()}
+            placeholder={t("lab.titlePh")}
+            className="flex-1 min-w-[220px] px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50"
+          />
+          <button
+            onClick={runThumbLab}
+            disabled={labBusy || labTitle.trim().length < 3}
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {labBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {t("lab.run")}
+          </button>
+        </div>
+        {labThumbs.length > 0 && (
+          <div className="grid sm:grid-cols-3 gap-3">
+            {labThumbs.map((th) => (
+              <div key={th.id} className="space-y-1.5">
+                <a href={`/api/images/${th.id}`} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/images/${th.id}`}
+                    alt=""
+                    className="w-full rounded-lg border border-cyber-border hover:border-neon-purple/50"
+                  />
+                </a>
+                {th.score !== null && (
+                  <p className="text-xs text-foreground">
+                    <span className={`font-bold ${th.score >= 70 ? "text-success" : th.score >= 45 ? "text-warning" : "text-red-400"}`}>
+                      {th.score}
+                    </span>
+                    <span className="text-cyber-muted"> / 100 · {th.note}</span>
+                  </p>
+                )}
+                {th.fix && <p className="text-[11px] text-cyber-muted">↳ {th.fix}</p>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
