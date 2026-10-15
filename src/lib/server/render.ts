@@ -1466,9 +1466,19 @@ export function kickRenderWorker(): void {
           // QA pass (ambient loops skip it — hour-long static drift).
           if (next.kind !== "ambient") await qaRender(next).catch(() => {});
         } catch (e) {
+          const msg = String(e instanceof Error ? e.message : e);
+          // ffmpeg killed by a service restart (deploys) exits 255/137 — that
+          // is not the clip's fault. Requeue once instead of failing it.
+          if (/exited (255|137)/.test(msg) && !next.error?.includes("[restart-retry]")) {
+            updateClip(next.userEmail, next.id, {
+              status: "queued",
+              error: "[restart-retry]",
+            });
+            continue;
+          }
           updateClip(next.userEmail, next.id, {
             status: "failed",
-            error: String(e instanceof Error ? e.message : e).slice(0, 300),
+            error: msg.slice(0, 300),
           });
           insertNotification(next.userEmail, {
             id: `n-${crypto.randomUUID()}`,
