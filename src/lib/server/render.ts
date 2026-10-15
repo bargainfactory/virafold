@@ -801,10 +801,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         let archIdx = 0;
         let imageBeatNo = 0;
         // Character consistency, OpenArt-style: user-picked cast wins; else a
-        // generated cast sheet for styles that want one.
+        // generated cast sheet for styles that want one — but never for a
+        // dialogue script with no character props: a narrated special (the
+        // Creation film) must not grow an invented recurring character, and
+        // its scenes should track the narration alone.
         const cast =
           propCast ??
-          (styleDef?.castSheet
+          (styleDef?.castSheet && !dialogueBeats
             ? await castSheetFor(clip.title, clip.script).catch(() => null)
             : null);
         // Documentary (no style preset) still honors a recurring character.

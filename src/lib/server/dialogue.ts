@@ -14,10 +14,13 @@
 
 export interface DialogueLine {
   speaker: string;
+  /** Explicit voice directive from the tag: SPEAKER(voicename): — wins over
+   *  prop assignment, and needs no prop (so no face enters the scenes). */
+  voice?: string;
   text: string;
 }
 
-const TAG_RE = /^([A-Z][A-Z0-9 .'-]{0,24}):\s*(.+)$/;
+const TAG_RE = /^([A-Z][A-Z0-9 .'-]{0,24})(?:\(([a-zA-Z]{2,16})\))?:\s*(.+)$/;
 const NARRATOR_RE = /^(NARRATOR|VOICEOVER|VO|NARRATION)$/i;
 
 export function parseScreenplay(script: string): DialogueLine[] | null {
@@ -29,7 +32,11 @@ export function parseScreenplay(script: string): DialogueLine[] | null {
     const m = TAG_RE.exec(line);
     if (m) {
       tagged++;
-      out.push({ speaker: m[1].trim().toUpperCase(), text: m[2].trim() });
+      out.push({
+        speaker: m[1].trim().toUpperCase(),
+        ...(m[2] ? { voice: m[2].toLowerCase() } : {}),
+        text: m[3].trim(),
+      });
     } else if (out.length) {
       out[out.length - 1].text += ` ${line}`;
     } else {
@@ -57,6 +64,11 @@ export function castVoices(
   let poolIdx = 0;
   for (const line of lines) {
     if (map.has(line.speaker)) continue;
+    // Explicit in-script directive wins: SPEAKER(voicename):
+    if (line.voice) {
+      map.set(line.speaker, line.voice);
+      continue;
+    }
     if (NARRATOR_RE.test(line.speaker)) {
       map.set(line.speaker, null);
       continue;
