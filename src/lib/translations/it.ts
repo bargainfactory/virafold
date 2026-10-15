@@ -368,6 +368,7 @@ export const it: Record<string, string> = {
   "studio.props": "Libreria props",
   "studio.propsHint": "Scegli fino a 4 props che ogni scena deve rispettare: un personaggio ricorrente, il tuo prodotto, un'ambientazione o un riferimento di stile (es. screenshot di un look — si studia il formato, mai i personaggi).",
   "studio.propPh": "Descrivilo — es. gatto arancione con felpa blu",
+  "clips.rename": "Rinomina video",
   "lab.redo": "Rifai",
   "lab.titles": "Riscritture del titolo — con punteggio hook, sotto i 60 caratteri, senza affermazioni inventate",
   "studio.voiceAuto": "Voce: auto",

@@ -2569,6 +2569,7 @@ export function updateClip(
     focus?: string;
     tight?: number;
     reason?: string;
+    title?: string;
     outputPath?: string | null;
     error?: string | null;
   }
@@ -2577,7 +2578,7 @@ export function updateClip(
   if (!cur) return;
   getDb()
     .prepare(
-      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, reason = ?, output_path = ?, error = ? WHERE id = ? AND user_email = ?"
+      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, reason = ?, title = ?, output_path = ?, error = ? WHERE id = ? AND user_email = ?"
     )
     .run(
       patch.status ?? cur.status,
@@ -2586,6 +2587,7 @@ export function updateClip(
       patch.focus ?? cur.focus,
       patch.tight ?? cur.tight,
       patch.reason ?? cur.reason,
+      patch.title ?? cur.title,
       patch.outputPath !== undefined ? patch.outputPath : cur.outputPath,
       patch.error !== undefined ? patch.error : cur.error,
       id,

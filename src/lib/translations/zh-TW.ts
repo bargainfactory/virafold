@@ -368,6 +368,7 @@ export const zhTW: Record<string, string> = {
   "studio.props": "道具庫",
   "studio.propsHint": "選擇最多 4 個每個場景都必須遵循的道具：固定角色、你的產品、場景，或風格參考（例如想要的風格截圖——只研究形式，絕不複製角色）。",
   "studio.propPh": "描述一下——例如：穿藍色連帽衫的橘貓",
+  "clips.rename": "重新命名影片",
   "lab.redo": "重做",
   "lab.titles": "標題改寫——帶鉤子評分，少於 60 字元，不編造任何說法",
   "studio.voiceAuto": "聲音：自動",

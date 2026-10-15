@@ -943,6 +943,7 @@ export const en: Record<string, string> = {
   "lab.titlePh": "Your video title…",
   "lab.run": "Generate 3 + score",
   "lab.redo": "Redo",
+  "clips.rename": "Rename video",
   "lab.titles": "Title rewrites — hook-scored, under 60 characters, no invented claims",
   "intv.title": "Talk it out",
   "intv.cta": "Talk it out instead",

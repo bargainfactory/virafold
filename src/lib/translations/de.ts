@@ -377,6 +377,7 @@ export const de: Record<string, string> = {
   "studio.props": "Prop-Bibliothek",
   "studio.propsHint": "Wählen Sie bis zu 4 Props, die jede Szene einhalten muss: eine wiederkehrende Figur, Ihr Produkt, ein Setting oder eine Stilreferenz (z. B. Screenshots eines Looks — der Stil wird studiert, nie die Figuren).",
   "studio.propPh": "Beschreiben Sie es — z. B. orange Tigerkatze im blauen Hoodie",
+  "clips.rename": "Video umbenennen",
   "lab.redo": "Neu",
   "lab.titles": "Titel-Varianten — Hook-bewertet, unter 60 Zeichen, keine erfundenen Behauptungen",
   "studio.voiceAuto": "Stimme: auto",

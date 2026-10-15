@@ -368,6 +368,7 @@ export const pl: Record<string, string> = {
   "studio.props": "Biblioteka rekwizytów",
   "studio.propsHint": "Wybierz do 4 rekwizytów, których każda scena musi przestrzegać: stałą postać, Twój produkt, scenerię lub referencję stylu (np. zrzuty ekranu looku — badamy format, nigdy postacie).",
   "studio.propPh": "Opisz — np. rudy kot w niebieskiej bluzie",
+  "clips.rename": "Zmień nazwę wideo",
   "lab.redo": "Ponów",
   "lab.titles": "Przeredagowane tytuły — ocena hooka, poniżej 60 znaków, bez zmyślonych twierdzeń",
   "studio.voiceAuto": "Głos: auto",

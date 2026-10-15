@@ -368,6 +368,7 @@ export const id: Record<string, string> = {
   "studio.props": "Pustaka properti",
   "studio.propsHint": "Pilih hingga 4 properti yang wajib dipatuhi setiap adegan: karakter tetap, produk Anda, latar, atau referensi gaya (mis. tangkapan layar tampilan yang diinginkan — formatnya dipelajari, karakternya tidak pernah).",
   "studio.propPh": "Jelaskan — mis. kucing oranye berhoodie biru",
+  "clips.rename": "Ubah nama video",
   "lab.redo": "Ulangi",
   "lab.titles": "Penulisan ulang judul — diberi skor hook, di bawah 60 karakter, tanpa klaim karangan",
   "studio.voiceAuto": "Suara: otomatis",

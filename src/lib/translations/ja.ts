@@ -377,6 +377,7 @@ export const ja: Record<string, string> = {
   "studio.props": "プロップライブラリ",
   "studio.propsHint": "各シーンが必ず従うプロップを最大4つ選択：定番キャラクター、あなたの商品、舞台、またはスタイル参照（例：目指すルックのスクリーンショット — 学ぶのはフォーマットで、キャラクターは決して真似しません）。",
   "studio.propPh": "説明してください — 例：青いパーカーのオレンジ猫",
+  "clips.rename": "動画の名前を変更",
   "lab.redo": "やり直す",
   "lab.titles": "タイトル案 — フックスコア付き、60文字未満、捏造した主張なし",
   "studio.voiceAuto": "声：自動",

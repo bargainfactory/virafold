@@ -27,6 +27,7 @@ import {
   Globe,
   Loader2,
   Moon,
+  Pencil,
   Play,
   Scissors,
   Sparkles,
@@ -34,6 +35,74 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+
+/** Click-to-edit video title: pencil → input → check. PATCHes the clip, so
+ *  the new title rides into YouTube/TikTok at publish time. */
+function EditableTitle({ id, title, onSaved }: { id: string; title: string; onSaved: () => void }) {
+  const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(title);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (busy || val.trim().length < 3) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/clips/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: val.trim() }),
+      });
+      if (res.ok) {
+        setEditing(false);
+        onSaved();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!editing) {
+    return (
+      <span className="flex items-start gap-1.5 min-w-0">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <button
+          onClick={() => {
+            setVal(title);
+            setEditing(true);
+          }}
+          aria-label={t("clips.rename")}
+          title={t("clips.rename")}
+          className="shrink-0 mt-0.5 text-cyber-muted hover:text-neon-purple"
+        >
+          <Pencil className="w-3 h-3" />
+        </button>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1.5 flex-1 min-w-0">
+      <input
+        type="text"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        maxLength={120}
+        autoFocus
+        className="flex-1 min-w-0 px-2 py-1 bg-cyber-dark border border-neon-purple/50 rounded-lg text-sm text-foreground focus:outline-none"
+      />
+      <button
+        onClick={save}
+        disabled={busy || val.trim().length < 3}
+        aria-label={t("clips.rename")}
+        className="shrink-0 p-1 rounded bg-gradient-to-r from-neon-purple to-electric-blue text-white disabled:opacity-50"
+      >
+        {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+      </button>
+    </span>
+  );
+}
 
 /** Dub target languages — labels stay in their native names on purpose
  *  (universally recognizable, no translation needed). */
@@ -865,7 +934,7 @@ export default function ClipsTab({
                     {clip.score}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">{clip.title}</p>
+                    <EditableTitle id={clip.id} title={clip.title} onSaved={load} />
                     <p className="text-[11px] text-cyber-muted mt-0.5">
                       {fmtClipTime(clip.startSec)}–{fmtClipTime(clip.endSec)} ·{" "}
                       {Math.round(clip.endSec - clip.startSec)}s
@@ -1105,7 +1174,7 @@ export default function ClipsTab({
                 className="bg-cyber-card border border-cyber-border rounded-xl p-4 space-y-3 hover:border-neon-purple/40 transition-colors"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">{clip.title}</p>
+                  <EditableTitle id={clip.id} title={clip.title} onSaved={load} />
                   <button
                     onClick={() => remove(clip)}
                     className="text-cyber-muted hover:text-danger transition-colors shrink-0"
@@ -1313,7 +1382,7 @@ export default function ClipsTab({
                 className="bg-cyber-card border border-cyber-border rounded-xl p-4 space-y-3 hover:border-electric-blue/40 transition-colors"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">{clip.title}</p>
+                  <EditableTitle id={clip.id} title={clip.title} onSaved={load} />
                   <button
                     onClick={() => remove(clip)}
                     className="text-cyber-muted hover:text-danger transition-colors shrink-0"

@@ -377,6 +377,7 @@ export const ko: Record<string, string> = {
   "studio.props": "소품 라이브러리",
   "studio.propsHint": "모든 장면이 따라야 할 소품을 최대 4개 선택: 고정 캐릭터, 내 제품, 배경, 또는 스타일 레퍼런스(예: 원하는 룩의 스크린샷 — 포맷만 연구하고 캐릭터는 절대 베끼지 않습니다).",
   "studio.propPh": "설명하세요 — 예: 파란 후드티를 입은 주황 고양이",
+  "clips.rename": "영상 이름 바꾸기",
   "lab.redo": "다시",
   "lab.titles": "제목 리라이트 — 훅 점수 포함, 60자 미만, 지어낸 주장 없음",
   "studio.voiceAuto": "목소리: 자동",

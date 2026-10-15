@@ -368,6 +368,7 @@ export const vi: Record<string, string> = {
   "studio.props": "Thư viện đạo cụ",
   "studio.propsHint": "Chọn tối đa 4 đạo cụ mà mọi cảnh phải tuân theo: nhân vật cố định, sản phẩm của bạn, bối cảnh, hoặc tham chiếu phong cách (vd: ảnh chụp màn hình phong cách mong muốn — chỉ học format, không bao giờ sao chép nhân vật).",
   "studio.propPh": "Mô tả — vd: mèo cam mặc hoodie xanh",
+  "clips.rename": "Đổi tên video",
   "lab.redo": "Làm lại",
   "lab.titles": "Viết lại tiêu đề — chấm điểm hook, dưới 60 ký tự, không bịa đặt",
   "studio.voiceAuto": "Giọng: tự động",

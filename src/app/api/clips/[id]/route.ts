@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { getSessionUser } from "@/lib/server/auth";
-import { deleteClip, getClip, getProjectMedia } from "@/lib/server/db";
+import { deleteClip, getClip, getProjectMedia, updateClip } from "@/lib/server/db";
 import { estimateWords } from "@/lib/server/clips";
 
 export const dynamic = "force-dynamic";
@@ -48,4 +48,28 @@ export async function DELETE(
   }
   deleteClip(user.email, id);
   return NextResponse.json({ ok: true });
+}
+
+/** Rename a video — the title rides into YouTube/TikTok at publish time. */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  if (!getClip(user.email, id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  let title = "";
+  try {
+    title = String(((await req.json()) as Record<string, unknown>)?.title ?? "").trim().slice(0, 120);
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  if (title.length < 3) {
+    return NextResponse.json({ error: "Give the video a title (3+ characters)" }, { status: 400 });
+  }
+  updateClip(user.email, id, { title });
+  return NextResponse.json({ clip: getClip(user.email, id) });
 }
