@@ -46,20 +46,24 @@ export async function synthesizeSpeech(
   if (xaiKey) {
     try {
       // The creator's cloned voice wins; then the operator's pick; then eve.
-      const voice = customVoiceId || resolveField("voiceover", "xaiVoiceId") || "eve";
-      const resp = await fetch("https://api.x.ai/v1/tts", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${xaiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text: input, voice_id: voice, language }),
-      });
-      if (resp.ok) {
-        return {
-          bytes: Buffer.from(await resp.arrayBuffer()),
-          provider: `xai:tts:${voice}`,
-        };
+      // A misconfigured voice name (a model name pasted into the voice field
+      // once took every render down) falls back to eve instead of failing.
+      const picked = customVoiceId || resolveField("voiceover", "xaiVoiceId") || "eve";
+      for (const voice of picked === "eve" ? ["eve"] : [picked, "eve"]) {
+        const resp = await fetch("https://api.x.ai/v1/tts", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${xaiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text: input, voice_id: voice, language }),
+        });
+        if (resp.ok) {
+          return {
+            bytes: Buffer.from(await resp.arrayBuffer()),
+            provider: `xai:tts:${voice}`,
+          };
+        }
       }
     } catch {
       /* fall through to OpenAI */
