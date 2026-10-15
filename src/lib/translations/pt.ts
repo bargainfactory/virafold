@@ -377,6 +377,8 @@ export const pt: Record<string, string> = {
   "studio.props": "Biblioteca de props",
   "studio.propsHint": "Escolha até 4 props que toda cena deve respeitar: um personagem recorrente, seu produto, um cenário ou uma referência de estilo (ex.: capturas de um visual — estuda-se o formato, nunca os personagens).",
   "studio.propPh": "Descreva — ex.: gato laranja de moletom azul",
+  "lab.redo": "Refazer",
+  "lab.titles": "Reescritas do título — pontuadas por gancho, abaixo de 60 caracteres, sem alegações inventadas",
   "studio.voiceAuto": "Voz: auto",
   "studio.voiceTitle": "A voz falada deste personagem em roteiros com diálogo",
   "studio.screenplayHint": "Multivoz: marque as falas com o nome de quem fala — NARRATOR:, ELI:, PIP: — e cada personagem diz suas falas com a própria voz (defina sob o retrato). Roteiros marcados podem durar até ~20 minutos.",

@@ -368,6 +368,8 @@ export const id: Record<string, string> = {
   "studio.props": "Pustaka properti",
   "studio.propsHint": "Pilih hingga 4 properti yang wajib dipatuhi setiap adegan: karakter tetap, produk Anda, latar, atau referensi gaya (mis. tangkapan layar tampilan yang diinginkan — formatnya dipelajari, karakternya tidak pernah).",
   "studio.propPh": "Jelaskan — mis. kucing oranye berhoodie biru",
+  "lab.redo": "Ulangi",
+  "lab.titles": "Penulisan ulang judul — diberi skor hook, di bawah 60 karakter, tanpa klaim karangan",
   "studio.voiceAuto": "Suara: otomatis",
   "studio.voiceTitle": "Suara bicara karakter ini dalam naskah dialog",
   "studio.screenplayHint": "Multi-suara: beri tag nama pembicara pada baris naskah — NARRATOR:, ELI:, PIP: — dan tiap karakter mengucapkan dialognya dengan suaranya sendiri (atur di bawah potretnya). Naskah bertag bisa sampai ~20 menit.",

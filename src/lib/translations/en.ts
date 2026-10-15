@@ -942,6 +942,8 @@ export const en: Record<string, string> = {
   "lab.hint": "Three thumbnail approaches — an emotional face (your selected presenter when one is picked), one big object, and high-contrast abstract — each scored by AI for small-size impact. Scores are heuristics; the A/B test on published posts is the real judge.",
   "lab.titlePh": "Your video title…",
   "lab.run": "Generate 3 + score",
+  "lab.redo": "Redo",
+  "lab.titles": "Title rewrites — hook-scored, under 60 characters, no invented claims",
   "intv.title": "Talk it out",
   "intv.cta": "Talk it out instead",
   "intv.sub": "No script, no blank page: answer a few questions out loud and we'll turn the conversation into your full asset pack.",

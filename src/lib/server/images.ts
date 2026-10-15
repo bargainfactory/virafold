@@ -213,15 +213,24 @@ export async function visionJson(
   }
 }
 
-/** Thumbnail art directions, CTR-fundamentals first. `face` uses the persona
- *  description when one is attached — a consistent face IS the channel brand. */
+/**
+ * Thumbnail art directions built on measured CTR practice: an expressive face
+ * (faces measurably out-click facelessness), one oversized subject, and a
+ * cinematic-muted variant for documentary/finance-flavored topics. All three
+ * keep the lower-right corner quiet — YouTube draws the duration badge there —
+ * and demand ONE subject with hard color separation so they read at 120px.
+ * `face` uses the persona description when one is attached — a consistent
+ * face IS the channel brand.
+ */
 export function thumbPrompts(topic: string, personaMeta?: string | null): string[] {
+  const clean =
+    "clean uncluttered composition with a single focal subject, strong complementary color separation between subject and background, lower-right corner of the frame left empty and quiet, absolutely no text or letters or words, no watermark";
   return [
     personaMeta
-      ? `Photorealistic YouTube thumbnail: ${personaMeta} — with an intense, exaggerated emotional expression (shock or excitement), face filling the left half of the frame, reacting to: ${topic}. Bold rim light, high contrast background, absolutely no text or letters or words, no watermark.`
-      : `Photorealistic close-up video thumbnail about: ${topic}. One person with an intense, exaggerated emotional expression filling the left half of the frame, warm rim light against deep shadow, absolutely no text or letters or words, no watermark.`,
-    `Bold video thumbnail: ONE single oversized object representing ${topic}, centered, dramatic studio lighting, vivid saturated colors against a clean dark background, extreme contrast, absolutely no text or letters or words, no watermark.`,
-    `Bold, high-contrast video thumbnail background about: ${topic}. Dramatic cinematic lighting, vibrant purple and electric blue accents on near-black, abstract shapes suggesting the topic, absolutely no text or letters or words, no watermark.`,
+      ? `Photorealistic YouTube thumbnail: ${personaMeta} — face filling the left two-thirds of the frame with an extreme, exaggerated emotional expression (shock, awe, or delight), eyes toward the camera, bold rim light, reacting to: ${topic}. ${clean}.`
+      : `Photorealistic close-up video thumbnail about: ${topic}. One person's face filling the left two-thirds of the frame with an extreme, exaggerated emotional expression, eyes toward the camera, warm rim light against deep shadow. ${clean}.`,
+    `Bold video thumbnail: ONE single oversized object representing ${topic}, placed slightly left of center, dramatic studio lighting, vivid saturated colors against a dark background, extreme contrast. ${clean}.`,
+    `Cinematic video thumbnail about: ${topic}. Muted desaturated film grade with ONE bright focal accent, dramatic directional light, documentary gravity. ${clean}.`,
   ];
 }
 
@@ -249,8 +258,10 @@ export async function generateThumbnail(
   const outPath = path.join(RENDERS_DIR, `img-${id}.png`);
   fs.writeFileSync(bgPath, bg);
 
-  const text = sanitizeTitle(title);
-  const vf = `scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,drawtext=text=${text}:font=DejaVu Sans:fontsize=86:fontcolor=white:borderw=8:bordercolor=black:x=(w-tw)/2:y=h-th-70`;
+  // Practice: 1-5 words max, big and bold, anchored bottom-LEFT so the text
+  // never collides with YouTube's duration badge in the lower-right.
+  const text = sanitizeTitle(title.split(/\s+/).slice(0, 4).join(" ").toUpperCase());
+  const vf = `scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,drawtext=text=${text}:font=DejaVu Sans:fontsize=96:fontcolor=white:borderw=9:bordercolor=black:x=64:y=h-th-64`;
   const res = await run(["-y", "-i", bgPath, "-vf", vf, "-frames:v", "1", outPath], RENDERS_DIR);
   fs.rmSync(bgPath, { force: true });
 

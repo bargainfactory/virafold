@@ -368,6 +368,8 @@ export const nl: Record<string, string> = {
   "studio.props": "Props-bibliotheek",
   "studio.propsHint": "Kies tot 4 props die elke scène moet volgen: een vast personage, je product, een setting of een stijlreferentie (bijv. screenshots van een look — de stijl wordt bestudeerd, nooit de personages).",
   "studio.propPh": "Beschrijf het — bijv. oranje kat in blauwe hoodie",
+  "lab.redo": "Opnieuw",
+  "lab.titles": "Titelherschrijvingen — hook-gescoord, onder 60 tekens, geen verzonnen claims",
   "studio.voiceAuto": "Stem: auto",
   "studio.voiceTitle": "De spreekstem van dit personage in dialoogscripts",
   "studio.screenplayHint": "Meerstemmig: tag scriptregels met sprekersnamen — NARRATOR:, ELI:, PIP: — en elk personage spreekt zijn regels met een eigen stem (instelbaar onder het portret). Getagde scripts kunnen tot ~20 minuten duren.",

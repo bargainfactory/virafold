@@ -368,6 +368,8 @@ export const pl: Record<string, string> = {
   "studio.props": "Biblioteka rekwizytów",
   "studio.propsHint": "Wybierz do 4 rekwizytów, których każda scena musi przestrzegać: stałą postać, Twój produkt, scenerię lub referencję stylu (np. zrzuty ekranu looku — badamy format, nigdy postacie).",
   "studio.propPh": "Opisz — np. rudy kot w niebieskiej bluzie",
+  "lab.redo": "Ponów",
+  "lab.titles": "Przeredagowane tytuły — ocena hooka, poniżej 60 znaków, bez zmyślonych twierdzeń",
   "studio.voiceAuto": "Głos: auto",
   "studio.voiceTitle": "Głos tej postaci w scenariuszach z dialogami",
   "studio.screenplayHint": "Wiele głosów: oznacz kwestie nazwą mówiącego — NARRATOR:, ELI:, PIP: — a każda postać wypowie swoje kwestie własnym głosem (ustawiany pod portretem). Oznaczone scenariusze mogą trwać do ~20 minut.",

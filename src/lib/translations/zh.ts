@@ -364,6 +364,8 @@ export const zh: Record<string, string> = {
   "studio.props": "道具库",
   "studio.propsHint": "选择最多 4 个每个场景都必须遵循的道具：固定角色、你的产品、场景，或风格参考（例如想要的风格截图——只研究形式，绝不复制角色）。",
   "studio.propPh": "描述一下——例如：穿蓝色连帽衫的橘猫",
+  "lab.redo": "重做",
+  "lab.titles": "标题改写——带钩子评分，少于 60 字符，不编造任何说法",
   "studio.voiceAuto": "声音：自动",
   "studio.voiceTitle": "该角色在对白脚本中的说话声音",
   "studio.screenplayHint": "多声音：在脚本行前标注说话人 — NARRATOR:、ELI:、PIP: — 每个角色将用自己的声音念台词（在其头像下方设置）。带标注的脚本最长约 20 分钟。",

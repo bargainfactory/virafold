@@ -377,6 +377,8 @@ export const es: Record<string, string> = {
   "studio.props": "Biblioteca de props",
   "studio.propsHint": "Elige hasta 4 props que toda escena debe respetar: un personaje recurrente, tu producto, un escenario o una referencia de estilo (p. ej. capturas de un look — se estudia el formato, nunca los personajes).",
   "studio.propPh": "Descríbelo — p. ej. gato naranja con sudadera azul",
+  "lab.redo": "Rehacer",
+  "lab.titles": "Reescrituras del título — puntuadas por gancho, menos de 60 caracteres, sin afirmaciones inventadas",
   "studio.voiceAuto": "Voz: auto",
   "studio.voiceTitle": "La voz hablada de este personaje en guiones con diálogo",
   "studio.screenplayHint": "Multivoz: etiqueta las líneas del guion con el nombre del hablante — NARRATOR:, ELI:, PIP: — y cada personaje dice sus líneas con su propia voz (se elige bajo su retrato). Los guiones etiquetados pueden durar hasta ~20 minutos.",

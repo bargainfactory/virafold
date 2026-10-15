@@ -368,6 +368,8 @@ export const it: Record<string, string> = {
   "studio.props": "Libreria props",
   "studio.propsHint": "Scegli fino a 4 props che ogni scena deve rispettare: un personaggio ricorrente, il tuo prodotto, un'ambientazione o un riferimento di stile (es. screenshot di un look — si studia il formato, mai i personaggi).",
   "studio.propPh": "Descrivilo — es. gatto arancione con felpa blu",
+  "lab.redo": "Rifai",
+  "lab.titles": "Riscritture del titolo — con punteggio hook, sotto i 60 caratteri, senza affermazioni inventate",
   "studio.voiceAuto": "Voce: auto",
   "studio.voiceTitle": "La voce parlata di questo personaggio negli script con dialoghi",
   "studio.screenplayHint": "Multivoce: tagga le battute con il nome del personaggio — NARRATOR:, ELI:, PIP: — e ognuno recita le sue battute con la propria voce (impostabile sotto il ritratto). Gli script taggati possono durare fino a ~20 minuti.",

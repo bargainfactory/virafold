@@ -368,6 +368,8 @@ export const tr: Record<string, string> = {
   "studio.props": "Prop kitaplığı",
   "studio.propsHint": "Her sahnenin uyacağı en fazla 4 prop seçin: sabit bir karakter, ürününüz, bir mekân veya stil referansı (örn. istediğiniz görünümün ekran görüntüleri — format incelenir, karakterler asla kopyalanmaz).",
   "studio.propPh": "Tanımlayın — örn. mavi kapüşonlu turuncu kedi",
+  "lab.redo": "Yeniden",
+  "lab.titles": "Başlık yeniden yazımları — kanca puanlı, 60 karakterin altında, uydurma iddia yok",
   "studio.voiceAuto": "Ses: otomatik",
   "studio.voiceTitle": "Bu karakterin diyalog senaryolarındaki konuşma sesi",
   "studio.screenplayHint": "Çok sesli: senaryo satırlarını konuşmacı adıyla etiketleyin — NARRATOR:, ELI:, PIP: — her karakter repliklerini kendi sesiyle söyler (portresinin altından ayarlanır). Etiketli senaryolar ~20 dakikaya kadar sürebilir.",

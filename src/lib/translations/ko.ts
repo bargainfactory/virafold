@@ -377,6 +377,8 @@ export const ko: Record<string, string> = {
   "studio.props": "소품 라이브러리",
   "studio.propsHint": "모든 장면이 따라야 할 소품을 최대 4개 선택: 고정 캐릭터, 내 제품, 배경, 또는 스타일 레퍼런스(예: 원하는 룩의 스크린샷 — 포맷만 연구하고 캐릭터는 절대 베끼지 않습니다).",
   "studio.propPh": "설명하세요 — 예: 파란 후드티를 입은 주황 고양이",
+  "lab.redo": "다시",
+  "lab.titles": "제목 리라이트 — 훅 점수 포함, 60자 미만, 지어낸 주장 없음",
   "studio.voiceAuto": "목소리: 자동",
   "studio.voiceTitle": "대사 스크립트에서 이 캐릭터의 목소리",
   "studio.screenplayHint": "멀티보이스: 대본 줄에 화자 이름을 붙이면 — NARRATOR:, ELI:, PIP: — 각 캐릭터가 자기 목소리로 대사를 말합니다(초상화 아래에서 설정). 태그된 대본은 약 20분까지 가능합니다.",

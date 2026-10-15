@@ -128,24 +128,44 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
   const [labTitle, setLabTitle] = useState("");
   const [labBusy, setLabBusy] = useState(false);
   const [labThumbs, setLabThumbs] = useState<
-    { id: string; score: number | null; note: string; fix: string }[]
+    { id: string; variant: number; score: number | null; note: string; fix: string }[]
   >([]);
-  const runThumbLab = useCallback(async () => {
-    if (labBusy || labTitle.trim().length < 3) return;
-    setLabBusy(true);
-    try {
-      const res = await fetch("/api/thumb-lab", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: labTitle.trim(), personaId: personaId || undefined }),
-      });
-      const d = await res.json().catch(() => null);
-      if (res.ok && d?.thumbs) setLabThumbs(d.thumbs);
-      else addToast(d?.error ?? t("clips.renderFailed"), "error");
-    } finally {
-      setLabBusy(false);
-    }
-  }, [labBusy, labTitle, personaId, addToast, t]);
+  const [labTitles, setLabTitles] = useState<{ t: string; score: number; len: number }[]>([]);
+  const runThumbLab = useCallback(
+    async (variant?: number, replaceId?: string) => {
+      if (labBusy || labTitle.trim().length < 3) return;
+      setLabBusy(true);
+      try {
+        const res = await fetch("/api/thumb-lab", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: labTitle.trim(),
+            personaId: personaId || undefined,
+            ...(variant !== undefined ? { variant } : {}),
+          }),
+        });
+        const d = await res.json().catch(() => null);
+        if (res.ok && d?.thumbs) {
+          if (replaceId) {
+            // Redo: the rejected variant is deleted and the fresh one slides in.
+            fetch(`/api/images/${replaceId}`, { method: "DELETE" }).catch(() => {});
+            setLabThumbs((cur) => cur.map((th) => (th.id === replaceId ? d.thumbs[0] : th)));
+          } else {
+            setLabThumbs(d.thumbs);
+            setLabTitles(d.titles ?? []);
+          }
+        } else addToast(d?.error ?? t("clips.renderFailed"), "error");
+      } finally {
+        setLabBusy(false);
+      }
+    },
+    [labBusy, labTitle, personaId, addToast, t]
+  );
+  const deleteThumb = useCallback(async (id: string) => {
+    await fetch(`/api/images/${id}`, { method: "DELETE" }).catch(() => {});
+    setLabThumbs((cur) => cur.filter((th) => th.id !== id));
+  }, []);
 
   const [campBrief, setCampBrief] = useState("");
   const [campBusy, setCampBusy] = useState(false);
@@ -553,10 +573,11 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
             onChange={(e) => setLabTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runThumbLab()}
             placeholder={t("lab.titlePh")}
+            autoComplete="off"
             className="flex-1 min-w-[220px] px-3 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50"
           />
           <button
-            onClick={runThumbLab}
+            onClick={() => runThumbLab()}
             disabled={labBusy || labTitle.trim().length < 3}
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
           >
@@ -564,6 +585,36 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
             {t("lab.run")}
           </button>
         </div>
+        {labTitles.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-foreground">{t("lab.titles")}</p>
+            {labTitles.map((ti) => (
+              <div
+                key={ti.t}
+                className="flex items-center gap-2 bg-cyber-dark border border-cyber-border rounded-lg px-3 py-2"
+              >
+                <span
+                  className={`text-xs font-bold shrink-0 ${ti.score >= 70 ? "text-success" : ti.score >= 45 ? "text-warning" : "text-red-400"}`}
+                >
+                  {ti.score}
+                </span>
+                <span className="text-xs text-foreground flex-1 min-w-0">{ti.t}</span>
+                <span className={`text-[10px] shrink-0 ${ti.len > 60 ? "text-red-400" : "text-cyber-muted"}`}>
+                  {ti.len}ch
+                </span>
+                <button
+                  onClick={() => {
+                    setLabTitle(ti.t);
+                    navigator.clipboard?.writeText(ti.t).catch(() => {});
+                  }}
+                  className="text-[10px] px-2 py-1 rounded bg-cyber-card border border-cyber-border text-neon-purple hover:border-neon-purple/50 shrink-0"
+                >
+                  {t("share.copy")}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {labThumbs.length > 0 && (
           <div className="grid sm:grid-cols-3 gap-3">
             {labThumbs.map((th) => (
@@ -576,6 +627,23 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
                     className="w-full rounded-lg border border-cyber-border hover:border-neon-purple/50"
                   />
                 </a>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => runThumbLab(th.variant, th.id)}
+                    disabled={labBusy}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-cyber-dark border border-cyber-border text-[11px] font-medium text-foreground hover:border-neon-purple/50 disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    {labBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    {t("lab.redo")}
+                  </button>
+                  <button
+                    onClick={() => deleteThumb(th.id)}
+                    aria-label={t("inbox.dismiss")}
+                    className="px-2 py-1.5 rounded-lg bg-cyber-dark border border-cyber-border text-cyber-muted hover:text-red-400"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
                 {th.score !== null && (
                   <p className="text-xs text-foreground">
                     <span className={`font-bold ${th.score >= 70 ? "text-success" : th.score >= 45 ? "text-warning" : "text-red-400"}`}>

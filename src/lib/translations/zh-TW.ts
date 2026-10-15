@@ -368,6 +368,8 @@ export const zhTW: Record<string, string> = {
   "studio.props": "道具庫",
   "studio.propsHint": "選擇最多 4 個每個場景都必須遵循的道具：固定角色、你的產品、場景，或風格參考（例如想要的風格截圖——只研究形式，絕不複製角色）。",
   "studio.propPh": "描述一下——例如：穿藍色連帽衫的橘貓",
+  "lab.redo": "重做",
+  "lab.titles": "標題改寫——帶鉤子評分，少於 60 字元，不編造任何說法",
   "studio.voiceAuto": "聲音：自動",
   "studio.voiceTitle": "該角色在對白腳本中的說話聲音",
   "studio.screenplayHint": "多聲音：在腳本行前標註說話人 — NARRATOR:、ELI:、PIP: — 每個角色將用自己的聲音唸台詞（在其頭像下方設定）。帶標註的腳本最長約 20 分鐘。",
