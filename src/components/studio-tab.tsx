@@ -20,7 +20,10 @@ interface Persona {
   name: string;
   source: string;
   ptype: string;
+  voice?: string | null;
 }
+
+const XAI_VOICES = ["eve", "luna", "orion", "perseus", "helix"];
 
 const PROP_TYPES = ["character", "product", "setting", "style", "archival"] as const;
 
@@ -393,10 +396,33 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
+                    {(p.ptype === "character" || p.ptype === "presenter") && (
+                      <select
+                        value={p.voice ?? ""}
+                        title={t("studio.voiceTitle")}
+                        onChange={async (e) => {
+                          await fetch(`/api/personas/${p.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ voice: e.target.value }),
+                          }).catch(() => {});
+                          loadPersonas();
+                        }}
+                        className="mt-1 w-16 px-1 py-0.5 bg-cyber-dark border border-cyber-border rounded text-[9px] text-cyber-muted focus:outline-none focus:border-neon-purple/50"
+                      >
+                        <option value="">{t("studio.voiceAuto")}</option>
+                        {XAI_VOICES.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 ))}
               </div>
             )}
+            <p className="text-[11px] text-cyber-muted leading-snug">{t("studio.screenplayHint")}</p>
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={propType}

@@ -63,7 +63,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
   const b = body as Record<string, unknown>;
-  const input = String(b?.input ?? "").trim().slice(0, 6000);
+  const rawInput = String(b?.input ?? "").trim();
+  const { parseScreenplay } = await import("@/lib/server/dialogue");
+  const isScreenplay = Boolean(parseScreenplay(rawInput));
+  const input = rawInput.slice(0, isScreenplay ? 24000 : 6000);
   const style = String(b?.style ?? "documentary");
   const animate = b?.animate === undefined ? true : Boolean(b.animate);
   const locale = b?.locale ? String(b.locale).slice(0, 8) : undefined;
@@ -155,7 +158,7 @@ export async function POST(req: NextRequest) {
   const clip = insertScriptVideo(user.email, {
     id: `sv-${crypto.randomUUID()}`,
     title,
-    script: script.slice(0, 4800),
+    script: script.slice(0, isScreenplay ? 24000 : 4800),
     style: "bold",
     position: "middle",
     animate,

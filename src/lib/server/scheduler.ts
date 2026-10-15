@@ -76,13 +76,22 @@ export async function publishDuePosts(): Promise<number> {
       // Rendered-clip post: upload the video to YouTube/TikTok when connected.
       const clip = getClip(post.userEmail, post.clipId);
       if (clip?.status === "ready" && clip.outputPath) {
+        // #Shorts only below YouTube's 3-minute line — long-form episodes and
+        // ambient loops publish as regular videos.
+        const abs = path.join(process.cwd(), clip.outputPath);
+        let isShort = clip.kind !== "ambient";
+        if (isShort) {
+          const { probeDuration } = await import("./render");
+          const dur = await probeDuration(abs).catch(() => null);
+          if (dur && dur > 178) isShort = false;
+        }
         const result = await deliverVideo(
           post.userEmail,
           post.platform,
-          path.join(process.cwd(), clip.outputPath),
+          abs,
           clip.title,
           clip.reason,
-          clip.kind !== "ambient" // hour-long loops are long-form, not Shorts
+          isShort
         );
         if (result) {
           deliveryNote = result.ok

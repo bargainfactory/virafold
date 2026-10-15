@@ -156,6 +156,10 @@ export function buildAss(
   const cfg = STYLE_BASE[style] ?? STYLE_BASE.bold;
   const inRange = words.filter((w) => w.e > clipStart && w.s < clipEnd);
 
+  // Dialogue speakers each get a caption tint (ASS colors are &HBBGGRR) so
+  // kids can track who's talking even on mute; narration stays style-default.
+  const SPEAKER_TINTS = ["3CB6F2", "F0D75A", "D26AF0", "A8E07F"];
+
   const events: string[] = [];
   let chunk: TranscriptWord[] = [];
   const flush = () => {
@@ -166,7 +170,12 @@ export function buildAss(
       let text = assEscape(chunk.map((w) => w.w).join(" "));
       if (cfg.upper) text = text.toUpperCase();
       if (text) {
-        events.push(`Dialogue: 0,${fmtAssTime(start)},${fmtAssTime(end)},Default,,0,0,0,,${text}`);
+        const sp = chunk[0].sp;
+        const tint =
+          sp !== undefined ? `{\\1c&H${SPEAKER_TINTS[sp % SPEAKER_TINTS.length]}&}` : "";
+        events.push(
+          `Dialogue: 0,${fmtAssTime(start)},${fmtAssTime(end)},Default,,0,0,0,,${tint}${text}`
+        );
       }
     }
     chunk = [];
@@ -547,30 +556,120 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
  * branded dark canvas — a complete faceless video from typed text, no
  * recording involved. Enters the same queue and delivery path as clips.
  */
+// Pause between spoken dialogue lines — reads as a natural beat, not a cut.
+const LINE_GAP = 0.3;
+
 async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<void> {
   if (!clip.script?.trim()) throw new Error("script text is missing");
 
   const { synthesizeSpeech } = await import("./tts");
-  const { getCustomVoiceId } = await import("./db");
-  const tts = await synthesizeSpeech(clip.script, clip.lang || "en", getCustomVoiceId(clip.userEmail));
-  if (!tts) {
-    throw new Error(
-      "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
-    );
-  }
+  const { getCustomVoiceId, getPersona } = await import("./db");
+  const { parseScreenplay, castVoices } = await import("./dialogue");
 
   fs.mkdirSync(RENDERS_DIR, { recursive: true });
   const jobDir = path.join(RENDERS_DIR, `tmp-${clip.id}`);
   fs.mkdirSync(jobDir, { recursive: true });
   const outAbs = path.join(RENDERS_DIR, `${clip.id}.mp4`);
+  const defaultVoice = getCustomVoiceId(clip.userEmail);
+
+  // Multi-voice path: speaker-tagged scripts synthesize per line, each
+  // speaker in their own voice, stitched with natural gaps. Caption timing
+  // actually improves here — every line's duration is measured, not guessed.
+  const dialogue = parseScreenplay(clip.script);
+  let voiceFile = "voice.mp3";
+  let duration: number;
+  let words: TranscriptWord[];
+  let dialogueBeats: { text: string; dur: number }[] | null = null;
 
   try {
-    const voicePath = path.join(jobDir, "voice.mp3");
-    fs.writeFileSync(voicePath, tts.bytes);
-    const duration = await probeDuration(voicePath);
-    if (!duration) throw new Error("could not read the narration's duration");
+    if (dialogue) {
+      const castProps: { name: string; voice: string | null }[] = [];
+      if (clip.props) {
+        try {
+          for (const pid of JSON.parse(clip.props) as string[]) {
+            const p = getPersona(clip.userEmail, pid);
+            if (p && (p.ptype === "character" || p.ptype === "presenter")) {
+              castProps.push({ name: p.name, voice: p.voice });
+            }
+          }
+        } catch {
+          /* no cast — pool voices still keep speakers distinct */
+        }
+      }
+      const voices = castVoices(dialogue, castProps);
+      const spIndex = new Map<string, number>();
+      const segs: { file: string; dur: number; line: (typeof dialogue)[number]; sp?: number }[] = [];
+      for (let i = 0; i < dialogue.length; i++) {
+        const line = dialogue[i];
+        const v = voices.get(line.speaker);
+        const tts = await synthesizeSpeech(line.text, clip.lang || "en", v ?? defaultVoice);
+        if (!tts) {
+          throw new Error(
+            "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
+          );
+        }
+        const f = `line${i}.mp3`;
+        fs.writeFileSync(path.join(jobDir, f), tts.bytes);
+        const d = (await probeDuration(path.join(jobDir, f))) ?? Math.max(1, line.text.length / 15);
+        let sp: number | undefined;
+        if (v !== null && v !== undefined) {
+          if (!spIndex.has(line.speaker)) spIndex.set(line.speaker, spIndex.size);
+          sp = spIndex.get(line.speaker);
+        }
+        segs.push({ file: f, dur: d, line, sp });
+      }
+      // Stitch: pad each line with the gap, concat, decode to WAV once.
+      const inputs = segs.flatMap((s) => ["-i", s.file]);
+      const fc =
+        segs.map((_, i) => `[${i}:a]apad=pad_dur=${LINE_GAP}[p${i}]`).join(";") +
+        `;${segs.map((_, i) => `[p${i}]`).join("")}concat=n=${segs.length}:v=0:a=1[a]`;
+      const cres = await run(
+        "ffmpeg",
+        ["-y", ...inputs, "-filter_complex", fc, "-map", "[a]", "-c:a", "pcm_s16le", "voice.wav"],
+        jobDir
+      );
+      if (cres.code !== 0) throw new Error(`dialogue stitch failed: ${cres.err.slice(-200)}`);
+      voiceFile = "voice.wav";
+      duration = (await probeDuration(path.join(jobDir, "voice.wav"))) ?? 0;
+      if (!duration) throw new Error("could not read the narration's duration");
+      // Word timings + beats from MEASURED line durations.
+      words = [];
+      let t = 0;
+      const beatsAcc: { text: string; dur: number }[] = [];
+      let acc = { text: "", dur: 0 };
+      for (const s of segs) {
+        for (const w of estimateWords(s.line.text, s.dur)) {
+          words.push({ ...w, s: w.s + t, e: w.e + t, ...(s.sp !== undefined ? { sp: s.sp } : {}) });
+        }
+        t += s.dur + LINE_GAP;
+        acc.text += ` ${s.line.text}`;
+        acc.dur += s.dur + LINE_GAP;
+        if (acc.dur >= 6) {
+          beatsAcc.push({ text: acc.text.trim(), dur: acc.dur });
+          acc = { text: "", dur: 0 };
+        }
+      }
+      if (acc.dur > 0) {
+        if (beatsAcc.length && acc.dur < 3) {
+          beatsAcc[beatsAcc.length - 1].dur += acc.dur;
+          beatsAcc[beatsAcc.length - 1].text += ` ${acc.text.trim()}`;
+        } else beatsAcc.push({ text: acc.text.trim(), dur: acc.dur });
+      }
+      dialogueBeats = beatsAcc;
+    } else {
+      const tts = await synthesizeSpeech(clip.script, clip.lang || "en", defaultVoice);
+      if (!tts) {
+        throw new Error(
+          "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
+        );
+      }
+      const voicePath = path.join(jobDir, "voice.mp3");
+      fs.writeFileSync(voicePath, tts.bytes);
+      duration = (await probeDuration(voicePath)) ?? 0;
+      if (!duration) throw new Error("could not read the narration's duration");
+      words = estimateWords(clip.script, duration);
+    }
 
-    const words = estimateWords(clip.script, duration);
     let ass = buildAss(
       words,
       0,
@@ -587,7 +686,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     // becomes drawn stat cards and bar charts, enumerations become bullet
     // cards, the rest gets styled AI imagery with varied motion. Any failure
     // falls back to the waveform canvas.
-    const beats = splitBeats(clip.script, duration);
+    const beats = dialogueBeats ?? splitBeats(clip.script, duration);
     const images: string[] = [];
     const kinds: string[] = [];
     // Stock providers used — credited in the publish description per their
@@ -875,7 +974,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         "-y",
         ...inputs,
         "-i",
-        "voice.mp3",
+        voiceFile,
         "-f",
         "lavfi",
         "-t",
@@ -913,7 +1012,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         "-i",
         "color=c=0x140a24:s=1080x1920:r=30",
         "-i",
-        "voice.mp3",
+        voiceFile,
         "-filter_complex",
         "[1:a]showwaves=s=1080x220:mode=cline:rate=30:colors=0xa855f7|0x3b82f6[w];[0:v][w]overlay=0:1520[bg];[bg]ass=subs.ass[v]",
         "-map",
@@ -972,7 +1071,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     insertNotification(clip.userEmail, {
       id: `n-${crypto.randomUUID()}`,
       title: "Script Video Ready",
-      message: `"${clip.title}" is narrated (${tts.provider}), captioned, and rendered — preview, download, or schedule it from the Clips tab.`,
+      message: `"${clip.title}" is narrated${dialogue ? ` (${new Set(dialogue.map((l) => l.speaker)).size} voices)` : ""}, captioned, and rendered — preview, download, or schedule it from the Clips tab.`,
       time: "Just now",
       read: false,
       type: "success",

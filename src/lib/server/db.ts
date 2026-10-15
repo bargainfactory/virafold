@@ -372,6 +372,7 @@ export function getDb(): DatabaseSync {
     )`,
     "ALTER TABLE personas ADD COLUMN ptype TEXT NOT NULL DEFAULT 'presenter'",
     "ALTER TABLE personas ADD COLUMN meta TEXT",
+    "ALTER TABLE personas ADD COLUMN voice TEXT",
     "ALTER TABLE clips ADD COLUMN props TEXT",
     "ALTER TABLE clips ADD COLUMN qa_note TEXT",
     "ALTER TABLE clips ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'",
@@ -3548,6 +3549,8 @@ export interface Persona {
   ptype: PropType;
   /** Vision-derived description injected into generation prompts. */
   meta: string | null;
+  /** Spoken voice for dialogue lines (xAI voice name); null = default chain. */
+  voice: string | null;
   createdAt: string;
 }
 
@@ -3568,7 +3571,13 @@ export function insertPersona(
   getDb()
     .prepare("INSERT INTO personas (id, user_email, name, source, ptype, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .run(p.id, email.toLowerCase(), p.name, p.source, p.ptype, p.meta ?? null, now);
-  return { id: p.id, name: p.name, source: p.source, ptype: p.ptype, meta: p.meta ?? null, createdAt: now };
+  return { id: p.id, name: p.name, source: p.source, ptype: p.ptype, meta: p.meta ?? null, voice: null, createdAt: now };
+}
+
+export function setPersonaVoice(email: string, id: string, voice: string | null): void {
+  getDb()
+    .prepare("UPDATE personas SET voice = ? WHERE id = ? AND user_email = ?")
+    .run(voice, id, email.toLowerCase());
 }
 
 export function setPersonaMeta(email: string, id: string, meta: string): void {
@@ -3581,7 +3590,7 @@ export function listPersonas(email: string): Persona[] {
   return (
     getDb()
       .prepare(
-        "SELECT id, name, source, ptype, meta, created_at AS createdAt FROM personas WHERE user_email = ? ORDER BY created_at DESC"
+        "SELECT id, name, source, ptype, meta, voice, created_at AS createdAt FROM personas WHERE user_email = ? ORDER BY created_at DESC"
       )
       .all(email.toLowerCase()) as unknown as Persona[]
   );
@@ -3590,7 +3599,7 @@ export function listPersonas(email: string): Persona[] {
 export function getPersona(email: string, id: string): Persona | null {
   const row = getDb()
     .prepare(
-      "SELECT id, name, source, ptype, meta, created_at AS createdAt FROM personas WHERE id = ? AND user_email = ?"
+      "SELECT id, name, source, ptype, meta, voice, created_at AS createdAt FROM personas WHERE id = ? AND user_email = ?"
     )
     .get(id, email.toLowerCase()) as unknown as Persona | undefined;
   return row ?? null;

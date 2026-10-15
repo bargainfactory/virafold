@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
   }
   const b = body as Record<string, unknown>;
   const title = String(b?.title ?? "").trim().slice(0, 120);
-  const script = String(b?.script ?? "").trim().slice(0, 4800);
+  // Speaker-tagged screenplays synthesize per line, so the single-call TTS
+  // length cap doesn't apply — long-form episodes up to ~20 minutes.
+  const rawScript = String(b?.script ?? "").trim();
+  const { parseScreenplay } = await import("@/lib/server/dialogue");
+  const script = rawScript.slice(0, parseScreenplay(rawScript) ? 24000 : 4800);
   const style = (CAPTION_STYLES as readonly string[]).includes(String(b?.style))
     ? String(b?.style)
     : "bold";
