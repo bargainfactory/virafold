@@ -2150,6 +2150,59 @@ export function listPostsNeedingVerify(
   ).map((row) => ({ ...mapScheduled(row), userEmail: row.user_email as string }));
 }
 
+/**
+ * Live production-loop state for the Studio's Series Tracker: every step of
+ * the launch playbook detected from real data, never from stored wizard
+ * state — the tracker is honest because it only reflects what exists.
+ */
+export function seriesProgress(email: string): {
+  castCount: number;
+  episodesReady: number;
+  episodesTotal: number;
+  flagged: number;
+  thumbTests: number;
+  scheduledClips: number;
+  dubs: number;
+  steering: number;
+} {
+  const conn = getDb();
+  const lower = email.toLowerCase();
+  const one = (sql: string, ...args: unknown[]) =>
+    ((conn.prepare(sql).get(...(args as [])) as { c: number }) ?? { c: 0 }).c;
+  return {
+    castCount: one(
+      "SELECT COUNT(*) c FROM personas WHERE user_email = ? AND ptype IN ('character','presenter')",
+      lower
+    ),
+    episodesReady: one(
+      "SELECT COUNT(*) c FROM clips WHERE user_email = ? AND kind = 'script' AND vstyle IS NOT NULL AND status = 'ready'",
+      lower
+    ),
+    episodesTotal: one(
+      "SELECT COUNT(*) c FROM clips WHERE user_email = ? AND kind = 'script' AND vstyle IS NOT NULL AND status IN ('ready','queued','rendering')",
+      lower
+    ),
+    flagged: one(
+      "SELECT COUNT(*) c FROM clips WHERE user_email = ? AND status = 'ready' AND qa_note IS NOT NULL",
+      lower
+    ),
+    thumbTests: one("SELECT COUNT(*) c FROM thumb_tests WHERE user_email = ?", lower),
+    scheduledClips: one(
+      "SELECT COUNT(*) c FROM scheduled_posts WHERE user_email = ? AND status = 'scheduled' AND clip_id IS NOT NULL",
+      lower
+    ),
+    dubs: one(
+      "SELECT COUNT(*) c FROM clips WHERE user_email = ? AND lang != 'en'",
+      lower
+    ),
+    steering: one(
+      "SELECT (SELECT COUNT(*) FROM assets WHERE user_email = ? AND ab_group IS NOT NULL) + (SELECT COUNT(*) FROM post_metrics WHERE user_email = ?) c",
+      lower,
+      lower
+    ),
+  };
+}
+
 /** Vision-QA verdict on a ready render; null clears the flag. */
 export function setClipQa(email: string, id: string, note: string | null): void {
   getDb()

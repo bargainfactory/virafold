@@ -13,6 +13,7 @@ import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
 import { Check, Film, Loader2, Paperclip, Rocket, Sparkles, Trash2, UserRound } from "lucide-react";
 import CharacterBuilder from "@/components/character-builder";
+import SeriesTracker from "@/components/series-tracker";
 
 interface Persona {
   id: string;
@@ -209,8 +210,28 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
         <p className="text-sm text-cyber-muted mt-1">{t("studio.sub")}</p>
       </div>
 
+      {/* The launch playbook as a live, self-checking stepper. */}
+      <SeriesTracker
+        onNavigate={onNavigate}
+        onStep={(key) => {
+          if (key === "cast") {
+            document.getElementById("char-builder")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          } else if (key === "episode") {
+            setStyle("cartoon");
+            const el = document.getElementById("studio-script") as HTMLTextAreaElement | null;
+            el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            el?.focus();
+          } else if (key === "thumb") {
+            const el = document.getElementById("thumb-lab-title") as HTMLInputElement | null;
+            el?.scrollIntoView({ behavior: "smooth", block: "center" });
+            el?.focus();
+          }
+        }}
+      />
+
       <div className="bg-cyber-card border border-cyber-border rounded-xl p-5 space-y-4">
         <textarea
+          id="studio-script"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           rows={5}
@@ -428,7 +449,9 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
               </label>
             )}
             {/* The deliberate path: three candidates, refine, explicit Accept. */}
-            <CharacterBuilder onAccepted={() => loadPersonas()} />
+            <div id="char-builder">
+              <CharacterBuilder onAccepted={() => loadPersonas()} />
+            </div>
           </div>
         )}
 
@@ -498,6 +521,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
         <p className="text-xs text-cyber-muted">{t("lab.hint")}</p>
         <div className="flex flex-wrap gap-2">
           <input
+            id="thumb-lab-title"
             type="text"
             value={labTitle}
             onChange={(e) => setLabTitle(e.target.value)}
