@@ -556,6 +556,41 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
  * branded dark canvas — a complete faceless video from typed text, no
  * recording involved. Enters the same queue and delivery path as clips.
  */
+// --- Forced alignment ---
+//
+// The gold standard for caption sync: run speech-to-text on the narration we
+// just generated and use its word-level timestamps, so every caption word
+// lands on the instant it is spoken. Costs about a cent per render on the
+// existing STT chain; estimates remain the fallback when no STT key is up.
+
+async function alignNarration(jobDir: string, voiceFile: string): Promise<TranscriptWord[] | null> {
+  try {
+    const { transcribeMedia } = await import("./transcribe");
+    const abs = path.join(jobDir, voiceFile);
+    let sendAbs = abs;
+    let name = voiceFile;
+    let mime = voiceFile.endsWith(".wav") ? "audio/wav" : "audio/mpeg";
+    // Long WAVs exceed some providers' upload caps — align on a small mp3.
+    if (fs.statSync(abs).size > 24 * 1024 * 1024) {
+      const small = path.join(jobDir, "align.mp3");
+      const tr = await run(
+        "ffmpeg",
+        ["-y", "-i", abs, "-ac", "1", "-b:a", "64k", "align.mp3"],
+        jobDir
+      );
+      if (tr.code !== 0 || !fs.existsSync(small)) return null;
+      sendAbs = small;
+      name = "align.mp3";
+      mime = "audio/mpeg";
+    }
+    const res = await transcribeMedia(fs.readFileSync(sendAbs), name, mime);
+    if (!res?.words?.length) return null;
+    return res.words.map((w) => ({ w: w.w, s: w.s, e: w.e }));
+  } catch {
+    return null;
+  }
+}
+
 // --- Segmented film assembly (the scene editor's foundation) ---
 //
 // Each beat renders as its own small segment (identical codec params), the
@@ -778,6 +813,22 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         } else beatsAcc.push({ text: acc.text.trim(), dur: acc.dur });
       }
       dialogueBeats = beatsAcc;
+      // Forced alignment: true word timings from the stitched narration,
+      // with each word re-assigned its line's speaker for the caption tints.
+      const aligned = await alignNarration(jobDir, voiceFile);
+      if (aligned && aligned.length >= words.length * 0.5) {
+        const windows: { s: number; e: number; sp?: number }[] = [];
+        let wt = 0;
+        for (const seg of segs) {
+          windows.push({ s: wt, e: wt + seg.dur + LINE_GAP, sp: seg.sp });
+          wt += seg.dur + LINE_GAP;
+        }
+        words = aligned.map((w) => {
+          const mid = (w.s + w.e) / 2;
+          const win = windows.find((x) => mid >= x.s && mid < x.e);
+          return win?.sp !== undefined ? { ...w, sp: win.sp } : w;
+        });
+      }
     } else {
       const tts = await synthesizeSpeech(clip.script, clip.lang || "en", defaultVoice);
       if (!tts) {
@@ -790,6 +841,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       duration = (await probeDuration(voicePath)) ?? 0;
       if (!duration) throw new Error("could not read the narration's duration");
       words = estimateWords(clip.script, duration);
+      const aligned = await alignNarration(jobDir, "voice.mp3");
+      if (aligned && aligned.length >= words.length * 0.5) words = aligned;
     }
 
     let ass = buildAss(
