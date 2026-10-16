@@ -376,6 +376,8 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN props TEXT",
     "ALTER TABLE clips ADD COLUMN qa_note TEXT",
     "ALTER TABLE clips ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'",
+    "ALTER TABLE clips ADD COLUMN thumb_path TEXT",
+    "ALTER TABLE clips ADD COLUMN has_plan INTEGER NOT NULL DEFAULT 0",
   ]) {
     try {
       conn.exec(stmt);
@@ -2211,6 +2213,25 @@ export function setClipQa(email: string, id: string, note: string | null): void 
     .run(note, id, email.toLowerCase());
 }
 
+/** First-frame default thumbnail + edit-plan flag, set when a render lands. */
+export function setClipRenderMeta(
+  email: string,
+  id: string,
+  meta: { thumbPath?: string | null; hasPlan?: boolean }
+): void {
+  const conn = getDb();
+  if (meta.thumbPath !== undefined) {
+    conn
+      .prepare("UPDATE clips SET thumb_path = ? WHERE id = ? AND user_email = ?")
+      .run(meta.thumbPath, id, email.toLowerCase());
+  }
+  if (meta.hasPlan !== undefined) {
+    conn
+      .prepare("UPDATE clips SET has_plan = ? WHERE id = ? AND user_email = ?")
+      .run(meta.hasPlan ? 1 : 0, id, email.toLowerCase());
+  }
+}
+
 /** Ready renders the vision QA flagged — Review Inbox rows. */
 export function listFlaggedClips(email: string): { id: string; title: string; qaNote: string }[] {
   return getDb()
@@ -2330,6 +2351,10 @@ export interface Clip {
   qaNote: string | null;
   /** Narration + caption language (BCP-47-ish code); dubs set this. */
   lang: string;
+  /** Auto-extracted first-scene frame — the default thumbnail. */
+  thumbPath: string | null;
+  /** 1 = a persisted edit plan + segments exist (scene editor available). */
+  hasPlan: number;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
   kind: string;
   script: string | null;
@@ -2359,6 +2384,8 @@ function mapClip(row: Record<string, unknown>): Clip {
     props: (row.props as string | null) ?? null,
     qaNote: (row.qa_note as string | null) ?? null,
     lang: (row.lang as string) ?? "en",
+    thumbPath: (row.thumb_path as string | null) ?? null,
+    hasPlan: (row.has_plan as number) ?? 0,
     kind: (row.kind as string) ?? "clip",
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
@@ -2399,6 +2426,8 @@ export function insertCaptionJob(
     props: null,
     qaNote: null,
     lang: "en",
+    thumbPath: null,
+    hasPlan: 0,
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2441,6 +2470,8 @@ export function insertAmbientVideo(
     props: null,
     qaNote: null,
     lang: "en",
+    thumbPath: null,
+    hasPlan: 0,
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2481,6 +2512,8 @@ export function insertScriptVideo(
     props: v.props && v.props.length > 0 ? JSON.stringify(v.props) : null,
     qaNote: null,
     lang: v.lang ?? "en",
+    thumbPath: null,
+    hasPlan: 0,
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2491,7 +2524,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang" | "thumbPath" | "hasPlan">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2524,6 +2557,8 @@ export function insertClip(
     props: null,
     qaNote: null,
     lang: "en",
+    thumbPath: null,
+    hasPlan: 0,
     kind: "clip",
     script: null,
     outputPath: null,

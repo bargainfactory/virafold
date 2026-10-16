@@ -98,6 +98,18 @@ export async function publishDuePosts(): Promise<number> {
             ? ` ${result.detail}.`
             : ` Delivery failed (${result.detail}) — marked published locally.`;
           externalId = result.externalId;
+          // Default thumbnail: the video's own first picture, set right after
+          // a successful YouTube upload (a Lab pick / A-B test overrides it).
+          if (result.ok && externalId && post.platform === "YouTube" && clip.thumbPath) {
+            try {
+              const fsx = await import("node:fs");
+              const { setYouTubeThumbnail } = await import("./connect");
+              const img = fsx.readFileSync(path.join(process.cwd(), clip.thumbPath));
+              await setYouTubeThumbnail(post.userEmail, externalId, img);
+            } catch {
+              /* best-effort — unverified channels can't set thumbnails */
+            }
+          }
         }
       } else if (clip && clip.status !== "ready") {
         // Not rendered yet — push the slot 10 minutes and let it retry.

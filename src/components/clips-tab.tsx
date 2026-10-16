@@ -17,6 +17,7 @@ import {
   lastPlatform,
   rememberPlatform,
 } from "@/lib/use-connections";
+import SceneEditor from "@/components/scene-editor";
 import {
   Calendar,
   Check,
@@ -159,6 +160,8 @@ interface ClipRow {
   reason: string;
   matched: string | null;
   status: "suggested" | "queued" | "rendering" | "ready" | "failed";
+  hasPlan?: number;
+  thumbPath?: string | null;
   style: string;
   position: string;
   focus: string;
@@ -495,6 +498,8 @@ export default function ClipsTab({
   const [ambBusy, setAmbBusy] = useState(false);
   const [eta, setEta] = useState<Record<string, { ahead: number; etaMin: number }>>({});
   const [dubSel, setDubSel] = useState<Record<string, string>>({});
+  const [editorFor, setEditorFor] = useState<string | null>(null);
+  const [vidBust, setVidBust] = useState(0);
   const [dubBusy, setDubBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -1186,7 +1191,9 @@ export default function ClipsTab({
                 {clip.status === "ready" ? (
                   <div className="space-y-3">
                     <video
-                      src={`/api/clips/${clip.id}/file`}
+                      key={`${clip.id}-${vidBust}`}
+                      src={`/api/clips/${clip.id}/file${vidBust ? `?v=${vidBust}` : ""}`}
+                      poster={clip.thumbPath ? `/api/clips/${clip.id}/thumb?v=${vidBust}` : undefined}
                       controls
                       preload="metadata"
                       className="w-full max-w-[240px] rounded-lg border border-cyber-border aspect-[9/16] bg-black"
@@ -1264,6 +1271,14 @@ export default function ClipsTab({
                           </option>
                         ))}
                       </select>
+                      {Boolean(clip.hasPlan) && (
+                        <button
+                          onClick={() => setEditorFor(clip.id)}
+                          className="px-3 py-2 rounded-lg bg-cyber-dark border border-fuchsia-500/40 text-xs text-fuchsia-300 hover:bg-fuchsia-500/10 transition-colors flex items-center gap-1.5"
+                        >
+                          <Film className="w-3.5 h-3.5" /> {t("ed.open")}
+                        </button>
+                      )}
                       <button
                         onClick={() => dub(clip)}
                         disabled={dubBusy === clip.id}
@@ -1322,6 +1337,17 @@ export default function ClipsTab({
             ))}
           </div>
         </div>
+      )}
+
+      {editorFor && (
+        <SceneEditor
+          clipId={editorFor}
+          onClose={() => setEditorFor(null)}
+          onEdited={() => {
+            setVidBust((v) => v + 1);
+            load();
+          }}
+        />
       )}
 
       {/* Ambient loops: sleep-length seamless renders — still + glacial

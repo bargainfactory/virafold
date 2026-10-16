@@ -556,6 +556,128 @@ async function renderOne(clip: Clip & { userEmail: string }): Promise<void> {
  * branded dark canvas — a complete faceless video from typed text, no
  * recording involved. Enters the same queue and delivery path as clips.
  */
+// --- Segmented film assembly (the scene editor's foundation) ---
+//
+// Each beat renders as its own small segment (identical codec params), the
+// film is assembled by stream-copy concat, and the whole build plan persists
+// next to the output. Editing one scene later = rebuild one segment + splice,
+// seconds instead of hours. Frame counts are cumulative-exact so 60+ segments
+// never drift against the measured audio timeline.
+
+export interface FilmBeat {
+  i: number;
+  text: string;
+  start: number;
+  dur: number;
+  kind: string;
+  file: string;
+  /** The exact image prompt used (re-roll fuel); empty for broll/cards/arch. */
+  prompt: string;
+}
+
+export interface FilmPlan {
+  style: string;
+  position: string;
+  watermark: boolean;
+  look: boolean;
+  voiceFile: string;
+  duration: number;
+  words: TranscriptWord[];
+  beats: FilmBeat[];
+  lang?: string;
+}
+
+const CINE_LOOK =
+  "curves=blue='0/0.06 0.5/0.47 1/0.92':red='0/0.02 0.5/0.53 1/1',eq=contrast=1.06:saturation=1.08,";
+
+function beatFrames(plan: FilmPlan, b: FilmBeat): number {
+  const startF = Math.round(b.start * 30);
+  const endF =
+    b.i === plan.beats.length - 1 ? Math.round(plan.duration * 30) : Math.round((b.start + b.dur) * 30);
+  return Math.max(15, endF - startF);
+}
+
+export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: FilmBeat): Promise<void> {
+  const frames = beatFrames(plan, b);
+  const dur = frames / 30;
+  let ass = buildAss(
+    plan.words,
+    b.start,
+    b.start + dur,
+    plan.style as CaptionStyle,
+    plan.position as CaptionPosition
+  );
+  if (plan.watermark) ass = withWatermark(ass, { w: 1080, h: 1920 }, dur);
+  const assName = `seg_${b.i}.ass`;
+  fs.writeFileSync(path.join(planDir, assName), ass, "utf8");
+
+  const look = plan.look && b.kind !== "stat" && b.kind !== "chart" && b.kind !== "list" && b.kind !== "quote" ? CINE_LOOK : "";
+  const fades = `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
+  const scale = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920";
+  let inputs: string[];
+  let fc: string;
+  if (b.kind === "broll" || b.kind === "anim") {
+    inputs = ["-stream_loop", "-1", "-t", (dur + 0.5).toFixed(2), "-i", b.file];
+    fc = `[0:v]${scale},fps=30,${look}${fades},setsar=1,ass=${assName}[v]`;
+  } else if (b.kind === "image" || b.kind === "arch") {
+    const zoom =
+      b.i % 2 === 0
+        ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30`
+        : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
+    inputs = ["-i", b.file];
+    fc = `[0:v]${scale},${zoom},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}[v]`;
+  } else {
+    inputs = ["-loop", "1", "-t", (dur + 0.3).toFixed(2), "-framerate", "30", "-i", b.file];
+    fc =
+      `[0:v]${scale},fps=30,split[sa][sb];[sa]lutyuv=y=val*0.25[dim];` +
+      `[sb][dim]overlay=x='min(W,W*t/0.8)':y=0,${fades},setsar=1,ass=${assName}[v]`;
+  }
+  const res = await run(
+    "ffmpeg",
+    ["-y", ...inputs, "-filter_complex", fc, "-map", "[v]", "-frames:v", String(frames),
+     "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-an",
+     `seg_${b.i}.mp4`],
+    planDir
+  );
+  const segAbs = path.join(planDir, `seg_${b.i}.mp4`);
+  if (res.code !== 0 || !fs.existsSync(segAbs) || fs.statSync(segAbs).size === 0) {
+    throw new Error(`segment ${b.i} failed: ${res.err.slice(-200)}`);
+  }
+}
+
+export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string): Promise<void> {
+  fs.writeFileSync(
+    path.join(planDir, "list.txt"),
+    plan.beats.map((b) => `file 'seg_${b.i}.mp4'`).join("\n"),
+    "utf8"
+  );
+  const cat = await run(
+    "ffmpeg",
+    ["-y", "-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "silent.mp4"],
+    planDir
+  );
+  if (cat.code !== 0) throw new Error(`splice concat failed: ${cat.err.slice(-200)}`);
+  const mux = await run(
+    "ffmpeg",
+    ["-y", "-i", "silent.mp4", "-i", plan.voiceFile,
+     "-f", "lavfi", "-t", String(plan.duration),
+     "-i", "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=300",
+     "-filter_complex",
+     "[2:a]volume=0.05[bed];[1:a][bed]amix=inputs=2:duration=first[mix];[mix]loudnorm=I=-14:TP=-1.5:LRA=11[a]",
+     "-map", "0:v", "-map", "[a]", "-shortest",
+     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", outAbs],
+    planDir
+  );
+  if (mux.code !== 0 || !fs.existsSync(outAbs) || fs.statSync(outAbs).size === 0) {
+    throw new Error(`splice mux failed: ${mux.err.slice(-200)}`);
+  }
+}
+
+/** Where a clip's persisted edit plan lives. */
+export function planDirFor(clipId: string): string {
+  return path.join(RENDERS_DIR, `plan-${clipId}`);
+}
+
 // Pause between spoken dialogue lines — reads as a natural beat, not a cut.
 const LINE_GAP = 0.3;
 
@@ -689,6 +811,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     const beats = dialogueBeats ?? splitBeats(clip.script, duration);
     const images: string[] = [];
     const kinds: string[] = [];
+    // The exact prompt behind each generated beat image — re-roll fuel for the
+    // scene editor; empty where the visual wasn't prompt-generated.
+    const beatPrompts: string[] = [];
     // Stock providers used — credited in the publish description per their
     // API terms (Pixabay asks that the source be shown).
     const brollProviders = new Set<string>();
@@ -709,6 +834,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             fs.copyFileSync(personaAbs, path.join(jobDir, name));
             images.push(name);
             kinds.push("image");
+            beatPrompts.push("");
           }
           ugcUsed = true;
           if (clip.animate) {
@@ -825,6 +951,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             if (vid) {
               images.push(vid.file);
               kinds.push("broll");
+              beatPrompts.push("");
               brollProviders.add(vid.provider);
               continue;
             }
@@ -837,6 +964,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             if (drawn) {
               images.push(drawn);
               kinds.push(scene.kind);
+              beatPrompts.push("");
               continue;
             }
           }
@@ -846,14 +974,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             fs.copyFileSync(archival[archIdx++ % archival.length], path.join(jobDir, name));
             images.push(name);
             kinds.push("arch");
+            beatPrompts.push("");
             continue;
           }
           const beatSubject = scene.imageSubject ?? scene.text.slice(0, 120);
-          const bg = await generateBackground(
+          const beatPrompt =
             (styleDef
               ? styleDef.imagePrompt(beatSubject, i, cast ?? undefined)
-              : imagePromptFor(beatSubject, i)) + propExtra
-          );
+              : imagePromptFor(beatSubject, i)) + propExtra;
+          const bg = await generateBackground(beatPrompt);
           if (!bg) {
             images.length = 0;
             break;
@@ -861,6 +990,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           fs.writeFileSync(path.join(jobDir, name), bg);
           images.push(name);
           kinds.push("image");
+          beatPrompts.push(beatPrompt);
         }
 
         // AI motion: animate the AI-imagery beats into moving shots when the
@@ -907,108 +1037,51 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       }
     }
 
-    let args: string[];
     if (images.length && images.length === beats.length) {
-      // Slideshow: imagery gets alternating push-in/pull-back moves plus film
-      // grain and a vignette; drawn cards stay static and crisp (zooming text
-      // shimmers). A short fade-in on every segment masks the cuts.
-      const inputs = images.flatMap((name, i) => {
-        if (kinds[i] === "broll" || kinds[i] === "anim") {
-          // Loop short stock/generated clips to fill the beat; -t bounds the read.
-          return ["-stream_loop", "-1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-i", name];
-        }
-        if (kinds[i] !== "image" && kinds[i] !== "arch") {
-          // Drawn data cards become real 30fps streams so their reveal can animate.
-          return ["-loop", "1", "-t", Math.max(1, beats[i].dur).toFixed(2), "-framerate", "30", "-i", name];
-        }
-        return ["-i", name];
+      // Segmented assembly: one small segment per beat (veryfast encodes sum
+      // to a fraction of one monolithic medium encode), stream-copy concat,
+      // audio muxed once with the room-tone bed and broadcast loudness. The
+      // plan + sources + segments persist so single scenes can be re-edited
+      // and spliced in seconds.
+      let t0 = 0;
+      const planBeats: FilmBeat[] = beats.map((b, i) => {
+        const d = Math.max(1, b.dur);
+        const fb: FilmBeat = {
+          i,
+          text: b.text,
+          start: t0,
+          dur: d,
+          kind: kinds[i],
+          file: images[i],
+          prompt: beatPrompts[i] ?? "",
+        };
+        t0 += d;
+        return fb;
       });
-      // Cinematic look: a unified teal-orange film grade on footage and
-      // imagery (not on brand data cards) — one grade across every shot is
-      // half of what reads as "produced".
-      const look =
-        clip.vstyle === "cinematic"
-          ? "curves=blue='0/0.06 0.5/0.47 1/0.92':red='0/0.02 0.5/0.53 1/1',eq=contrast=1.06:saturation=1.08,"
-          : "";
-      const segs = images
-        .map((_, i) => {
-          const dur = Math.max(1, beats[i].dur);
-          const frames = Math.max(30, Math.round(dur * 30));
-          // Fade in AND out per beat — the brief dip reads as an edit, not a
-          // glitch, and sells the documentary rhythm.
-          const fades = `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
-          const base = `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`;
-          if (kinds[i] === "broll" || kinds[i] === "anim") {
-            // Real or generated footage: normalize fps, exact-trim to the
-            // beat, no synthetic grain (it already has motion and texture).
-            return `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,${look}${fades},setsar=1[v${i}]`;
-          }
-          if (kinds[i] === "image" || kinds[i] === "arch") {
-            const zoom =
-              i % 2 === 0
-                ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30`
-                : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
-            return `${base},${zoom},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1[v${i}]`;
-          }
-          // Data cards draw themselves in: a dimmed copy slides off to the
-          // right over 0.8s, revealing the card left-to-right — bars literally
-          // grow, lists sweep in. (Verified: overlay x animates per-frame;
-          // crop w does NOT — it is evaluated once at init.)
-          return (
-            `${base},fps=30,trim=duration=${dur.toFixed(2)},setpts=PTS-STARTPTS,split[sa${i}][sb${i}];` +
-            `[sa${i}]lutyuv=y=val*0.25[dim${i}];` +
-            `[sb${i}][dim${i}]overlay=x='min(W,W*t/0.8)':y=0,${fades},setsar=1[v${i}]`
-          );
-        })
-        .join(";");
-      const concatIn = images.map((_, i) => `[v${i}]`).join("");
-      const voiceIdx = images.length;
-      const bedIdx = images.length + 1;
-      // A barely-there room-tone bed under the narration — the silence
-      // between sentences stops sounding like dropped audio.
-      // Production floor: slower preset + lower CRF for visibly cleaner
-      // output, and broadcast loudness (-14 LUFS, YouTube's target) on the
-      // mix so narration never reads as thin or clipping.
-      const fc =
-        `${segs};${concatIn}concat=n=${images.length}:v=1:a=0[vc];[vc]ass=subs.ass[v];` +
-        `[${bedIdx}:a]volume=0.05[bed];[${voiceIdx}:a][bed]amix=inputs=2:duration=first[mix];` +
-        `[mix]loudnorm=I=-14:TP=-1.5:LRA=11[aout]`;
-      args = [
-        "-y",
-        ...inputs,
-        "-i",
+      const plan: FilmPlan = {
+        style: clip.style,
+        position: clip.position,
+        watermark: needsWatermark(clip.userEmail),
+        look: clip.vstyle === "cinematic",
         voiceFile,
-        "-f",
-        "lavfi",
-        "-t",
-        String(duration),
-        "-i",
-        "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=300",
-        "-filter_complex",
-        fc,
-        "-map",
-        "[v]",
-        "-map",
-        "[aout]",
-        "-shortest",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "medium",
-        "-crf",
-        "20",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "192k",
-        "-movflags",
-        "+faststart",
-        outAbs,
-      ];
+        duration: t0,
+        words,
+        beats: planBeats,
+        lang: clip.lang || "en",
+      };
+      for (const b of planBeats) {
+        await renderBeatSegment(jobDir, plan, b);
+      }
+      await spliceFilm(jobDir, plan, outAbs);
+      fs.writeFileSync(path.join(jobDir, "plan.json"), JSON.stringify(plan), "utf8");
+      // Persist the working dir as the clip's edit plan (replacing any older one).
+      const planDir = planDirFor(clip.id);
+      fs.rmSync(planDir, { recursive: true, force: true });
+      fs.renameSync(jobDir, planDir);
+      const { setClipRenderMeta } = await import("./db");
+      setClipRenderMeta(clip.userEmail, clip.id, { hasPlan: true });
     } else {
-      args = [
+      const args = [
         "-y",
         "-f",
         "lavfi",
@@ -1037,14 +1110,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         "+faststart",
         outAbs,
       ];
-    }
-    const res = await run("ffmpeg", args, jobDir);
-    if (res.code !== 0) {
-      throw new Error(
-        res.err.includes("ENOENT")
-          ? "ffmpeg is not installed on this server"
-          : `ffmpeg exited ${res.code}: ${res.err.slice(-300)}`
-      );
+      const res = await run("ffmpeg", args, jobDir);
+      if (res.code !== 0) {
+        throw new Error(
+          res.err.includes("ENOENT")
+            ? "ffmpeg is not installed on this server"
+            : `ffmpeg exited ${res.code}: ${res.err.slice(-300)}`
+        );
+      }
     }
     if (!fs.existsSync(outAbs) || fs.statSync(outAbs).size === 0) {
       throw new Error("render produced no output");
@@ -1366,6 +1439,30 @@ declare global {
   var __virafoldDiskAlertAt: number | undefined;
 }
 
+/**
+ * Default thumbnail: the video's own first full picture, grabbed ~1.5s in
+ * (frame zero is mid-fade). Shown as the card poster and set on YouTube at
+ * publish unless the creator picked a Lab/A-B thumbnail.
+ */
+export async function extractThumb(clip: Clip & { userEmail: string }): Promise<void> {
+  const { getClip, setClipRenderMeta } = await import("./db");
+  const fresh = getClip(clip.userEmail, clip.id);
+  if (!fresh?.outputPath || fresh.status !== "ready") return;
+  const abs = path.join(process.cwd(), fresh.outputPath);
+  const dur = await probeDuration(abs);
+  if (!dur) return;
+  const t = Math.min(1.5, dur / 2);
+  const thumbAbs = path.join(RENDERS_DIR, `${clip.id}-thumb.jpg`);
+  const res = await run(
+    "ffmpeg",
+    ["-y", "-ss", t.toFixed(2), "-i", abs, "-frames:v", "1", "-vf", "scale=720:-2", "-q:v", "3", thumbAbs],
+    RENDERS_DIR
+  );
+  if (res.code === 0 && fs.existsSync(thumbAbs)) {
+    setClipRenderMeta(clip.userEmail, clip.id, { thumbPath: path.relative(process.cwd(), thumbAbs) });
+  }
+}
+
 const QA_RUBRIC = [
   "You are QA-checking frames sampled from an AI-generated vertical video.",
   "Look ONLY for real defects: garbled or nonsensical text, mangled faces, hands, or anatomy, blank or corrupted frames, severe rendering artifacts.",
@@ -1465,6 +1562,8 @@ export function kickRenderWorker(): void {
           else if (next.kind === "caption") await renderCaptionFull(next);
           else if (next.kind === "ambient") await renderAmbientLoop(next);
           else await renderOne(next);
+          // Every finished render gets its first-picture default thumbnail.
+          await extractThumb(next).catch(() => {});
           // Production-grade gate: every finished short render gets a vision
           // QA pass (ambient loops skip it — hour-long static drift).
           if (next.kind !== "ambient") await qaRender(next).catch(() => {});

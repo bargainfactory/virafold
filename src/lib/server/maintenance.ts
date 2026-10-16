@@ -86,8 +86,16 @@ export function runRetentionSweep(): { removed: number } {
       // gen_images rows were just purged; surviving imgs are still referenced.
       if (name.startsWith("img-")) continue;
       // AI-motion dirs have their own TTLs below — deleting vidcache as an
-      // orphan would silently re-bill every animated re-render.
+      // orphan would silently re-bill every animated re-render. Edit plans
+      // and default thumbnails follow the render TTL, not the orphan TTL.
       if (name === "vidcache" || name === "frames") continue;
+      if (name.startsWith("plan-") || name.endsWith("-thumb.jpg")) {
+        if (age > RENDER_TTL) {
+          rm(abs);
+          removed++;
+        }
+        continue;
+      }
       if (!known.has(path.resolve(abs)) && age > ORPHAN_TTL) {
         rm(abs);
         removed++;
