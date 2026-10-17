@@ -48,6 +48,16 @@ export function parseScreenplay(script: string): DialogueLine[] | null {
   return out;
 }
 
+/**
+ * Frame vs story: a narrated tale with a recurring cast has two visual worlds —
+ * the fireside FRAME (the storyteller and listeners) and the STORY being told.
+ * Narrator lines and explicit-voice guests (SPEAKER(voicename):) belong to the
+ * story; named speakers without a voice directive are the frame cast.
+ */
+export function isFrameLine(line: DialogueLine): boolean {
+  return !line.voice && !NARRATOR_RE.test(line.speaker);
+}
+
 /** Distinct fallback voices for speakers nobody assigned one to. */
 const VOICE_POOL = ["luna", "orion", "perseus", "helix"];
 

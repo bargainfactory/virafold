@@ -155,16 +155,22 @@ export async function POST(req: NextRequest) {
     title = input.split(/[.!?\n]/)[0].trim().slice(0, 100) || "Studio video";
   }
 
+  // Motion-picture options: landscape renders a 16:9 feature; fullMotion
+  // animates every scene instead of the 8 highlights (billed per second of
+  // generated motion, so it stays an explicit opt-in).
+  const orient = b?.orient === "landscape" ? "landscape" : undefined;
+  const fullMotion = animate && Boolean(b?.fullMotion);
   const clip = insertScriptVideo(user.email, {
     id: `sv-${crypto.randomUUID()}`,
     title,
     script: script.slice(0, isScreenplay ? 24000 : 4800),
     style: "bold",
-    position: "middle",
-    animate,
+    position: orient ? "bottom" : "middle",
+    animate: fullMotion ? 2 : animate,
     vstyle: style === "documentary" ? undefined : style,
     personaId,
     props: propIds,
+    orient,
   });
   kickRenderWorker();
   return NextResponse.json({ clip }, { status: 201 });

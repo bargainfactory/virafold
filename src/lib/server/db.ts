@@ -378,6 +378,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'",
     "ALTER TABLE clips ADD COLUMN thumb_path TEXT",
     "ALTER TABLE clips ADD COLUMN has_plan INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE clips ADD COLUMN orient TEXT",
   ]) {
     try {
       conn.exec(stmt);
@@ -2355,6 +2356,8 @@ export interface Clip {
   thumbPath: string | null;
   /** 1 = a persisted edit plan + segments exist (scene editor available). */
   hasPlan: number;
+  /** Script videos: 'landscape' renders a 16:9 motion picture; null/'portrait' = 9:16 vertical. */
+  orient: string | null;
   /** 'clip' = cut from a source video; 'script' = TTS-narrated script video. */
   kind: string;
   script: string | null;
@@ -2386,6 +2389,7 @@ function mapClip(row: Record<string, unknown>): Clip {
     lang: (row.lang as string) ?? "en",
     thumbPath: (row.thumb_path as string | null) ?? null,
     hasPlan: (row.has_plan as number) ?? 0,
+    orient: (row.orient as string | null) ?? null,
     kind: (row.kind as string) ?? "clip",
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
@@ -2428,6 +2432,7 @@ export function insertCaptionJob(
     lang: "en",
     thumbPath: null,
     hasPlan: 0,
+    orient: null,
     kind: "caption",
     script: null,
     outputPath: null,
@@ -2472,6 +2477,7 @@ export function insertAmbientVideo(
     lang: "en",
     thumbPath: null,
     hasPlan: 0,
+    orient: null,
     kind: "ambient",
     script: v.config,
     outputPath: null,
@@ -2482,16 +2488,17 @@ export function insertAmbientVideo(
 
 export function insertScriptVideo(
   email: string,
-  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean; vstyle?: string; personaId?: string; props?: string[]; lang?: string }
+  v: { id: string; title: string; script: string; style: string; position: string; animate?: boolean | number; vstyle?: string; personaId?: string; props?: string[]; lang?: string; orient?: string }
 ): Clip {
   const now = new Date().toISOString();
   const propsJson = v.props && v.props.length > 0 ? JSON.stringify(v.props) : null;
+  const animateVal = typeof v.animate === "number" ? v.animate : v.animate ? 1 : 0;
   getDb()
     .prepare(
-      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle, persona_id, props, lang)
-       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO clips (id, user_email, project_id, title, start_sec, end_sec, score, reason, matched, status, style, position, created_at, kind, script, animate, vstyle, persona_id, props, lang, orient)
+       VALUES (?, ?, '', ?, 0, 0, 0, '', NULL, 'queued', ?, ?, ?, 'script', ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, v.animate ? 1 : 0, v.vstyle ?? null, v.personaId ?? null, propsJson, v.lang ?? "en");
+    .run(v.id, email.toLowerCase(), v.title, v.style, v.position, now, v.script, animateVal, v.vstyle ?? null, v.personaId ?? null, propsJson, v.lang ?? "en", v.orient ?? null);
   return {
     id: v.id,
     projectId: "",
@@ -2506,7 +2513,7 @@ export function insertScriptVideo(
     position: v.position,
     focus: "center",
     tight: 1,
-    animate: v.animate ? 1 : 0,
+    animate: animateVal,
     vstyle: v.vstyle ?? null,
     personaId: v.personaId ?? null,
     props: v.props && v.props.length > 0 ? JSON.stringify(v.props) : null,
@@ -2514,6 +2521,7 @@ export function insertScriptVideo(
     lang: v.lang ?? "en",
     thumbPath: null,
     hasPlan: 0,
+    orient: v.orient ?? null,
     kind: "script",
     script: v.script,
     outputPath: null,
@@ -2524,7 +2532,7 @@ export function insertScriptVideo(
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang" | "thumbPath" | "hasPlan">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang" | "thumbPath" | "hasPlan" | "orient">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2559,6 +2567,7 @@ export function insertClip(
     lang: "en",
     thumbPath: null,
     hasPlan: 0,
+    orient: null,
     kind: "clip",
     script: null,
     outputPath: null,

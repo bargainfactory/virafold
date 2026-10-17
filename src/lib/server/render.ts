@@ -620,6 +620,13 @@ export interface FilmPlan {
   words: TranscriptWord[];
   beats: FilmBeat[];
   lang?: string;
+  /** Widescreen 16:9 motion picture instead of the 9:16 vertical default. */
+  wide?: boolean;
+}
+
+/** Output canvas for a plan — vertical Short or widescreen feature. */
+function planResOf(plan: FilmPlan): PlayRes {
+  return plan.wide ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };
 }
 
 const CINE_LOOK =
@@ -635,20 +642,22 @@ function beatFrames(plan: FilmPlan, b: FilmBeat): number {
 export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: FilmBeat): Promise<void> {
   const frames = beatFrames(plan, b);
   const dur = frames / 30;
+  const R = planResOf(plan);
   let ass = buildAss(
     plan.words,
     b.start,
     b.start + dur,
     plan.style as CaptionStyle,
-    plan.position as CaptionPosition
+    plan.position as CaptionPosition,
+    R
   );
-  if (plan.watermark) ass = withWatermark(ass, { w: 1080, h: 1920 }, dur);
+  if (plan.watermark) ass = withWatermark(ass, R, dur);
   const assName = `seg_${b.i}.ass`;
   fs.writeFileSync(path.join(planDir, assName), ass, "utf8");
 
   const look = plan.look && b.kind !== "stat" && b.kind !== "chart" && b.kind !== "list" && b.kind !== "quote" ? CINE_LOOK : "";
   const fades = `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
-  const scale = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920";
+  const scale = `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h}`;
   let inputs: string[];
   let fc: string;
   if (b.kind === "broll" || b.kind === "anim") {
@@ -657,8 +666,8 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   } else if (b.kind === "image" || b.kind === "arch") {
     const zoom =
       b.i % 2 === 0
-        ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=1080x1920:fps=30`
-        : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=1080x1920:fps=30`;
+        ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=${R.w}x${R.h}:fps=30`
+        : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=${R.w}x${R.h}:fps=30`;
     inputs = ["-i", b.file];
     fc = `[0:v]${scale},${zoom},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}[v]`;
   } else {
@@ -721,7 +730,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
 
   const { synthesizeSpeech } = await import("./tts");
   const { getCustomVoiceId, getPersona } = await import("./db");
-  const { parseScreenplay, castVoices } = await import("./dialogue");
+  const { parseScreenplay, castVoices, isFrameLine } = await import("./dialogue");
 
   fs.mkdirSync(RENDERS_DIR, { recursive: true });
   const jobDir = path.join(RENDERS_DIR, `tmp-${clip.id}`);
@@ -736,7 +745,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   let voiceFile = "voice.mp3";
   let duration: number;
   let words: TranscriptWord[];
-  let dialogueBeats: { text: string; dur: number }[] | null = null;
+  let dialogueBeats: { text: string; dur: number; frame?: boolean }[] | null = null;
 
   try {
     if (dialogue) {
@@ -789,28 +798,44 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       voiceFile = "voice.wav";
       duration = (await probeDuration(path.join(jobDir, "voice.wav"))) ?? 0;
       if (!duration) throw new Error("could not read the narration's duration");
-      // Word timings + beats from MEASURED line durations.
+      // Word timings + beats from MEASURED line durations. Beats are split
+      // along the frame/story boundary: lines spoken by the recurring cast
+      // (the storyteller and listeners) cut to a fireside FRAME shot, while
+      // narrator and guest-voice lines cut to STORY illustrations — the two
+      // worlds never share a scene. Story narration also cuts to a fresh
+      // illustration sooner (5s vs 8s), so the tale gets most of the pictures.
       words = [];
       let t = 0;
-      const beatsAcc: { text: string; dur: number }[] = [];
-      let acc = { text: "", dur: 0 };
+      const beatsAcc: { text: string; dur: number; frame?: boolean }[] = [];
+      let acc = { text: "", dur: 0, frame: false };
+      const flush = () => {
+        if (acc.dur <= 0) return;
+        const prev = beatsAcc[beatsAcc.length - 1];
+        // Sub-2s slivers would be all fade — merge them into the neighbor.
+        if (prev && acc.dur < 2) {
+          prev.dur += acc.dur;
+          prev.text += ` ${acc.text.trim()}`;
+        } else beatsAcc.push({ text: acc.text.trim(), dur: acc.dur, frame: acc.frame });
+        acc = { text: "", dur: 0, frame: acc.frame };
+      };
       for (const s of segs) {
         for (const w of estimateWords(s.line.text, s.dur)) {
           words.push({ ...w, s: w.s + t, e: w.e + t, ...(s.sp !== undefined ? { sp: s.sp } : {}) });
         }
         t += s.dur + LINE_GAP;
+        const frame = isFrameLine(s.line);
+        if (acc.dur > 0 && frame !== acc.frame) flush();
+        acc.frame = frame;
         acc.text += ` ${s.line.text}`;
         acc.dur += s.dur + LINE_GAP;
-        if (acc.dur >= 6) {
-          beatsAcc.push({ text: acc.text.trim(), dur: acc.dur });
-          acc = { text: "", dur: 0 };
-        }
+        if (acc.dur >= (frame ? 8 : 5)) flush();
       }
       if (acc.dur > 0) {
-        if (beatsAcc.length && acc.dur < 3) {
-          beatsAcc[beatsAcc.length - 1].dur += acc.dur;
-          beatsAcc[beatsAcc.length - 1].text += ` ${acc.text.trim()}`;
-        } else beatsAcc.push({ text: acc.text.trim(), dur: acc.dur });
+        const prev = beatsAcc[beatsAcc.length - 1];
+        if (prev && acc.dur < 3 && prev.frame === acc.frame) {
+          prev.dur += acc.dur;
+          prev.text += ` ${acc.text.trim()}`;
+        } else flush();
       }
       dialogueBeats = beatsAcc;
       // Forced alignment: true word timings from the stitched narration,
@@ -862,6 +887,10 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     // cards, the rest gets styled AI imagery with varied motion. Any failure
     // falls back to the waveform canvas.
     const beats = dialogueBeats ?? splitBeats(clip.script, duration);
+    // Motion-picture orientation: landscape features render 1920x1080 through
+    // the segmented path (stills, b-roll and animation all pass the same
+    // scale/crop, so any source aspect lands correctly on the wide canvas).
+    const wide = clip.orient === "landscape";
     const images: string[] = [];
     const kinds: string[] = [];
     // The exact prompt behind each generated beat image — re-roll fuel for the
@@ -1030,11 +1059,27 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             beatPrompts.push("");
             continue;
           }
-          const beatSubject = scene.imageSubject ?? scene.text.slice(0, 120);
-          const beatPrompt =
+          // Frame/story split (dialogue scripts): fireside FRAME beats carry
+          // the recurring cast around the lamp; STORY beats illustrate the
+          // narration's world alone — the cast never crowds the tale, and the
+          // setting/product props belong to the story, not the fireside.
+          const beatFrame = dialogueBeats ? (beats[i] as { frame?: boolean }).frame === true : null;
+          const beatSubject =
+            beatFrame === true
+              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures, the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}`
+              : (scene.imageSubject ?? scene.text.slice(0, 120));
+          const beatCast = beatFrame === false ? undefined : (cast ?? undefined);
+          const beatExtra = beatFrame === true ? "" : propExtra;
+          let beatPrompt =
             (styleDef
-              ? styleDef.imagePrompt(beatSubject, i, cast ?? undefined)
-              : imagePromptFor(beatSubject, i)) + propExtra;
+              ? styleDef.imagePrompt(beatSubject, i, beatCast)
+              : imagePromptFor(beatSubject, i)) + beatExtra;
+          if (wide) {
+            beatPrompt = beatPrompt.replace(
+              /Vertical 9:16 composition/g,
+              "Widescreen 16:9 cinematic composition"
+            );
+          }
           const bg = await generateBackground(beatPrompt);
           if (!bg) {
             images.length = 0;
@@ -1054,15 +1099,19 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const { animateStill, ANIM_MODELS, animSecondsLeft } = await import("./video-gen");
           const { bestPlanFor } = await import("./db");
           let left = animSecondsLeft(bestPlanFor(clip.userEmail), clip.userEmail);
-          const jobs: Promise<void>[] = [];
-          for (let i = 0; i < scenes.length && jobs.length < 8; i++) {
+          // Full motion (animate=2): EVERY AI-imagery scene becomes a moving
+          // shot — the motion-picture mode. Standard (animate=1) keeps the
+          // original cap of 8 animated highlights.
+          const maxJobs = clip.animate === 2 ? scenes.length : 8;
+          const tasks: (() => Promise<void>)[] = [];
+          for (let i = 0; i < scenes.length && tasks.length < maxJobs; i++) {
             if (kinds[i] !== "image") continue;
             const want = Math.min(15, Math.max(1, Math.ceil(beats[i].dur)));
             if (want > left) continue;
             left -= want;
             const idx = i;
             const subject = scenes[idx].imageSubject ?? scenes[idx].text.slice(0, 120);
-            jobs.push(
+            tasks.push(() =>
               animateStill({
                 email: clip.userEmail,
                 pngPath: path.join(jobDir, images[idx]),
@@ -1083,7 +1132,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                 .catch(() => {})
             );
           }
-          await Promise.all(jobs);
+          // Waves of 5 keep a feature's 80+ generations from stampeding the
+          // provider; a standard run's ≤8 jobs finish in two waves.
+          for (let w = 0; w < tasks.length; w += 5) {
+            await Promise.all(tasks.slice(w, w + 5).map((f) => f()));
+          }
         }
       } catch {
         images.length = 0;
@@ -1121,6 +1174,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         words,
         beats: planBeats,
         lang: clip.lang || "en",
+        ...(wide ? { wide: true } : {}),
       };
       for (const b of planBeats) {
         await renderBeatSegment(jobDir, plan, b);
