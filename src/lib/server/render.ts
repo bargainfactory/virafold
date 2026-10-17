@@ -1080,12 +1080,26 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               "Widescreen 16:9 cinematic composition"
             );
           }
-          const bg = await generateBackground(beatPrompt);
-          if (!bg) {
+          // A provider hiccup must not demote a whole feature to the waveform
+          // fallback (it did once, after a heavy generation burst): retry each
+          // beat with backoff, then reuse the previous beat's art as a
+          // stand-in — the scene editor can re-roll that one scene later.
+          // Only a failure on the very first visual aborts the plan.
+          let bg = await generateBackground(beatPrompt);
+          for (const wait of [4000, 15000]) {
+            if (bg) break;
+            await new Promise((r) => setTimeout(r, wait));
+            bg = await generateBackground(beatPrompt);
+          }
+          const prev = images[images.length - 1];
+          if (bg) {
+            fs.writeFileSync(path.join(jobDir, name), bg);
+          } else if (prev && prev.endsWith(".png")) {
+            fs.copyFileSync(path.join(jobDir, prev), path.join(jobDir, name));
+          } else {
             images.length = 0;
             break;
           }
-          fs.writeFileSync(path.join(jobDir, name), bg);
           images.push(name);
           kinds.push("image");
           beatPrompts.push(beatPrompt);
