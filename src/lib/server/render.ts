@@ -1068,7 +1068,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                 pngPath: path.join(jobDir, images[idx]),
                 motion: styleDef
                   ? styleDef.motionPrompt(subject)
-                  : `Subtle cinematic motion for a documentary: ${subject}. Slow camera drift and gentle natural movement. Keep the scene's content unchanged; add no new objects, no people, no text.`,
+                  : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
                 durationSec: beats[idx].dur,
                 model: ANIM_MODELS.lite,
               })

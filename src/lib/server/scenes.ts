@@ -108,15 +108,32 @@ const CARTOON_LOOKS = [
   "bright daylight palette, crisp shadows",
 ];
 
+// Cartoon shot list: framing rotates per beat like a storyboard, so a feature
+// cut has planned visual variety (wide → close → low angle) instead of a wall
+// of identical mediums. Deterministic by index — stills stay cacheable.
+const CARTOON_FRAMING = [
+  "wide establishing shot",
+  "medium shot at character eye level",
+  "intimate close-up on the emotional beat",
+  "low-angle wonder shot",
+  "three-quarter view drawing the eye into the scene",
+];
+
 export const VIDEO_STYLES: Record<string, VideoStyle> = {
   cartoon: {
     key: "cartoon",
+    // Structured like a feature-film shot brief — subject & design, emotion,
+    // camera, lighting, render finish — which is what the image model rewards.
+    // Style language is descriptive only (no studio names), identical phrases
+    // every scene for series consistency.
     imagePrompt: (subject, index, cast) =>
-      `Flat 2D cartoon illustration in the style of a modern animated series: bold clean outlines, vibrant saturated colors, expressive poses, ${CARTOON_LOOKS[index % CARTOON_LOOKS.length]}; depicting ${subject}.` +
+      `Animated feature film still, warm storybook 2D cartoon with hand-painted texture: ${CARTOON_FRAMING[index % CARTOON_FRAMING.length]}, soft rounded appealing shapes, characters with large expressive eyes and bright catchlights, one clear emotion readable in every pose, ${CARTOON_LOOKS[index % CARTOON_LOOKS.length]}, soft warm three-point lighting with gentle rim light and soft shadows, subtle volumetric glow around light sources, warm family-film color grade, polished feature-film rendering; depicting ${subject}.` +
       (cast ? ` Recurring main character (EXACT same design in every scene): ${cast}.` : "") +
       ` Vertical 9:16 composition, ${NO_TEXT}.`,
+    // Image-to-video rule: describe motion, emotion and ONE camera move only —
+    // never re-describe the scene the still already fixes.
     motionPrompt: (subject) =>
-      `Smooth 2D cartoon animation of ${subject}: gentle character movement, soft bouncy secondary motion, slow background parallax. Keep the exact same flat cartoon art style and character design throughout. Add no new characters, no new objects, no text.`,
+      `One clear emotional performance beat: ${subject}. The character's feeling leads the motion — eyes, brows and posture shift naturally with it. Gentle character movement with soft bouncy secondary motion and slow background parallax. One camera move only: a slow, gentle push-in. Keep the exact same art style, character designs, lighting and framing. Add no new characters, no new objects, no text.`,
     allowBroll: false,
     allowCards: false,
     castSheet: true,
@@ -158,7 +175,7 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
     // Deterministic per subject (NOT random) so the animation cache still
     // dedups re-renders of the same beat.
     motionPrompt: (subject) =>
-      `Cinematic camera move on ${subject}: ${CINE_MOVES[subject.length % CINE_MOVES.length]}, with soft parallax and natural ambient motion. Preserve the scene exactly; no new objects, no people appearing, no text.`,
+      `One camera move only — ${CINE_MOVES[subject.length % CINE_MOVES.length]} — on ${subject}, with soft parallax and natural ambient motion; any visible emotion plays through subtle performance, not action. Preserve the scene exactly; no new objects, no people appearing, no text.`,
     allowBroll: true,
     allowCards: true,
     castSheet: false,

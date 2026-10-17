@@ -15,7 +15,7 @@ export const GEN_WRAP: Record<PropType, (p: string) => string> = {
   presenter: (p) =>
     `Photorealistic UGC creator portrait: ${p}. Person facing the camera, head and shoulders, natural smartphone-video look, soft daylight, believable casual setting, vertical 9:16 composition, no text, no watermark.`,
   character: (p) =>
-    `Original character design, reference-sheet quality: ${p}. Full body visible, facing the viewer, expressive pose, clean plain background, consistent design, vertical 9:16 composition, no text, no watermark.`,
+    `Original character design, reference-sheet quality: ${p}. Full body visible, facing the viewer, expressive appealing pose, soft rounded shapes, large expressive eyes with bright catchlights, soft even studio lighting, clean plain background, consistent design, vertical 9:16 composition, no text, no watermark.`,
   product: (p) =>
     `Clean product photograph: ${p}. Product centered and fully visible, soft studio lighting, plain uncluttered background, vertical 9:16 composition, no text, no watermark.`,
   setting: (p) =>
