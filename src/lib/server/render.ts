@@ -749,13 +749,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
 
   try {
     if (dialogue) {
-      const castProps: { name: string; voice: string | null }[] = [];
+      const castProps: { name: string; voice: string | null; charname?: string | null }[] = [];
       if (clip.props) {
         try {
           for (const pid of JSON.parse(clip.props) as string[]) {
             const p = getPersona(clip.userEmail, pid);
             if (p && (p.ptype === "character" || p.ptype === "presenter")) {
-              castProps.push({ name: p.name, voice: p.voice });
+              castProps.push({ name: p.name, voice: p.voice, charname: p.charname });
             }
           }
         } catch {

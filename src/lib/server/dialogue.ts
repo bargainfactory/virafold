@@ -63,12 +63,14 @@ const VOICE_POOL = ["luna", "orion", "perseus", "helix"];
 
 /**
  * speaker → voice name (null = the account's default narration chain).
- * Cast props win by name match; unmatched speakers draw distinct voices from
- * the pool in order of first appearance.
+ * Cast props win by script-name (charname) match first — the explicit speaker
+ * tag a prop answers to — then by the prop-name heuristic (which only works
+ * when a prop is literally named after its character); unmatched speakers draw
+ * distinct voices from the pool in order of first appearance.
  */
 export function castVoices(
   lines: DialogueLine[],
-  cast: { name: string; voice: string | null }[]
+  cast: { name: string; voice: string | null; charname?: string | null }[]
 ): Map<string, string | null> {
   const map = new Map<string, string | null>();
   let poolIdx = 0;
@@ -84,10 +86,12 @@ export function castVoices(
       continue;
     }
     const sp = line.speaker.toLowerCase();
-    const match = cast.find((p) => {
-      const n = p.name.toLowerCase();
-      return n.startsWith(sp) || sp.startsWith(n.split(" ")[0]);
-    });
+    const match =
+      cast.find((p) => p.charname && p.charname.trim().toLowerCase() === sp) ??
+      cast.find((p) => {
+        const n = p.name.toLowerCase();
+        return n.startsWith(sp) || sp.startsWith(n.split(" ")[0]);
+      });
     map.set(line.speaker, match?.voice || VOICE_POOL[poolIdx++ % VOICE_POOL.length]);
   }
   return map;

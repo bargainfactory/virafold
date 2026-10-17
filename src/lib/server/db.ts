@@ -379,6 +379,7 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN thumb_path TEXT",
     "ALTER TABLE clips ADD COLUMN has_plan INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE clips ADD COLUMN orient TEXT",
+    "ALTER TABLE personas ADD COLUMN charname TEXT",
   ]) {
     try {
       conn.exec(stmt);
@@ -3597,6 +3598,9 @@ export interface Persona {
   meta: string | null;
   /** Spoken voice for dialogue lines (xAI voice name); null = default chain. */
   voice: string | null;
+  /** Script/speaker name this prop answers to in screenplays (e.g. "ELI") —
+   *  what the dialogue engine matches speaker tags against for voice casting. */
+  charname: string | null;
   createdAt: string;
 }
 
@@ -3617,13 +3621,19 @@ export function insertPersona(
   getDb()
     .prepare("INSERT INTO personas (id, user_email, name, source, ptype, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .run(p.id, email.toLowerCase(), p.name, p.source, p.ptype, p.meta ?? null, now);
-  return { id: p.id, name: p.name, source: p.source, ptype: p.ptype, meta: p.meta ?? null, voice: null, createdAt: now };
+  return { id: p.id, name: p.name, source: p.source, ptype: p.ptype, meta: p.meta ?? null, voice: null, charname: null, createdAt: now };
 }
 
 export function setPersonaVoice(email: string, id: string, voice: string | null): void {
   getDb()
     .prepare("UPDATE personas SET voice = ? WHERE id = ? AND user_email = ?")
     .run(voice, id, email.toLowerCase());
+}
+
+export function setPersonaCharname(email: string, id: string, charname: string | null): void {
+  getDb()
+    .prepare("UPDATE personas SET charname = ? WHERE id = ? AND user_email = ?")
+    .run(charname, id, email.toLowerCase());
 }
 
 export function setPersonaMeta(email: string, id: string, meta: string): void {
@@ -3636,7 +3646,7 @@ export function listPersonas(email: string): Persona[] {
   return (
     getDb()
       .prepare(
-        "SELECT id, name, source, ptype, meta, voice, created_at AS createdAt FROM personas WHERE user_email = ? ORDER BY created_at DESC"
+        "SELECT id, name, source, ptype, meta, voice, charname, created_at AS createdAt FROM personas WHERE user_email = ? ORDER BY created_at DESC"
       )
       .all(email.toLowerCase()) as unknown as Persona[]
   );
@@ -3645,7 +3655,7 @@ export function listPersonas(email: string): Persona[] {
 export function getPersona(email: string, id: string): Persona | null {
   const row = getDb()
     .prepare(
-      "SELECT id, name, source, ptype, meta, voice, created_at AS createdAt FROM personas WHERE id = ? AND user_email = ?"
+      "SELECT id, name, source, ptype, meta, voice, charname, created_at AS createdAt FROM personas WHERE id = ? AND user_email = ?"
     )
     .get(id, email.toLowerCase()) as unknown as Persona | undefined;
   return row ?? null;
