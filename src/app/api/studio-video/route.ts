@@ -160,13 +160,16 @@ export async function POST(req: NextRequest) {
   // generated motion, so it stays an explicit opt-in).
   const orient = b?.orient === "landscape" ? "landscape" : undefined;
   const fullMotion = animate && Boolean(b?.fullMotion);
+  // Premium continuity: full motion + cast-portrait reference images on the
+  // premium video model for the recurring-cast scenes (≈4× motion cost there).
+  const premiumMotion = animate && Boolean(b?.premiumMotion);
   const clip = insertScriptVideo(user.email, {
     id: `sv-${crypto.randomUUID()}`,
     title,
     script: script.slice(0, isScreenplay ? 24000 : 4800),
     style: "bold",
     position: orient ? "bottom" : "middle",
-    animate: fullMotion ? 2 : animate,
+    animate: premiumMotion ? 3 : fullMotion ? 2 : animate,
     vstyle: style === "documentary" ? undefined : style,
     personaId,
     props: propIds,

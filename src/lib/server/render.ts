@@ -1096,6 +1096,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         // steer every scene through their vision-derived descriptions.
         let propCast: string | null = null;
         let propExtra = "";
+        // Cast portrait files — reference_images for pixel-level character
+        // continuity on premium-motion renders (verified live on video-1.5).
+        const castRefs: string[] = [];
         // Archival props: the user's own photos, used AS the visuals (Ken
         // Burns treatment, pixels never AI-altered — authenticity is their
         // whole value), woven between generated scenes.
@@ -1114,7 +1117,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                 continue;
               }
               if (!p.meta) continue;
-              if (p.ptype === "character" || p.ptype === "presenter") chars.push(p.meta);
+              if (p.ptype === "character" || p.ptype === "presenter") {
+                chars.push(p.meta);
+                const img = personaImagePath(p.id);
+                if (fs.existsSync(img)) castRefs.push(img);
+              }
               else if (p.ptype === "product")
                 propExtra += ` Feature this exact product prominently in the scene: ${p.meta}.`;
               else if (p.ptype === "setting") propExtra += ` The scene takes place in: ${p.meta}.`;
@@ -1239,10 +1246,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const { animateStill, ANIM_MODELS, animSecondsLeft } = await import("./video-gen");
           const { bestPlanFor } = await import("./db");
           let left = animSecondsLeft(bestPlanFor(clip.userEmail), clip.userEmail);
-          // Full motion (animate=2): EVERY AI-imagery scene becomes a moving
+          // Full motion (animate>=2): EVERY AI-imagery scene becomes a moving
           // shot — the motion-picture mode. Standard (animate=1) keeps the
-          // original cap of 8 animated highlights.
-          const maxJobs = clip.animate === 2 ? scenes.length : 8;
+          // original cap of 8 animated highlights. Premium continuity
+          // (animate=3): fireside frame beats upgrade to the premium model
+          // with the cast portraits as reference images, so the recurring
+          // characters match pixel-for-pixel across scenes.
+          const maxJobs = clip.animate >= 2 ? scenes.length : 8;
           const tasks: (() => Promise<void>)[] = [];
           for (let i = 0; i < scenes.length && tasks.length < maxJobs; i++) {
             if (kinds[i] !== "image") continue;
@@ -1251,6 +1261,10 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             left -= want;
             const idx = i;
             const subject = scenes[idx].imageSubject ?? scenes[idx].text.slice(0, 120);
+            const premiumRef =
+              clip.animate === 3 &&
+              castRefs.length > 0 &&
+              (dialogueBeats ? (beats[idx] as { frame?: boolean }).frame === true : false);
             tasks.push(() =>
               animateStill({
                 email: clip.userEmail,
@@ -1259,7 +1273,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                   ? styleDef.motionPrompt(subject)
                   : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
                 durationSec: beats[idx].dur,
-                model: ANIM_MODELS.lite,
+                model: premiumRef ? ANIM_MODELS.premium : ANIM_MODELS.lite,
+                ...(premiumRef ? { refPaths: castRefs } : {}),
               })
                 .then((res) => {
                   if (!res) return;

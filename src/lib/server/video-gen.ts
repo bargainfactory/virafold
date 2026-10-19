@@ -69,6 +69,10 @@ export async function animateStill(opts: {
   motion: string;
   durationSec: number;
   model: string;
+  /** Character portraits for pixel-level continuity — reference_images on
+   *  video-1.5 (verified live): the model matches the faces to these instead
+   *  of re-imagining them from the prompt. */
+  refPaths?: string[];
 }): Promise<{ file: string; billedSeconds: number } | null> {
   const key = resolveField("llm", "xaiApiKey");
   if (!key) return null;
@@ -80,28 +84,42 @@ export async function animateStill(opts: {
   } catch {
     return null;
   }
+  const refs: Buffer[] = [];
+  for (const p of (opts.refPaths ?? []).slice(0, 6)) {
+    try {
+      refs.push(fs.readFileSync(p));
+    } catch {
+      /* missing portrait — continue without it */
+    }
+  }
 
   // Content-addressed cache: same still + same motion + same model + same
-  // duration = same clip; regenerating a project re-bills nothing.
-  const hash = crypto
+  // duration + same references = same clip; regens re-bill nothing.
+  const h = crypto
     .createHash("sha256")
     .update(png)
     .update(opts.motion)
     .update(opts.model)
-    .update(String(dur))
-    .digest("hex")
-    .slice(0, 16);
+    .update(String(dur));
+  for (const r of refs) h.update(r);
+  const hash = h.digest("hex").slice(0, 16);
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   const cachedPath = path.join(CACHE_DIR, `${hash}.mp4`);
   if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 10_000) {
     return { file: cachedPath, billedSeconds: 0 };
   }
 
-  // Publish the frame at a one-time token URL the API can fetch.
+  // Publish the frame (and any reference portraits) at one-time token URLs.
   fs.mkdirSync(FRAMES_DIR, { recursive: true });
   const token = crypto.randomBytes(16).toString("hex");
   const framePath = path.join(FRAMES_DIR, `${token}.png`);
   fs.writeFileSync(framePath, png);
+  const refTokens: string[] = [];
+  for (const r of refs) {
+    const t = crypto.randomBytes(16).toString("hex");
+    fs.writeFileSync(path.join(FRAMES_DIR, `${t}.png`), r);
+    refTokens.push(t);
+  }
   const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 
   try {
@@ -112,6 +130,9 @@ export async function animateStill(opts: {
         model: opts.model,
         prompt: opts.motion,
         image: { url: `${publicOriginStatic()}/api/frames/${token}` },
+        ...(refTokens.length
+          ? { reference_images: refTokens.map((t) => ({ url: `${publicOriginStatic()}/api/frames/${t}` })) }
+          : {}),
         duration: dur,
       }),
       signal: AbortSignal.timeout(30_000),
@@ -161,5 +182,6 @@ export async function animateStill(opts: {
     return null;
   } finally {
     fs.rmSync(framePath, { force: true });
+    for (const t of refTokens) fs.rmSync(path.join(FRAMES_DIR, `${t}.png`), { force: true });
   }
 }
