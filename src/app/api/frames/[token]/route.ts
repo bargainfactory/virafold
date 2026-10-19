@@ -20,14 +20,24 @@ export async function GET(
   if (!/^[0-9a-f]{32}$/.test(token)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const file = path.join(FRAMES_DIR, `${token}.png`);
-  try {
-    const bytes = fs.readFileSync(file);
-    return new NextResponse(new Uint8Array(bytes), {
-      status: 200,
-      headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
-    });
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Reference media for generation requests: stills, plus the spoken-line
+  // audio that drives lip-synced close-ups. Same one-time token lifecycle.
+  const types: [string, string][] = [
+    [".png", "image/png"],
+    [".jpg", "image/jpeg"],
+    [".mp3", "audio/mpeg"],
+    [".wav", "audio/wav"],
+  ];
+  for (const [ext, mime] of types) {
+    try {
+      const bytes = fs.readFileSync(path.join(FRAMES_DIR, `${token}${ext}`));
+      return new NextResponse(new Uint8Array(bytes), {
+        status: 200,
+        headers: { "Content-Type": mime, "Cache-Control": "no-store" },
+      });
+    } catch {
+      /* try next extension */
+    }
   }
+  return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
