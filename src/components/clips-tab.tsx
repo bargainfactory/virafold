@@ -107,6 +107,12 @@ function EditableTitle({ id, title, onSaved }: { id: string; title: string; onSa
 
 /** Dub target languages — labels stay in their native names on purpose
  *  (universally recognizable, no translation needed). */
+/** Native name of a clip's own language for the "original" option. */
+const LANG_NAMES: Record<string, string> = {
+  en: "English", es: "Español", pt: "Português", fr: "Français", de: "Deutsch",
+  it: "Italiano", hi: "हिन्दी", id: "Indonesia", ja: "日本語", ko: "한국어", tr: "Türkçe",
+};
+
 const DUB_LANGS: [string, string][] = [
   ["es", "Español"],
   ["pt", "Português"],
@@ -161,6 +167,7 @@ interface ClipRow {
   matched: string | null;
   status: "suggested" | "queued" | "rendering" | "ready" | "failed";
   hasPlan?: number;
+  lang?: string | null;
   thumbPath?: string | null;
   style: string;
   position: string;
@@ -563,13 +570,15 @@ export default function ClipsTab({
 
   const dub = useCallback(
     async (clip: ClipRow) => {
-      if (dubBusy) return;
+      // Empty selection = the video stays in its original language; a dub only
+      // runs once a target language is explicitly picked.
+      if (dubBusy || !dubSel[clip.id]) return;
       setDubBusy(clip.id);
       try {
         const res = await fetch(`/api/clips/${clip.id}/dub`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ language: dubSel[clip.id] ?? "es" }),
+          body: JSON.stringify({ language: dubSel[clip.id] }),
         });
         const d = await res.json().catch(() => null);
         if (res.ok) {
@@ -1261,11 +1270,13 @@ export default function ClipsTab({
                       </button>
                       {/* One-click dub: same video, another language. */}
                       <select
-                        value={dubSel[clip.id] ?? "es"}
+                        value={dubSel[clip.id] ?? ""}
                         onChange={(e) => setDubSel((prev) => ({ ...prev, [clip.id]: e.target.value }))}
+                        title={t("clips.dubTitle")}
                         className="px-2.5 py-2 bg-cyber-dark border border-cyber-border rounded-lg text-xs text-foreground focus:outline-none focus:border-neon-purple/50"
                       >
-                        {DUB_LANGS.map(([code, label]) => (
+                        <option value="">{`${LANG_NAMES[clip.lang || "en"] ?? clip.lang} — ${t("clips.original")}`}</option>
+                        {DUB_LANGS.filter(([code]) => code !== (clip.lang || "en")).map(([code, label]) => (
                           <option key={code} value={code}>
                             {label}
                           </option>
@@ -1281,7 +1292,7 @@ export default function ClipsTab({
                       )}
                       <button
                         onClick={() => dub(clip)}
-                        disabled={dubBusy === clip.id}
+                        disabled={dubBusy === clip.id || !dubSel[clip.id]}
                         className="px-3 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs text-cyber-muted hover:text-foreground hover:border-neon-purple/50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                       >
                         {dubBusy === clip.id ? (

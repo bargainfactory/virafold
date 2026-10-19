@@ -938,6 +938,8 @@ export const en: Record<string, string> = {
   "inbox.qaFlag": "Quality check flagged",
   "clips.dub": "Dub",
   "clips.dubQueued": "Dub queued — the translated version is rendering below.",
+  "clips.original": "original",
+  "clips.dubTitle": "Translate this video: pick a language and press Dub — a dubbed copy renders alongside the original",
   "lab.title": "Thumbnail Lab",
   "lab.hint": "Three thumbnail approaches — an emotional face (your selected presenter when one is picked), one big object, and high-contrast abstract — each scored by AI for small-size impact. Scores are heuristics; the A/B test on published posts is the real judge.",
   "lab.titlePh": "Your video title…",
