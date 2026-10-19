@@ -96,10 +96,17 @@ export async function POST(
   } else if (mode === "reroll") {
     img = await generateBackground(basePrompt);
   } else if (mode === "prompt") {
+    // Image-to-image on the beat's reference: the still itself, or — for an
+    // animated beat — the source still its motion was generated from.
     const srcAbs = path.join(dir, b.file);
-    if (b.file.endsWith(".png") && fs.existsSync(srcAbs)) {
+    const refAbs = b.file.endsWith(".png") && fs.existsSync(srcAbs)
+      ? srcAbs
+      : fs.existsSync(path.join(dir, `beat${index}.png`))
+        ? path.join(dir, `beat${index}.png`)
+        : null;
+    if (refAbs) {
       img = await editImage(
-        fs.readFileSync(srcAbs),
+        fs.readFileSync(refAbs),
         `${instruction}. Keep the overall art style, palette, and composition of the image the same. No text, no watermark.`
       );
     }

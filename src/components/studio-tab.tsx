@@ -24,7 +24,15 @@ interface Persona {
   charname?: string | null;
 }
 
-const XAI_VOICES = ["eve", "luna", "orion", "perseus", "helix"];
+// Voice gender shown right in the picker, so a grandmother never ships with a
+// baritone by accident.
+const XAI_VOICES = [
+  { id: "eve", label: "eve ♀" },
+  { id: "luna", label: "luna ♀" },
+  { id: "orion", label: "orion ♂" },
+  { id: "perseus", label: "perseus ♂" },
+  { id: "helix", label: "helix ♂" },
+];
 
 const PROP_TYPES = ["character", "product", "setting", "style", "archival"] as const;
 
@@ -452,8 +460,8 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
                         >
                           <option value="">{t("studio.voiceAuto")}</option>
                           {XAI_VOICES.map((v) => (
-                            <option key={v} value={v}>
-                              {v}
+                            <option key={v.id} value={v.id}>
+                              {v.label}
                             </option>
                           ))}
                         </select>

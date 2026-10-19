@@ -20,6 +20,9 @@ interface Beat {
   kind: string;
   file: string;
   image: boolean;
+  /** Reference image for the filmstrip — the still itself, the source still a
+   *  video beat was generated from, or a frame extracted from the video. */
+  preview?: string | null;
 }
 
 export default function SceneEditor({
@@ -34,6 +37,7 @@ export default function SceneEditor({
   const { addToast } = useApp();
   const { t } = useTranslation();
   const [beats, setBeats] = useState<Beat[] | null>(null);
+  const [wide, setWide] = useState(false);
   const [busy, setBusy] = useState<number | null>(null);
   const [promptFor, setPromptFor] = useState<number | null>(null);
   const [instruction, setInstruction] = useState("");
@@ -44,7 +48,10 @@ export default function SceneEditor({
   const load = useCallback(() => {
     fetch(`/api/clips/${clipId}/plan`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.beats && setBeats(d.beats))
+      .then((d) => {
+        if (d?.beats) setBeats(d.beats);
+        if (d) setWide(Boolean(d.wide));
+      })
       .catch(() => {});
   }, [clipId]);
   useEffect(() => {
@@ -105,15 +112,24 @@ export default function SceneEditor({
             <div className="grid sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {beats.map((b) => (
                 <div key={b.i} className="bg-cyber-dark border border-cyber-border rounded-xl p-2.5 space-y-2">
-                  {b.image ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={`/api/clips/${clipId}/plan?asset=${encodeURIComponent(b.file)}&v=${bust}`}
-                      alt=""
-                      className="w-full rounded-lg aspect-[9/16] object-cover border border-cyber-border"
-                    />
+                  {b.preview || b.image ? (
+                    <div className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/clips/${clipId}/plan?asset=${encodeURIComponent(b.preview ?? b.file)}&v=${bust}`}
+                        alt=""
+                        className={`w-full rounded-lg ${wide ? "aspect-video" : "aspect-[9/16]"} object-cover border border-cyber-border`}
+                      />
+                      {!b.image && (
+                        <span className="absolute bottom-1 right-1 rounded bg-black/70 p-0.5 text-cyber-muted">
+                          <Film className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
                   ) : (
-                    <div className="w-full rounded-lg aspect-[9/16] border border-cyber-border flex items-center justify-center text-cyber-muted">
+                    <div
+                      className={`w-full rounded-lg ${wide ? "aspect-video" : "aspect-[9/16]"} border border-cyber-border flex items-center justify-center text-cyber-muted`}
+                    >
                       <Film className="w-6 h-6" />
                     </div>
                   )}

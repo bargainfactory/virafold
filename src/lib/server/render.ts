@@ -722,6 +722,23 @@ export function planDirFor(clipId: string): string {
   return path.join(RENDERS_DIR, `plan-${clipId}`);
 }
 
+/**
+ * Scene-editor preview for a video beat (anim/broll) with no source still:
+ * one frame extracted from the clip, cached as prev<i>.jpg in the plan dir.
+ */
+export async function extractBeatPreview(planDir: string, b: FilmBeat): Promise<string | null> {
+  const name = `prev${b.i}.jpg`;
+  const abs = path.join(planDir, name);
+  if (fs.existsSync(abs)) return name;
+  if (!fs.existsSync(path.join(planDir, b.file))) return null;
+  const res = await run(
+    "ffmpeg",
+    ["-y", "-ss", "0.5", "-i", b.file, "-frames:v", "1", "-vf", "scale=360:-2", "-q:v", "5", name],
+    planDir
+  );
+  return res.code === 0 && fs.existsSync(abs) ? name : null;
+}
+
 // Pause between spoken dialogue lines — reads as a natural beat, not a cut.
 const LINE_GAP = 0.3;
 
@@ -749,13 +766,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
 
   try {
     if (dialogue) {
-      const castProps: { name: string; voice: string | null; charname?: string | null }[] = [];
+      const castProps: { name: string; voice: string | null; charname?: string | null; meta?: string | null }[] = [];
       if (clip.props) {
         try {
           for (const pid of JSON.parse(clip.props) as string[]) {
             const p = getPersona(clip.userEmail, pid);
             if (p && (p.ptype === "character" || p.ptype === "presenter")) {
-              castProps.push({ name: p.name, voice: p.voice, charname: p.charname });
+              castProps.push({ name: p.name, voice: p.voice, charname: p.charname, meta: p.meta });
             }
           }
         } catch {
@@ -968,6 +985,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           getVideoStyle,
           constrainScenes,
           castSheetFor,
+          storyCastFor,
         } = await import("./scenes");
         const { generateBackground } = await import("./images");
         // Visual style preset (Animation Studio): bakes art direction + motion
@@ -1018,6 +1036,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           (styleDef?.castSheet && !dialogueBeats
             ? await castSheetFor(clip.title, clip.script).catch(() => null)
             : null);
+        // Story cast sheet (dialogue scripts with the frame/story split): the
+        // tale's own recurring characters, designed once for every story
+        // illustration — the frame cast never enters the tale, and the tale's
+        // hero keeps one face across the whole film.
+        const storyCast = dialogueBeats
+          ? await storyCastFor(clip.title, clip.script).catch(() => null)
+          : null;
         // Documentary (no style preset) still honors a recurring character.
         if (!styleDef && propCast) {
           propExtra += ` Recurring character, EXACT same design in every scene: ${propCast}.`;
@@ -1068,7 +1093,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             beatFrame === true
               ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures, the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}`
               : (scene.imageSubject ?? scene.text.slice(0, 120));
-          const beatCast = beatFrame === false ? undefined : (cast ?? undefined);
+          const beatCast = beatFrame === false ? (storyCast ?? undefined) : (cast ?? undefined);
           const beatExtra = beatFrame === true ? "" : propExtra;
           let beatPrompt =
             (styleDef

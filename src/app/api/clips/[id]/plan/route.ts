@@ -7,7 +7,7 @@ import { planDirFor, type FilmPlan } from "@/lib/server/render";
 
 export const dynamic = "force-dynamic";
 
-const ASSET_RE = /^(beat|anim|broll|edit)[0-9_]+\.(png|jpg|mp4)$/;
+const ASSET_RE = /^(beat|anim|broll|edit|prev)[0-9_]+\.(png|jpg|mp4)$/;
 
 /**
  * Scene-editor bootstrap: the persisted build plan's beats (text, timing,
@@ -43,18 +43,32 @@ export async function GET(
 
   try {
     const plan = JSON.parse(fs.readFileSync(path.join(dir, "plan.json"), "utf8")) as FilmPlan;
-    return NextResponse.json({
-      beats: plan.beats.map((b) => ({
-        i: b.i,
-        text: b.text,
-        start: b.start,
-        dur: b.dur,
-        kind: b.kind,
-        file: b.file,
-        image: b.file.endsWith(".png") || b.file.endsWith(".jpg"),
-      })),
-      duration: plan.duration,
-    });
+    // Every beat gets a previewable reference image, including animated and
+    // b-roll beats: the source still the motion was generated from when it
+    // exists, else a frame extracted once from the video and cached.
+    const { extractBeatPreview } = await import("@/lib/server/render");
+    const beats = await Promise.all(
+      plan.beats.map(async (b) => {
+        const isImg = b.file.endsWith(".png") || b.file.endsWith(".jpg");
+        let preview: string | null = isImg ? b.file : null;
+        if (!preview) {
+          const still = `beat${b.i}.png`;
+          if (fs.existsSync(path.join(dir, still))) preview = still;
+          else preview = await extractBeatPreview(dir, b).catch(() => null);
+        }
+        return {
+          i: b.i,
+          text: b.text,
+          start: b.start,
+          dur: b.dur,
+          kind: b.kind,
+          file: b.file,
+          image: isImg,
+          preview,
+        };
+      })
+    );
+    return NextResponse.json({ beats, duration: plan.duration, wide: Boolean(plan.wide) });
   } catch {
     return NextResponse.json({ error: "Plan unreadable" }, { status: 500 });
   }

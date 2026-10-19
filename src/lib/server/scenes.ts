@@ -195,6 +195,53 @@ const CAST_SCHEMA = {
   additionalProperties: false,
 };
 
+const STORY_CAST_SCHEMA = {
+  type: "object",
+  properties: {
+    characters: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { name: { type: "string" }, design: { type: "string" } },
+        required: ["name", "design"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["characters"],
+  additionalProperties: false,
+};
+
+/**
+ * Recurring STORY characters for narrated tales with a frame/story split: the
+ * people inside the story being told, designed ONCE and injected into every
+ * story illustration — so the tale's hero wears the same face in scene 3 and
+ * scene 60, exactly like the frame cast does around the lamp.
+ */
+export async function storyCastFor(title: string, script: string): Promise<string | null> {
+  const res = await llmComplete(
+    [
+      "From this narrated screenplay, pick the 1-3 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
+      "For each, give: name (exactly as the script calls them) and design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature. Period-appropriate to the story's setting.",
+      "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
+    ].join("\n"),
+    `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,
+    STORY_CAST_SCHEMA as unknown as Record<string, unknown>,
+    { tier: "standard", maxTokens: 500, context: "story-cast" }
+  );
+  if (!res) return null;
+  try {
+    const parsed = JSON.parse(res.text) as { characters: { name: string; design: string }[] };
+    if (!Array.isArray(parsed.characters) || parsed.characters.length === 0) return null;
+    return parsed.characters
+      .slice(0, 3)
+      .map((c) => `${c.name} — ${c.design}`)
+      .join("; and ");
+  } catch {
+    return null;
+  }
+}
+
 /**
  * OpenArt-style consistency, approximated at the prompt level: one recurring
  * character described once, repeated verbatim in every scene prompt. Null on
