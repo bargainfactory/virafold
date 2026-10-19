@@ -721,11 +721,18 @@ export async function makeFilmCards(
     const R = planResOf(plan);
     const em = title.includes(" — ") ? title.indexOf(" — ") : -1;
     const brand = em > 0 ? title.slice(0, em) : "";
-    const main = em > 0 ? title.slice(em + 3) : title;
+    // Cards drop trailing parentheticals ("(Motion Picture)") — version notes,
+    // not title material.
+    const main = (em > 0 ? title.slice(em + 3) : title).replace(/\s*\([^)]*\)\s*$/, "").trim() || title;
     fs.writeFileSync(path.join(planDir, "card_main.txt"), main, "utf8");
     fs.writeFileSync(path.join(planDir, "card_brand.txt"), brand || " ", "utf8");
     fs.writeFileSync(path.join(planDir, "card_end.txt"), brand || main, "utf8");
-    const big = Math.round(R.h * (plan.wide ? 0.072 : 0.045));
+    // drawtext has no wrapping: the size adapts so the longest line stays
+    // inside ~88% of the frame width (DejaVu Bold averages ~0.58em per char).
+    const big = Math.min(
+      Math.round(Math.min(R.w, R.h) * 0.07),
+      Math.floor((R.w * 0.88) / Math.max(8, main.length) / 0.58)
+    );
     const small = Math.round(big * 0.45);
     const lead = 3.5, tail = 4.5;
     const common = [
