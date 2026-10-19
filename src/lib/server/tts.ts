@@ -21,23 +21,42 @@ export async function synthesizeSpeech(
 
   const elevenKey = resolveField("voiceover", "elevenlabsApiKey");
   if (elevenKey) {
+    // Per-character casting survives the provider: the voiceover integration's
+    // elevenVoiceMap (JSON) maps the engine's voice names to ElevenLabs voice
+    // IDs — {"eve":"<id>","luna":"<id>","default":"<id>"}. A requested voice
+    // with NO mapping skips ElevenLabs for that line (falling through to xAI)
+    // instead of collapsing the whole cast into one narrator.
+    let elVoice: string | null = null;
     try {
-      const resp = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE}?output_format=mp3_44100_128`,
-        {
-          method: "POST",
-          headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
-          body: JSON.stringify({ text: input, model_id: "eleven_multilingual_v2" }),
-        }
-      );
-      if (resp.ok) {
-        return {
-          bytes: Buffer.from(await resp.arrayBuffer()),
-          provider: "elevenlabs:multilingual-v2",
-        };
+      const map = JSON.parse(resolveField("voiceover", "elevenVoiceMap") || "{}") as Record<string, string>;
+      if (customVoiceId) {
+        if (map[customVoiceId]) elVoice = map[customVoiceId];
+        else if (/^[A-Za-z0-9]{16,}$/.test(customVoiceId)) elVoice = customVoiceId; // already an ElevenLabs ID
+      } else {
+        elVoice = map.default || ELEVENLABS_VOICE;
       }
     } catch {
-      /* fall through to OpenAI */
+      elVoice = customVoiceId ? null : ELEVENLABS_VOICE;
+    }
+    if (elVoice) {
+      try {
+        const resp = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${elVoice}?output_format=mp3_44100_128`,
+          {
+            method: "POST",
+            headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
+            body: JSON.stringify({ text: input, model_id: "eleven_multilingual_v2" }),
+          }
+        );
+        if (resp.ok) {
+          return {
+            bytes: Buffer.from(await resp.arrayBuffer()),
+            provider: "elevenlabs:multilingual-v2",
+          };
+        }
+      } catch {
+        /* fall through to xAI */
+      }
     }
   }
 

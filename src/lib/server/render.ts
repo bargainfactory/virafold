@@ -622,6 +622,15 @@ export interface FilmPlan {
   lang?: string;
   /** Widescreen 16:9 motion picture instead of the 9:16 vertical default. */
   wide?: boolean;
+  /** "straight" = studio cut grammar: no per-beat fades (cards carry them). */
+  cuts?: string;
+  /** Mood-mapped score track in the plan dir, mixed under the narration. */
+  music?: string;
+  /** Branded title/end card segments and the timeline they add around the voice. */
+  openCard?: string;
+  endCard?: string;
+  lead?: number;
+  tail?: number;
 }
 
 /** Output canvas for a plan — vertical Short or widescreen feature. */
@@ -656,7 +665,13 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   fs.writeFileSync(path.join(planDir, assName), ass, "utf8");
 
   const look = plan.look && b.kind !== "stat" && b.kind !== "chart" && b.kind !== "list" && b.kind !== "quote" ? CINE_LOOK : "";
-  const fades = `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
+  // Studio cut grammar: straight cuts between scenes (the title and end cards
+  // carry the film's fades). Legacy plans keep their per-beat fades so a
+  // re-rendered scene still matches its neighbors.
+  const fades =
+    plan.cuts === "straight"
+      ? "null"
+      : `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
   const scale = `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h}`;
   let inputs: string[];
   let fc: string;
@@ -689,26 +704,105 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   }
 }
 
+const FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+
+/**
+ * Branded title and end cards: indigo night cards with the series name and
+ * episode title, encoded with the segments' exact codec params so the
+ * stream-copy concat accepts them. Returns the lead/tail they add, or null
+ * when card generation fails (the film then plays without cards).
+ */
+export async function makeFilmCards(
+  planDir: string,
+  plan: FilmPlan,
+  title: string
+): Promise<{ openCard: string; endCard: string; lead: number; tail: number } | null> {
+  try {
+    const R = planResOf(plan);
+    const em = title.includes(" — ") ? title.indexOf(" — ") : -1;
+    const brand = em > 0 ? title.slice(0, em) : "";
+    const main = em > 0 ? title.slice(em + 3) : title;
+    fs.writeFileSync(path.join(planDir, "card_main.txt"), main, "utf8");
+    fs.writeFileSync(path.join(planDir, "card_brand.txt"), brand || " ", "utf8");
+    fs.writeFileSync(path.join(planDir, "card_end.txt"), brand || main, "utf8");
+    const big = Math.round(R.h * (plan.wide ? 0.072 : 0.045));
+    const small = Math.round(big * 0.45);
+    const lead = 3.5, tail = 4.5;
+    const common = [
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30", "-an",
+    ];
+    const open = await run(
+      "ffmpeg",
+      ["-y", "-f", "lavfi", "-t", String(lead), "-i", `color=c=0x15112a:s=${R.w}x${R.h}:r=30`,
+       "-vf",
+       `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=h*0.30,` +
+       `drawtext=fontfile=${FONT}:textfile=card_main.txt:fontsize=${big}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=(h-text_h)/2,` +
+       `fade=t=in:d=0.5,fade=t=out:st=${(lead - 0.5).toFixed(1)}:d=0.5,setsar=1`,
+       ...common, "card_open.mp4"],
+      planDir
+    );
+    const end = await run(
+      "ffmpeg",
+      ["-y", "-f", "lavfi", "-t", String(tail), "-i", `color=c=0x15112a:s=${R.w}x${R.h}:r=30`,
+       "-vf",
+       `drawtext=fontfile=${FONT}:text='Follow the light.':fontsize=${big}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=(h-text_h)/2,` +
+       `drawtext=fontfile=${FONT}:textfile=card_end.txt:fontsize=${small}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=h*0.62,` +
+       `fade=t=in:d=0.5,fade=t=out:st=${(tail - 1).toFixed(1)}:d=1,setsar=1`,
+       ...common, "card_end.mp4"],
+      planDir
+    );
+    if (open.code !== 0 || end.code !== 0) return null;
+    return { openCard: "card_open.mp4", endCard: "card_end.mp4", lead, tail };
+  } catch {
+    return null;
+  }
+}
+
 export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string): Promise<void> {
-  fs.writeFileSync(
-    path.join(planDir, "list.txt"),
-    plan.beats.map((b) => `file 'seg_${b.i}.mp4'`).join("\n"),
-    "utf8"
-  );
+  const files = [
+    ...(plan.openCard ? [plan.openCard] : []),
+    ...plan.beats.map((b) => `seg_${b.i}.mp4`),
+    ...(plan.endCard ? [plan.endCard] : []),
+  ];
+  fs.writeFileSync(path.join(planDir, "list.txt"), files.map((f) => `file '${f}'`).join("\n"), "utf8");
   const cat = await run(
     "ffmpeg",
     ["-y", "-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "silent.mp4"],
     planDir
   );
   if (cat.code !== 0) throw new Error(`splice concat failed: ${cat.err.slice(-200)}`);
+
+  const lead = plan.lead ?? 0;
+  const tail = plan.tail ?? 0;
+  const total = lead + plan.duration + tail;
+  const music = plan.music && fs.existsSync(path.join(planDir, plan.music)) ? plan.music : null;
+
+  const args = ["-y", "-i", "silent.mp4", "-i", plan.voiceFile,
+    "-f", "lavfi", "-t", String(total),
+    "-i", "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=300"];
+  let fc: string;
+  if (music) {
+    // Voice delayed past the title card; the score ducks under it via
+    // sidechain compression and carries the cards and the end credits alone.
+    args.push("-i", music);
+    fc =
+      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=2[voA][voB];` +
+      `[3:a]volume=0.32,apad[mu];[mu][voA]sidechaincompress=threshold=0.02:ratio=6:attack=80:release=900[md];` +
+      `[2:a]volume=0.03[bed];` +
+      `[voB][bed][md]amix=inputs=3:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
+      `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
+  } else if (lead > 0 || tail > 0) {
+    fc =
+      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[2:a]volume=0.05[bed];` +
+      `[vo][bed]amix=inputs=2:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
+      `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
+  } else {
+    fc = "[2:a]volume=0.05[bed];[1:a][bed]amix=inputs=2:duration=first[mix];[mix]loudnorm=I=-14:TP=-1.5:LRA=11[a]";
+  }
   const mux = await run(
     "ffmpeg",
-    ["-y", "-i", "silent.mp4", "-i", plan.voiceFile,
-     "-f", "lavfi", "-t", String(plan.duration),
-     "-i", "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=300",
-     "-filter_complex",
-     "[2:a]volume=0.05[bed];[1:a][bed]amix=inputs=2:duration=first[mix];[mix]loudnorm=I=-14:TP=-1.5:LRA=11[a]",
-     "-map", "0:v", "-map", "[a]", "-shortest",
+    [...args, "-filter_complex", fc,
+     "-map", "0:v", "-map", "[a]", ...(music || lead || tail ? [] : ["-shortest"]),
      "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", outAbs],
     planDir
   );
@@ -1214,7 +1308,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         beats: planBeats,
         lang: clip.lang || "en",
         ...(wide ? { wide: true } : {}),
+        cuts: "straight",
       };
+      // Studio dressing, both best-effort: branded title/end cards around the
+      // film, and the mood-mapped score mixed (and ducked) under the voice.
+      const cards = await makeFilmCards(jobDir, plan, clip.title).catch(() => null);
+      if (cards) Object.assign(plan, cards);
+      const { buildScore } = await import("./music");
+      const score = await buildScore(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
+      if (score) plan.music = score;
       for (const b of planBeats) {
         await renderBeatSegment(jobDir, plan, b);
       }
@@ -1597,7 +1699,15 @@ export async function extractThumb(clip: Clip & { userEmail: string }): Promise<
   const abs = path.join(process.cwd(), fresh.outputPath);
   const dur = await probeDuration(abs);
   if (!dur) return;
-  const t = Math.min(1.5, dur / 2);
+  // Skip past the title card so the default thumb is the film's first scene.
+  let lead = 0;
+  try {
+    const p = JSON.parse(fs.readFileSync(path.join(planDirFor(clip.id), "plan.json"), "utf8")) as FilmPlan;
+    lead = p.lead ?? 0;
+  } catch {
+    /* no plan — monolith render */
+  }
+  const t = Math.min(lead + 1.5, dur / 2);
   const thumbAbs = path.join(RENDERS_DIR, `${clip.id}-thumb.jpg`);
   const res = await run(
     "ffmpeg",

@@ -96,6 +96,12 @@ export const INTEGRATIONS: IntegrationDef[] = [
     fields: [
       { key: "elevenlabsApiKey", label: "ElevenLabs API key", envVar: "ELEVENLABS_API_KEY", secret: true, placeholder: "sk_..." },
       { key: "xaiVoiceId", label: "Grok voice", envVar: "XAI_VOICE_ID", placeholder: "eve — or orion, helix, luna, perseus…" },
+      {
+        key: "elevenVoiceMap",
+        label: "ElevenLabs voice map (JSON)",
+        envVar: "ELEVEN_VOICE_MAP",
+        placeholder: '{"default":"<voiceId>","eve":"<voiceId>","luna":"<voiceId>","orion":"<voiceId>","perseus":"<voiceId>","helix":"<voiceId>"}',
+      },
     ],
   },
   {
