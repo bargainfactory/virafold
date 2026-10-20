@@ -981,21 +981,25 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (spk && v) {
           try {
             const { generateSpeakClip } = await import("./video-gen");
-            // Landscape films crop the portrait to a 16:9 face band so the
-            // generated close-up comes out widescreen.
+            // Landscape films blur-pad the FULL portrait onto a 16:9 canvas —
+            // cropping a band used to slice off the shoulders, and the model
+            // then animated the truncated anatomy literally (head sitting at
+            // torso level). With the whole figure visible, anatomy stays right.
             let srcAbs = spk.portrait;
             if (clip.orient === "landscape") {
-              const crop = await run(
+              const pad = await run(
                 "ffmpeg",
-                ["-y", "-i", spk.portrait, "-vf", "crop=iw:iw*9/16:0:ih*0.08", `speaksrc${i}.png`],
+                ["-y", "-i", spk.portrait, "-filter_complex",
+                 "[0:v]scale=1920:1080,boxblur=24[bg];[0:v]scale=-2:1080[fg];[bg][fg]overlay=(W-w)/2:0",
+                 `speaksrc${i}.png`],
                 jobDir
               );
-              if (crop.code === 0) srcAbs = path.join(jobDir, `speaksrc${i}.png`);
+              if (pad.code === 0) srcAbs = path.join(jobDir, `speaksrc${i}.png`);
             }
             const res = await generateSpeakClip({
               email: clip.userEmail,
               startImagePath: srcAbs,
-              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
+              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions. Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
               voiceId: v,
               durationSec: Math.min(15, line.text.length / 15 + 2.5),
             });
