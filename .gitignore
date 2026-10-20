@@ -45,3 +45,4 @@ next-env.d.ts
 
 # Internal strategy notes (repo is public)
 docs/strategy/
+build-*.log
