@@ -223,6 +223,7 @@ export async function storyCastFor(title: string, script: string): Promise<strin
     [
       "From this narrated screenplay, pick the 1-3 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
       "For each, give: name (exactly as the script calls them) and design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature. Period-appropriate to the story's setting.",
+      "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with deep olive-brown Middle-Eastern skin tones. If Jesus appears, describe Him reverently and historically — deep olive-brown skin, dark wavy hair and beard, simple robes.",
       "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
     ].join("\n"),
     `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,
@@ -363,7 +364,7 @@ export async function planScenes(
       "- list: the beat enumerates 2-4 concrete steps/items → listTitle + listItems (max 5 words each).",
       "- quote: the beat is one punchy declarative line worth reading on screen → quote (the line, max 12 words, verbatim or lightly trimmed).",
       "- broll: the beat describes a real-world activity, place, or object that stock footage definitely has (someone typing, rain on a window, a busy street, pouring coffee) → brollQuery: a 2-5 word stock-footage search phrase, concrete and literal.",
-      "- image: everything else → imageSubject: a concrete, filmable subject (max 12 words), literal not abstract — a person doing something, an object, a place. Never 'abstract concept of growth'.",
+      "- image: everything else → imageSubject: a concrete, filmable subject (max 12 words), literal not abstract — a person doing something, an object, a place. Never 'abstract concept of growth'. The subject must restate what THIS beat's narration itself describes — never a subject the narration doesn't mention.",
       "HARD RULE: every number you output must appear verbatim in that beat's narration. Never invent or round numbers.",
       "Return scenes in the same order and count as the beats. Vary the kinds — a run of three identical kinds is a failure unless the narration demands it.",
     ].join("\n"),

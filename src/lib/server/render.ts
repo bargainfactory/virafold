@@ -1305,7 +1305,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const beatSubject =
             beatFrame === true
               ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures, the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}`
-              : (scene.imageSubject ?? scene.text.slice(0, 120));
+              : scene.imageSubject
+                ? // Anchor the picture to the words being spoken over it, not
+                  // just the planner's abstraction — illustration follows text.
+                  `${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${scene.text.slice(0, 130)}"`
+                : scene.text.slice(0, 120);
           const beatCast = beatFrame === false ? (storyCast ?? undefined) : (cast ?? undefined);
           const beatExtra = beatFrame === true ? "" : propExtra;
           let beatPrompt =
