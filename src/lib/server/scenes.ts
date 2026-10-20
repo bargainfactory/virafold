@@ -223,7 +223,7 @@ export async function storyCastFor(title: string, script: string): Promise<strin
     [
       "From this narrated screenplay, pick the 1-3 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
       "For each, give: name (exactly as the script calls them) and design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature. Period-appropriate to the story's setting.",
-      "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with deep olive-brown Middle-Eastern skin tones. If Jesus appears, describe Him reverently and historically — deep olive-brown skin, dark wavy hair and beard, simple robes.",
+      "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with warm tan, sun-browned Middle-Eastern skin tones. If Jesus appears, describe Him reverently and historically — a warm tan complexion, dark wavy hair and beard, simple robes.",
       "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
     ].join("\n"),
     `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,
