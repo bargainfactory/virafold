@@ -4,6 +4,7 @@ import path from "node:path";
 import { getSessionUser } from "@/lib/server/auth";
 import { getClip, getFlags } from "@/lib/server/db";
 import {
+  deleteFilmBeat,
   extractThumb,
   planDirFor,
   renderBeatSegment,
@@ -78,12 +79,41 @@ export async function POST(
     mode = String(body?.mode ?? "");
     instruction = String(body?.instruction ?? "").trim().slice(0, 300);
   }
-  const b = plan.beats[index];
+  const b = plan.beats.find((x) => x.i === index);
   if (!b || !Number.isInteger(index)) {
     return NextResponse.json({ error: "Unknown scene" }, { status: 400 });
   }
   if (mode === "prompt" && instruction.length < 3) {
     return NextResponse.json({ error: "Say what to change about the scene" }, { status: 400 });
+  }
+
+  // Delete: cut the scene's audio window out of the voice track (frame-snapped,
+  // so no other segment re-encodes), drop the beat, re-splice. The narration
+  // spoken in that scene is removed with it.
+  if (mode === "delete") {
+    if (plan.beats.length <= 3) {
+      return NextResponse.json({ error: "A film needs at least 3 scenes" }, { status: 400 });
+    }
+    const ok = await deleteFilmBeat(dir, plan, index);
+    if (!ok) return NextResponse.json({ error: "Could not delete this scene" }, { status: 500 });
+    // The film just got shorter — rebuild the score so its closing theme
+    // still lands on the ending instead of being trimmed mid-phrase.
+    if (plan.music) {
+      const { buildScore } = await import("@/lib/server/music");
+      const score = await buildScore(dir, plan.beats, plan.duration, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
+      if (score) plan.music = score;
+    }
+    try {
+      await spliceFilm(dir, plan, path.join(process.cwd(), clip.outputPath));
+    } catch (e) {
+      return NextResponse.json(
+        { error: `Splice failed: ${String(e instanceof Error ? e.message : e).slice(0, 160)}` },
+        { status: 500 }
+      );
+    }
+    fs.writeFileSync(path.join(dir, "plan.json"), JSON.stringify(plan), "utf8");
+    if (index === 0) await extractThumb({ ...clip, userEmail: user.email }).catch(() => {});
+    return NextResponse.json({ ok: true, deleted: index });
   }
 
   // Produce the new still.

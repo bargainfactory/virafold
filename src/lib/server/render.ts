@@ -830,6 +830,48 @@ export function planDirFor(clipId: string): string {
 }
 
 /**
+ * Delete one scene from a film: cut its window out of the voice track (length
+ * snapped to whole frames, so every later segment's frame count is unchanged
+ * and nothing needs re-encoding), shift the remaining beats and word timings,
+ * and drop the beat. The caller re-splices afterwards. Returns false when the
+ * cut can't be made safely.
+ */
+export async function deleteFilmBeat(planDir: string, plan: FilmPlan, index: number): Promise<boolean> {
+  const pos = plan.beats.findIndex((x) => x.i === index);
+  if (pos < 0 || plan.beats.length <= 3) return false;
+  const b = plan.beats[pos];
+  const isLast = pos === plan.beats.length - 1;
+  // Frame-aligned cut keeps all later segments' cumulative frame counts exact.
+  const cutLen = isLast ? plan.duration - b.start : Math.round(b.dur * 30) / 30;
+  const S = b.start;
+  const E = b.start + cutLen;
+
+  // Cut [S, E) out of the voice track, in place.
+  const src = plan.voiceFile;
+  const tmp = `voice_cut_tmp${src.endsWith(".wav") ? ".wav" : ".mp3"}`;
+  const codec = src.endsWith(".wav") ? ["-c:a", "pcm_s16le"] : ["-c:a", "libmp3lame", "-q:a", "2"];
+  const fc =
+    pos === 0
+      ? `[0:a]atrim=${E.toFixed(4)},asetpts=PTS-STARTPTS[a]`
+      : isLast
+        ? `[0:a]atrim=0:${S.toFixed(4)},asetpts=PTS-STARTPTS[a]`
+        : `[0:a]atrim=0:${S.toFixed(4)},asetpts=PTS-STARTPTS[a1];[0:a]atrim=${E.toFixed(4)},asetpts=PTS-STARTPTS[a2];[a1][a2]concat=n=2:v=0:a=1[a]`;
+  const res = await run("ffmpeg", ["-y", "-i", src, "-filter_complex", fc, "-map", "[a]", ...codec, tmp], planDir);
+  if (res.code !== 0 || !fs.existsSync(path.join(planDir, tmp))) return false;
+  fs.renameSync(path.join(planDir, tmp), path.join(planDir, src));
+
+  // Shift the timeline past the cut; drop the beat and its segment.
+  plan.words = plan.words
+    .filter((w) => (w.s + w.e) / 2 < S || (w.s + w.e) / 2 >= E)
+    .map((w) => ((w.s + w.e) / 2 >= E ? { ...w, s: w.s - cutLen, e: w.e - cutLen } : w));
+  for (const nb of plan.beats) if (nb.start > b.start) nb.start -= cutLen;
+  plan.duration = Math.max(0, plan.duration - cutLen);
+  plan.beats.splice(pos, 1);
+  fs.rmSync(path.join(planDir, `seg_${b.i}.mp4`), { force: true });
+  return true;
+}
+
+/**
  * Scene-editor preview for a video beat (anim/broll) with no source still:
  * one frame extracted from the clip, cached as prev<i>.jpg in the plan dir.
  */

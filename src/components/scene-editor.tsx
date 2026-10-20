@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
-import { Film, Loader2, Paperclip, RefreshCw, Wand2, X } from "lucide-react";
+import { Film, Loader2, Paperclip, RefreshCw, Trash2, Wand2, X } from "lucide-react";
 
 interface Beat {
   i: number;
@@ -164,6 +164,18 @@ export default function SceneEditor({
                       className="flex-1 px-1.5 py-1.5 rounded-lg bg-cyber-card border border-cyber-border text-cyber-muted hover:text-foreground disabled:opacity-50 flex items-center justify-center"
                     >
                       <Paperclip className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(t("ed.deleteConfirm"))) {
+                          applyEdit(b.i, { index: b.i, mode: "delete" });
+                        }
+                      }}
+                      disabled={busy !== null || beats.length <= 3}
+                      title={t("ed.delete")}
+                      className="flex-1 px-1.5 py-1.5 rounded-lg bg-cyber-card border border-cyber-border text-cyber-muted hover:text-red-400 hover:border-red-500/50 disabled:opacity-50 flex items-center justify-center"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   {promptFor === b.i && (
