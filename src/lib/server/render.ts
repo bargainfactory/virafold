@@ -135,12 +135,15 @@ function styleLine(style: CaptionStyle, position: CaptionPosition, res: PlayRes)
   const shadow = Math.round(base.shadow * k);
   const marginLR = Math.round(60 * k);
   // ASS numpad alignment: 8 = top-center, 5 = middle-center, 2 = bottom-center.
+  // Portrait "bottom" rides high to clear the Shorts UI; landscape is a
+  // cinema frame, so bottom means a true subtitle margin near the edge.
+  const wide = res.w > res.h;
   const [align, marginV] =
     position === "top"
-      ? [8, Math.round(140 * k)]
+      ? [8, Math.round((wide ? 90 : 140) * k)]
       : position === "middle"
         ? [5, 0]
-        : [2, Math.round(base.bottomMarginV * k)];
+        : [2, wide ? Math.round(64 * (res.h / 1080)) : Math.round(base.bottomMarginV * k)];
   return `Style: Default,DejaVu Sans,${size},${base.colors},${base.bold},0,0,0,100,100,0,0,1,${outline},${shadow},${align},${marginLR},${marginLR},${marginV},1`;
 }
 
@@ -180,12 +183,15 @@ export function buildAss(
     }
     chunk = [];
   };
+  // Landscape features read like cinema subtitles: wider caption lines than
+  // the punchy 3-word chunks tuned for vertical Shorts.
+  const chunkWords = res.w > res.h ? cfg.wordsPerChunk + 3 : cfg.wordsPerChunk;
   for (const w of inRange) {
     // A speaker change (diarized interviews) always starts a fresh caption.
     if (chunk.length && w.sp !== undefined && w.sp !== chunk[chunk.length - 1].sp) flush();
     chunk.push(w);
     const dur = chunk[chunk.length - 1].e - chunk[0].s;
-    if (chunk.length >= cfg.wordsPerChunk || dur >= 2.2) flush();
+    if (chunk.length >= chunkWords || dur >= (res.w > res.h ? 3.2 : 2.2)) flush();
   }
   flush();
 
@@ -909,8 +915,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           if (!isFrameLine(line)) continue;
           const v = voices.get(line.speaker);
           if (!v || !isXaiVoice(v)) continue;
+          // Keep comfortable headroom under the model's 15s cap — a line that
+          // needs ~13s got its last sentence truncated once; ≤10s estimated
+          // speech plus the +2.5s budget below always fits.
           const est = line.text.length / 15;
-          if (est < 4 || est > 12 || line.text.length > 400) continue;
+          if (est < 4 || est > 10 || line.text.length > 150) continue;
           const sp = line.speaker.toLowerCase();
           const prop = castProps.find((p) => p.charname && p.charname.trim().toLowerCase() === sp);
           if (!prop?.portrait) continue;
@@ -946,7 +955,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               startImagePath: srcAbs,
               prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
               voiceId: v,
-              durationSec: Math.min(13, line.text.length / 15 + 1.5),
+              durationSec: Math.min(15, line.text.length / 15 + 2.5),
             });
             if (res) {
               const vd = `speakvid${i}.mp4`;
