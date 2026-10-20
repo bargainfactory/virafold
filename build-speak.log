@@ -1,0 +1,448 @@
+
+> virafold@0.1.0 build
+> next build
+
+▲ Next.js 16.2.10 (Turbopack)
+
+  Creating an optimized production build ...
+Turbopack build encountered 9 warnings:
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/api/ambient/route.js
+  [output]/.next/server/chunks/[root-of-the-server]__0bhuliy._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/api/clips/[id]/edit-beat/route.js
+  [output]/.next/server/chunks/[root-of-the-server]__1qw4a33._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/api/clips/[id]/plan/route.js
+  [output]/.next/server/chunks/[root-of-the-server]__1f4v9sr._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/api/clips/[id]/render/route.js
+  [output]/.next/server/chunks/[root-of-the-server]__00u8pdl._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/api/projects/[id]/caption/route.js
+  [output]/.next/server/chunks/[root-of-the-server]__0wxrytj._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/api/projects/[id]/highlights/route.js
+  [output]/.next/server/chunks/[root-of-the-server]__1ukj3m_._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/app/open/page.js
+  [output]/.next/server/chunks/ssr/[root-of-the-server]__077lkx7._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+./next.config.ts
+Encountered unexpected file in NFT list
+A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+- filesystem operations (like path.join, path.resolve or fs.readFile), or
+- very dynamic requires (like require('./' + foo)).
+To resolve this, you can
+- remove them if possible, or
+- only use them in development, or
+- make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
+- add ignore comments: path.join(/*turbopackIgnore: true*/ process.cwd(), bar)
+
+Output asset trace:
+  [output]/.next/server/instrumentation.js
+  [output]/.next/server/chunks/[root-of-the-server]__0hj22ql._.js
+
+Import trace:
+  App Route:
+    ./next.config.ts
+    ./src/app/api/frames/[token]/route.ts
+
+
+✓ Compiled successfully in 3.5s
+  Running TypeScript ...
+  Finished TypeScript in 4.0s ...
+  Collecting page data using 23 workers ...
+(node:100004) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:70472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75260) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:95800) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:109784) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22628) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104084) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:104404) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:105112) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:109984) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:83848) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:102932) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:96312) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29480) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:102148) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:105388) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:96096) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108392) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88076) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:73636) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:72516) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:109256) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+  Generating static pages using 23 workers (0/89) ...
+  Generating static pages using 23 workers (22/89) 
+  Generating static pages using 23 workers (44/89) 
+  Generating static pages using 23 workers (66/89) 
+✓ Generating static pages using 23 workers (89/89) in 429ms
+  Finalizing page optimization ...
+
+Route (app)                                   Revalidate  Expire
+┌ ○ /
+├ ○ /_not-found
+├ ● /[lang]
+│ ├ /es
+│ ├ /fr
+│ ├ /de
+│ └ [+15 more paths]
+├ ƒ /a/[id]
+├ ƒ /a/-/opengraph-image
+├ ○ /about
+├ ○ /admin
+├ ● /alternatives/[slug]
+│ ├ /alternatives/opusclip
+│ └ /alternatives/repurpose-io
+├ ƒ /api/account
+├ ƒ /api/admin/audit
+├ ƒ /api/admin/audit-credits
+├ ƒ /api/admin/eval
+├ ƒ /api/admin/flags
+├ ƒ /api/admin/ops-digest
+├ ƒ /api/admin/overview
+├ ƒ /api/admin/pricing
+├ ƒ /api/admin/prospect-kit
+├ ƒ /api/admin/purge-spam
+├ ƒ /api/admin/render-regression
+├ ƒ /api/admin/trial
+├ ƒ /api/admin/users
+├ ƒ /api/ambient
+├ ƒ /api/analytics
+├ ƒ /api/approve/[token]
+├ ƒ /api/assets
+├ ƒ /api/assets/[id]
+├ ƒ /api/assets/[id]/ab
+├ ƒ /api/assets/[id]/evergreen
+├ ƒ /api/assets/[id]/like
+├ ƒ /api/assets/[id]/lint
+├ ƒ /api/assets/[id]/provenance
+├ ƒ /api/assets/[id]/regenerate
+├ ƒ /api/audit
+├ ƒ /api/audit/public
+├ ƒ /api/auth/forgot
+├ ƒ /api/auth/google/callback
+├ ƒ /api/auth/google/start
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/reset
+├ ƒ /api/auth/session
+├ ƒ /api/auth/signup
+├ ƒ /api/auth/verify
+├ ƒ /api/auth/verify/resend
+├ ƒ /api/autopilot
+├ ƒ /api/bootstrap
+├ ƒ /api/broadcast
+├ ƒ /api/campaign
+├ ƒ /api/checkout
+├ ƒ /api/checkout/pack
+├ ƒ /api/clients
+├ ƒ /api/clients/accept
+├ ƒ /api/clients/act
+├ ƒ /api/clips
+├ ƒ /api/clips/[id]
+├ ƒ /api/clips/[id]/dub
+├ ƒ /api/clips/[id]/edit-beat
+├ ƒ /api/clips/[id]/file
+├ ƒ /api/clips/[id]/plan
+├ ƒ /api/clips/[id]/render
+├ ƒ /api/clips/[id]/thumb
+├ ƒ /api/connect
+├ ƒ /api/connect/[platform]/callback
+├ ƒ /api/connect/[platform]/disconnect
+├ ƒ /api/connect/[platform]/start
+├ ƒ /api/deals
+├ ƒ /api/deals/[id]
+├ ƒ /api/export
+├ ƒ /api/frames/[token]
+├ ƒ /api/health
+├ ƒ /api/ideas
+├ ƒ /api/ideas/[id]
+├ ƒ /api/ideas/[id]/script
+├ ƒ /api/images
+├ ƒ /api/images/[id]
+├ ƒ /api/inbox
+├ ƒ /api/integrations
+├ ƒ /api/integrations/[name]
+├ ƒ /api/interview
+├ ƒ /api/mailops/draft
+├ ƒ /api/metrics
+├ ƒ /api/notifications
+├ ƒ /api/notifications/[id]
+├ ƒ /api/notifications/read-all
+├ ƒ /api/page
+├ ƒ /api/page/[slug]
+├ ƒ /api/personas
+├ ƒ /api/personas/[id]
+├ ƒ /api/personas/accept
+├ ƒ /api/personas/candidates
+├ ƒ /api/pricing
+├ ƒ /api/projects
+├ ƒ /api/projects/[id]
+├ ƒ /api/projects/[id]/approve
+├ ƒ /api/projects/[id]/caption
+├ ƒ /api/projects/[id]/highlights
+├ ƒ /api/projects/[id]/media
+├ ƒ /api/projects/[id]/share
+├ ƒ /api/referral
+├ ƒ /api/report-brand
+├ ƒ /api/revenue
+├ ƒ /api/revenue/[id]
+├ ƒ /api/schedule
+├ ƒ /api/schedule/[id]
+├ ƒ /api/schedule/[id]/thumb-ab
+├ ƒ /api/schedule/smart
+├ ƒ /api/script-video
+├ ƒ /api/series-progress
+├ ƒ /api/site-audit
+├ ƒ /api/site-audit/[id]
+├ ƒ /api/site-audit/[id]/apply
+├ ƒ /api/site-audit/[id]/rewrite
+├ ƒ /api/site-audit/[id]/translate
+├ ƒ /api/site-monitor
+├ ƒ /api/starter
+├ ƒ /api/stripe/webhook
+├ ƒ /api/studio-video
+├ ƒ /api/subscribe
+├ ƒ /api/subscribers
+├ ƒ /api/subscribers/import
+├ ƒ /api/thumb-lab
+├ ƒ /api/tools/caption
+├ ƒ /api/tools/caption/[id]
+├ ƒ /api/tools/chapters
+├ ƒ /api/tools/compare
+├ ƒ /api/tools/hook
+├ ƒ /api/tools/ideas
+├ ƒ /api/tools/website-score
+├ ƒ /api/track
+├ ƒ /api/translate/blog
+├ ƒ /api/try
+├ ƒ /api/voice
+├ ƒ /api/voice/clone
+├ ƒ /api/watchlist
+├ ƒ /api/wordpress
+├ ○ /apple-icon.png
+├ ƒ /approve/[token]
+├ ○ /audit
+├ ○ /blog
+├ ● /blog/[slug]
+│ ├ /blog/podcast-to-30-posts-exact-pipeline
+│ ├ /blog/why-good-videos-die-audit-patterns
+│ ├ /blog/faceless-youtube-2026-what-works
+│ └ [+8 more paths]
+├ ƒ /c/[slug]
+├ ○ /contact
+├ ● /create/[format]
+│ ├ /create/youtube-shorts
+│ ├ /create/tiktok
+│ ├ /create/linkedin
+│ └ [+3 more paths]
+├ ○ /dashboard
+├ ○ /examples
+├ ○ /feed
+├ ● /for/[persona]
+│ ├ /for/podcasters
+│ ├ /for/coaches
+│ ├ /for/course-creators
+│ └ [+5 more paths]
+├ ○ /forgot
+├ ○ /how-it-works
+├ ○ /icon.png
+├ ƒ /kit/[slug]
+├ ○ /login
+├ ○ /open                                             1h      1y
+├ ○ /opengraph-image
+├ ○ /pricing
+├ ○ /privacy
+├ ○ /product
+├ ○ /refunds
+├ ○ /reset
+├ ○ /robots.txt
+├ ○ /signup
+├ ƒ /site-audit
+├ ƒ /site-audit/[id]
+├ ○ /sitemap.xml
+├ ○ /terms
+├ ○ /tools
+└ ● /tools/[tool]
+  ├ /tools/hook-analyzer
+  ├ /tools/engagement-calculator
+  ├ /tools/hashtag-generator
+  └ [+8 more paths]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+

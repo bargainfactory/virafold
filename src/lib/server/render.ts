@@ -675,7 +675,7 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   const scale = `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h}`;
   let inputs: string[];
   let fc: string;
-  if (b.kind === "broll" || b.kind === "anim") {
+  if (b.kind === "broll" || b.kind === "anim" || b.kind === "speak") {
     inputs = ["-stream_loop", "-1", "-t", (dur + 0.5).toFixed(2), "-i", b.file];
     fc = `[0:v]${scale},fps=30,${look}${fades},setsar=1,ass=${assName}[v]`;
   } else if (b.kind === "image" || b.kind === "arch") {
@@ -863,17 +863,31 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   let voiceFile = "voice.mp3";
   let duration: number;
   let words: TranscriptWord[];
-  let dialogueBeats: { text: string; dur: number; frame?: boolean }[] | null = null;
+  let dialogueBeats: { text: string; dur: number; frame?: boolean; speak?: string }[] | null = null;
 
   try {
     if (dialogue) {
-      const castProps: { name: string; voice: string | null; charname?: string | null; meta?: string | null }[] = [];
+      const castProps: {
+        name: string;
+        voice: string | null;
+        charname?: string | null;
+        meta?: string | null;
+        portrait?: string;
+      }[] = [];
       if (clip.props) {
         try {
+          const { personaImagePath } = await import("./db");
           for (const pid of JSON.parse(clip.props) as string[]) {
             const p = getPersona(clip.userEmail, pid);
             if (p && (p.ptype === "character" || p.ptype === "presenter")) {
-              castProps.push({ name: p.name, voice: p.voice, charname: p.charname, meta: p.meta });
+              const img = personaImagePath(p.id);
+              castProps.push({
+                name: p.name,
+                voice: p.voice,
+                charname: p.charname,
+                meta: p.meta,
+                ...(fs.existsSync(img) ? { portrait: img } : {}),
+              });
             }
           }
         } catch {
@@ -881,26 +895,90 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         }
       }
       const voices = castVoices(dialogue, castProps);
+      // Speaking close-ups (premium tier): the longest cast lines become
+      // lip-synced close-up beats — the premium model animates the character's
+      // portrait speaking the line in their own xAI voice (verified live), and
+      // the clip's OWN speech audio becomes that line's voice-track slot, so
+      // picture and sound can't drift. Capped at 6 per film for cost.
+      const speakSet = new Map<number, { portrait: string; meta: string }>();
+      if (clip.animate === 3 && (clip.lang || "en") === "en") {
+        const { isXaiVoice } = await import("./dialogue");
+        const cands: { i: number; len: number; portrait: string; meta: string }[] = [];
+        for (let i = 0; i < dialogue.length; i++) {
+          const line = dialogue[i];
+          if (!isFrameLine(line)) continue;
+          const v = voices.get(line.speaker);
+          if (!v || !isXaiVoice(v)) continue;
+          const est = line.text.length / 15;
+          if (est < 4 || est > 12 || line.text.length > 400) continue;
+          const sp = line.speaker.toLowerCase();
+          const prop = castProps.find((p) => p.charname && p.charname.trim().toLowerCase() === sp);
+          if (!prop?.portrait) continue;
+          cands.push({ i, len: line.text.length, portrait: prop.portrait, meta: prop.meta ?? "" });
+        }
+        cands.sort((a, b) => b.len - a.len);
+        for (const c of cands.slice(0, 6)) speakSet.set(c.i, { portrait: c.portrait, meta: c.meta });
+      }
       const spIndex = new Map<string, number>();
-      const segs: { file: string; dur: number; line: (typeof dialogue)[number]; sp?: number }[] = [];
+      const segs: { file: string; dur: number; line: (typeof dialogue)[number]; sp?: number; speak?: string }[] = [];
       for (let i = 0; i < dialogue.length; i++) {
         const line = dialogue[i];
         const v = voices.get(line.speaker);
-        const tts = await synthesizeSpeech(line.text, clip.lang || "en", v ?? defaultVoice);
-        if (!tts) {
-          throw new Error(
-            "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
-          );
-        }
         const f = `line${i}.mp3`;
-        fs.writeFileSync(path.join(jobDir, f), tts.bytes);
+        let speakVid: string | undefined;
+        const spk = speakSet.get(i);
+        if (spk && v) {
+          try {
+            const { generateSpeakClip } = await import("./video-gen");
+            // Landscape films crop the portrait to a 16:9 face band so the
+            // generated close-up comes out widescreen.
+            let srcAbs = spk.portrait;
+            if (clip.orient === "landscape") {
+              const crop = await run(
+                "ffmpeg",
+                ["-y", "-i", spk.portrait, "-vf", "crop=iw:iw*9/16:0:ih*0.08", `speaksrc${i}.png`],
+                jobDir
+              );
+              if (crop.code === 0) srcAbs = path.join(jobDir, `speaksrc${i}.png`);
+            }
+            const res = await generateSpeakClip({
+              email: clip.userEmail,
+              startImagePath: srcAbs,
+              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
+              voiceId: v,
+              durationSec: Math.min(13, line.text.length / 15 + 1.5),
+            });
+            if (res) {
+              const vd = `speakvid${i}.mp4`;
+              fs.copyFileSync(res.file, path.join(jobDir, vd));
+              const ex = await run(
+                "ffmpeg",
+                ["-y", "-i", vd, "-vn", "-acodec", "libmp3lame", "-q:a", "3", f],
+                jobDir
+              );
+              const ad = ex.code === 0 ? await probeDuration(path.join(jobDir, f)) : null;
+              if (ad && ad > 1) speakVid = vd;
+            }
+          } catch {
+            /* any failure — the line falls back to plain TTS below */
+          }
+        }
+        if (!speakVid) {
+          const tts = await synthesizeSpeech(line.text, clip.lang || "en", v ?? defaultVoice);
+          if (!tts) {
+            throw new Error(
+              "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
+            );
+          }
+          fs.writeFileSync(path.join(jobDir, f), tts.bytes);
+        }
         const d = (await probeDuration(path.join(jobDir, f))) ?? Math.max(1, line.text.length / 15);
         let sp: number | undefined;
         if (v !== null && v !== undefined) {
           if (!spIndex.has(line.speaker)) spIndex.set(line.speaker, spIndex.size);
           sp = spIndex.get(line.speaker);
         }
-        segs.push({ file: f, dur: d, line, sp });
+        segs.push({ file: f, dur: d, line, sp, ...(speakVid ? { speak: speakVid } : {}) });
       }
       // Stitch: pad each line with the gap, concat, decode to WAV once.
       const inputs = segs.flatMap((s) => ["-i", s.file]);
@@ -924,13 +1002,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // illustration sooner (5s vs 8s), so the tale gets most of the pictures.
       words = [];
       let t = 0;
-      const beatsAcc: { text: string; dur: number; frame?: boolean }[] = [];
+      const beatsAcc: { text: string; dur: number; frame?: boolean; speak?: string }[] = [];
       let acc = { text: "", dur: 0, frame: false };
       const flush = () => {
         if (acc.dur <= 0) return;
         const prev = beatsAcc[beatsAcc.length - 1];
-        // Sub-2s slivers would be all fade — merge them into the neighbor.
-        if (prev && acc.dur < 2) {
+        // Sub-2s slivers would be all fade — merge them into the neighbor,
+        // but never into a speaking close-up (its visual is its own clip).
+        if (prev && !prev.speak && acc.dur < 2) {
           prev.dur += acc.dur;
           prev.text += ` ${acc.text.trim()}`;
         } else beatsAcc.push({ text: acc.text.trim(), dur: acc.dur, frame: acc.frame });
@@ -941,6 +1020,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           words.push({ ...w, s: w.s + t, e: w.e + t, ...(s.sp !== undefined ? { sp: s.sp } : {}) });
         }
         t += s.dur + LINE_GAP;
+        // A speaking close-up is always its own beat: one line, one clip.
+        if (s.speak) {
+          flush();
+          beatsAcc.push({ text: s.line.text, dur: s.dur + LINE_GAP, frame: true, speak: s.speak });
+          acc = { text: "", dur: 0, frame: true };
+          continue;
+        }
         const frame = isFrameLine(s.line);
         if (acc.dur > 0 && frame !== acc.frame) flush();
         acc.frame = frame;
@@ -950,7 +1036,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       }
       if (acc.dur > 0) {
         const prev = beatsAcc[beatsAcc.length - 1];
-        if (prev && acc.dur < 3 && prev.frame === acc.frame) {
+        if (prev && !prev.speak && acc.dur < 3 && prev.frame === acc.frame) {
           prev.dur += acc.dur;
           prev.text += ` ${acc.text.trim()}`;
         } else flush();
@@ -1159,6 +1245,16 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (styleDef) scenes = constrainScenes(scenes, styleDef);
         for (let i = 0; i < scenes.length; i++) {
           const scene = scenes[i];
+          // Speaking close-ups arrive pre-rendered from the voice pass with
+          // their speech already in the voice track — the clip IS the visual.
+          const speakVid = dialogueBeats ? (beats[i] as { speak?: string }).speak : undefined;
+          if (speakVid && fs.existsSync(path.join(jobDir, speakVid))) {
+            images.push(speakVid);
+            kinds.push("speak");
+            beatPrompts.push("");
+            animUsed = true;
+            continue;
+          }
           // Real stock footage where the narration calls for it (needs a
           // stock key); misses fall through to AI imagery below.
           if (scene.kind === "broll" && scene.brollQuery) {

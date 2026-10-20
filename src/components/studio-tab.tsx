@@ -24,14 +24,18 @@ interface Persona {
   charname?: string | null;
 }
 
-// Voice gender shown right in the picker, so a grandmother never ships with a
-// baritone by accident.
+// The full xAI voice roster (GET /v1/tts/voices, 2026-10-19), gender shown
+// right in the picker so a grandmother never ships with a baritone.
 const XAI_VOICES = [
-  { id: "eve", label: "eve ♀" },
-  { id: "luna", label: "luna ♀" },
-  { id: "orion", label: "orion ♂" },
-  { id: "perseus", label: "perseus ♂" },
-  { id: "helix", label: "helix ♂" },
+  ...["eve", "luna", "aurora", "celeste", "iris", "ara", "carina", "liora", "ursa"].map((id) => ({
+    id,
+    label: `${id} ♀`,
+  })),
+  ...["orion", "perseus", "helix", "atlas", "kepler", "leo", "castor", "altair", "cosmo", "helios",
+      "lumen", "lux", "naksh", "rex", "rigel", "sal", "sirius", "zagan", "zenith"].map((id) => ({
+    id,
+    label: `${id} ♂`,
+  })),
 ];
 
 const PROP_TYPES = ["character", "product", "setting", "style", "archival"] as const;

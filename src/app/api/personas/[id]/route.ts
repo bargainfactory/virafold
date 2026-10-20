@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import { getSessionUser } from "@/lib/server/auth";
 import { deletePersona, getPersona, personaImagePath, setPersonaCharname, setPersonaVoice } from "@/lib/server/db";
+import { XAI_VOICE_ROSTER } from "@/lib/server/dialogue";
 
-const VOICES = new Set(["", "eve", "luna", "orion", "perseus", "helix"]);
+const VOICES = new Set(["", ...XAI_VOICE_ROSTER.map((v) => v.id)]);
 
 export const dynamic = "force-dynamic";
 

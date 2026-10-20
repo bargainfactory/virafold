@@ -58,12 +58,32 @@ export function isFrameLine(line: DialogueLine): boolean {
   return !line.voice && !NARRATOR_RE.test(line.speaker);
 }
 
-/** Distinct fallback voices for speakers nobody assigned one to. */
-const VOICE_POOL = ["luna", "orion", "perseus", "helix"];
-// Gendered pools so a grandmother never lands a baritone: eve/luna read
-// female, orion/perseus/helix read male in the xAI voice lineup.
-const POOL_F = ["luna", "eve"];
-const POOL_M = ["orion", "perseus", "helix"];
+/**
+ * The full xAI voice roster with genders, as returned by GET /v1/tts/voices
+ * (fetched live 2026-10-19). Big casts draw distinct voices from here.
+ */
+export const XAI_VOICE_ROSTER: { id: string; g: "f" | "m" }[] = [
+  { id: "eve", g: "f" }, { id: "luna", g: "f" }, { id: "aurora", g: "f" }, { id: "celeste", g: "f" },
+  { id: "iris", g: "f" }, { id: "ara", g: "f" }, { id: "carina", g: "f" }, { id: "liora", g: "f" },
+  { id: "ursa", g: "f" },
+  { id: "orion", g: "m" }, { id: "perseus", g: "m" }, { id: "helix", g: "m" }, { id: "atlas", g: "m" },
+  { id: "kepler", g: "m" }, { id: "leo", g: "m" }, { id: "castor", g: "m" }, { id: "altair", g: "m" },
+  { id: "cosmo", g: "m" }, { id: "helios", g: "m" }, { id: "lumen", g: "m" }, { id: "lux", g: "m" },
+  { id: "naksh", g: "m" }, { id: "rex", g: "m" }, { id: "rigel", g: "m" }, { id: "sal", g: "m" },
+  { id: "sirius", g: "m" }, { id: "zagan", g: "m" }, { id: "zenith", g: "m" },
+];
+
+export function isXaiVoice(id: string): boolean {
+  return XAI_VOICE_ROSTER.some((v) => v.id === id);
+}
+
+/** Distinct fallback voices for speakers nobody assigned one to. The first
+ *  four stay in their historic order so old scripts re-render with the same
+ *  voices; larger casts keep drawing fresh ones from the roster. */
+const VOICE_POOL = ["luna", "orion", "perseus", "helix", "aurora", "atlas", "iris", "kepler"];
+// Gendered pools so a grandmother never lands a baritone.
+const POOL_F = XAI_VOICE_ROSTER.filter((v) => v.g === "f" && v.id !== "eve").map((v) => v.id).concat("eve");
+const POOL_M = XAI_VOICE_ROSTER.filter((v) => v.g === "m").map((v) => v.id);
 
 const FEMALE_HINT =
   /\b(woman|women|girl|grandmother|grandma|mother|mom|mama|lady|female|queen|princess|sister|aunt|wife|daughter|she|her|hers)\b/i;

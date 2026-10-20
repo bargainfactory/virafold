@@ -185,3 +185,99 @@ export async function animateStill(opts: {
     for (const t of refTokens) fs.rmSync(path.join(FRAMES_DIR, `${t}.png`), { force: true });
   }
 }
+
+/**
+ * Lip-synced speaking close-up (verified live): the premium video model speaks
+ * the line from the prompt in an xAI voice (reference_audios {voice_id} — the
+ * form that needs no external-URL permission) while animating the character's
+ * mouth to it. The returned mp4 carries the speech as its own audio track;
+ * callers use that audio AS the line's voice-track segment, so picture and
+ * sound are from one clip and sync is exact by construction.
+ */
+export async function generateSpeakClip(opts: {
+  email: string;
+  startImagePath: string;
+  prompt: string;
+  voiceId: string;
+  durationSec: number;
+}): Promise<{ file: string; billedSeconds: number } | null> {
+  const key = resolveField("llm", "xaiApiKey");
+  if (!key) return null;
+  const dur = Math.min(15, Math.max(4, Math.ceil(opts.durationSec)));
+  let png: Buffer;
+  try {
+    png = fs.readFileSync(opts.startImagePath);
+  } catch {
+    return null;
+  }
+  const model = ANIM_MODELS.premium;
+  const hash = crypto
+    .createHash("sha256")
+    .update(png)
+    .update(opts.prompt)
+    .update(opts.voiceId)
+    .update(model)
+    .update(String(dur))
+    .digest("hex")
+    .slice(0, 16);
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  const cachedPath = path.join(CACHE_DIR, `spk-${hash}.mp4`);
+  if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 10_000) {
+    return { file: cachedPath, billedSeconds: 0 };
+  }
+  fs.mkdirSync(FRAMES_DIR, { recursive: true });
+  const token = crypto.randomBytes(16).toString("hex");
+  const framePath = path.join(FRAMES_DIR, `${token}.png`);
+  fs.writeFileSync(framePath, png);
+  const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+  try {
+    const start = await fetch("https://api.x.ai/v1/videos/generations", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model,
+        prompt: opts.prompt,
+        image: { url: `${publicOriginStatic()}/api/frames/${token}` },
+        reference_audios: [{ voice_id: opts.voiceId }],
+        duration: dur,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!start.ok) return null;
+    const started = (await start.json()) as Record<string, unknown>;
+    const requestId = String(started.request_id ?? started.id ?? "");
+    if (!requestId) return null;
+    const deadline = Date.now() + DEADLINE_MS;
+    let videoUrl: string | null = null;
+    while (Date.now() < deadline) {
+      await sleep(POLL_MS);
+      try {
+        const p = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
+          headers,
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (!p.ok) continue;
+        const j = (await p.json()) as { status?: string; video?: { url?: string }; url?: string };
+        if (j.status === "done") {
+          videoUrl = j.video?.url ?? j.url ?? null;
+          break;
+        }
+        if (j.status === "failed" || j.status === "expired") return null;
+      } catch {
+        /* keep polling */
+      }
+    }
+    if (!videoUrl) return null;
+    const dl = await fetch(videoUrl, { signal: AbortSignal.timeout(60_000) });
+    if (!dl.ok) return null;
+    const buf = Buffer.from(await dl.arrayBuffer());
+    if (buf.length < 10_000) return null;
+    fs.writeFileSync(cachedPath, buf);
+    insertEvent("anim_seconds", opts.email.toLowerCase(), JSON.stringify({ s: dur, m: model, speak: 1 }));
+    return { file: cachedPath, billedSeconds: dur };
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(framePath, { force: true });
+  }
+}
