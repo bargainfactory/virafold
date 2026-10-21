@@ -130,7 +130,9 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
       // "Hand-painted 2D" leads the prompt — a "feature film" opener primes
       // the model toward 3D renders and the style drifts shot to shot.
       `Hand-painted 2D storybook cartoon illustration, flat painterly animation style (never 3D render): ${CARTOON_FRAMING[index % CARTOON_FRAMING.length]}, soft rounded appealing shapes, characters with large expressive eyes and bright catchlights, one clear emotion readable in every pose, ${CARTOON_LOOKS[index % CARTOON_LOOKS.length]}, soft warm three-point lighting with gentle rim light and soft shadows, subtle volumetric glow around light sources, warm family-film color grade; depicting ${subject}.` +
-      (cast ? ` Recurring main character (EXACT same design in every scene): ${cast}.` : "") +
+      (cast
+        ? ` Recurring characters — include ONLY those this moment's narration calls for, and keep each one's design EXACTLY the same whenever they appear: ${cast}.`
+        : "") +
       ` Show only the people and things this scene describes — no mascots, no invented animal companions, no extra recurring characters. Vertical 9:16 composition, ${NO_TEXT}.`,
     // Image-to-video rule: describe motion, emotion and ONE camera move only —
     // never re-describe the scene the still already fixes.
