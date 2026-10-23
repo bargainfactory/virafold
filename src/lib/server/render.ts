@@ -1338,6 +1338,30 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             /* malformed props — render without them */
           }
         }
+        // Pixel identity anchor: one cast-sheet image per render. Frame-beat
+        // stills are composed by EDITING it (img2img), so the recurring cast's
+        // faces match their portraits pixel-to-pixel in every scene instead of
+        // being reinvented from a text description each time.
+        let castSheetPng: Buffer | null = null;
+        if (castRefs.length) {
+          try {
+            const n = Math.min(4, castRefs.length);
+            const inputs = castRefs.slice(0, n).flatMap((p) => ["-i", p]);
+            const fcc =
+              n > 1
+                ? castRefs.slice(0, n).map((_, j) => `[${j}:v]scale=-2:1024[s${j}]`).join(";") +
+                  `;${castRefs.slice(0, n).map((_, j) => `[s${j}]`).join("")}hstack=${n}[v]`
+                : "[0:v]scale=-2:1024[v]";
+            const rc = await run(
+              "ffmpeg",
+              ["-y", ...inputs, "-filter_complex", fcc, "-map", "[v]", "-frames:v", "1", "castsheet.png"],
+              jobDir
+            );
+            if (rc.code === 0) castSheetPng = fs.readFileSync(path.join(jobDir, "castsheet.png"));
+          } catch {
+            /* no sheet — frame beats fall back to text-described cast */
+          }
+        }
         let archIdx = 0;
         let imageBeatNo = 0;
         // Character consistency, OpenArt-style: user-picked cast wins; else a
@@ -1433,16 +1457,30 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               "Widescreen 16:9 cinematic composition"
             );
           }
+          // Frame beats with a cast sheet render as img2img edits of it — the
+          // cast's identity comes from pixels, not prose.
+          const anchored = beatFrame === true && castSheetPng !== null;
+          const genOnce = async (): Promise<Buffer | null> => {
+            if (anchored) {
+              const { editImage } = await import("./images");
+              const out = await editImage(
+                castSheetPng!,
+                `${beatPrompt} Compose this as a NEW scene using EXACTLY the characters from the reference image — same faces, same outfits, same designs. Include only the characters this moment calls for, in a natural composition — never the reference's side-by-side lineup.`
+              );
+              if (out) return out;
+            }
+            return generateBackground(beatPrompt);
+          };
           // A provider hiccup must not demote a whole feature to the waveform
           // fallback (it did once, after a heavy generation burst): retry each
           // beat with backoff, then reuse the previous beat's art as a
           // stand-in — the scene editor can re-roll that one scene later.
           // Only a failure on the very first visual aborts the plan.
-          let bg = await generateBackground(beatPrompt);
+          let bg = await genOnce();
           for (const wait of [4000, 15000]) {
             if (bg) break;
             await new Promise((r) => setTimeout(r, wait));
-            bg = await generateBackground(beatPrompt);
+            bg = await genOnce();
           }
           const prev = images[images.length - 1];
           if (bg) {
