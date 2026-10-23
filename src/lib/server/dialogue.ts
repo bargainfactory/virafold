@@ -81,9 +81,11 @@ export function isXaiVoice(id: string): boolean {
  *  four stay in their historic order so old scripts re-render with the same
  *  voices; larger casts keep drawing fresh ones from the roster. */
 const VOICE_POOL = ["luna", "orion", "perseus", "helix", "aurora", "atlas", "iris", "kepler"];
-// Gendered pools so a grandmother never lands a baritone.
+// Gendered pools so a grandmother never lands a baritone. "sal" is reserved
+// as the narrator's voice and never assigned to a character, so the storyteller
+// voice stays distinct from every speaking role.
 const POOL_F = XAI_VOICE_ROSTER.filter((v) => v.g === "f" && v.id !== "eve").map((v) => v.id).concat("eve");
-const POOL_M = XAI_VOICE_ROSTER.filter((v) => v.g === "m").map((v) => v.id);
+const POOL_M = XAI_VOICE_ROSTER.filter((v) => v.g === "m" && v.id !== "sal").map((v) => v.id);
 
 const FEMALE_HINT =
   /\b(woman|women|girl|grandmother|grandma|mother|mom|mama|lady|female|queen|princess|sister|aunt|wife|daughter|she|her|hers)\b/i;
