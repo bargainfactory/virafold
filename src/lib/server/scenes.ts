@@ -73,7 +73,9 @@ export function imagePromptFor(subject: string, index: number): string {
 export interface VideoStyle {
   key: string;
   /** Full image prompt for a beat (replaces the documentary rotation). */
-  imagePrompt: (subject: string, index: number, cast?: string) => string;
+  /** pos = the beat's position in the film (0..1) — styles that grade their
+   *  palette across the story arc use it; index-rotation otherwise. */
+  imagePrompt: (subject: string, index: number, cast?: string, pos?: number) => string;
   /** Motion prompt for AI animation of this style's stills. */
   motionPrompt: (subject: string) => string;
   /** Real stock footage clashes with drawn/graphic styles. */
@@ -127,14 +129,28 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
     // camera, lighting, render finish — which is what the image model rewards.
     // Style language is descriptive only (no studio names), identical phrases
     // every scene for series consistency.
-    imagePrompt: (subject, index, cast) =>
+    imagePrompt: (subject, index, cast, pos) => {
+      // Act-aware color journey: the palette follows the story's arc like a
+      // feature's color script — golden-hour warmth to open and close (the
+      // fireside bookends), bright daylight through the adventure, cooling
+      // into evening as the story gathers toward its lesson. Index-rotation
+      // stays the fallback for clips rendered without a position.
+      const look =
+        pos === undefined
+          ? CARTOON_LOOKS[index % CARTOON_LOOKS.length]
+          : pos < 0.18 || pos >= 0.8
+            ? CARTOON_LOOKS[0]
+            : pos < 0.55
+              ? CARTOON_LOOKS[2]
+              : CARTOON_LOOKS[1];
       // "Hand-painted 2D" leads the prompt — a "feature film" opener primes
       // the model toward 3D renders and the style drifts shot to shot.
-      `Hand-painted 2D storybook cartoon illustration, flat painterly animation style (never 3D render): ${CARTOON_FRAMING[index % CARTOON_FRAMING.length]}, soft rounded appealing shapes, characters with large expressive eyes and bright catchlights, one clear emotion readable in every pose, ${CARTOON_LOOKS[index % CARTOON_LOOKS.length]}, soft warm three-point lighting with gentle rim light and soft shadows, subtle volumetric glow around light sources, warm family-film color grade; depicting ${subject}.` +
+      return `Hand-painted 2D storybook cartoon illustration, flat painterly animation style (never 3D render): ${CARTOON_FRAMING[index % CARTOON_FRAMING.length]}, soft rounded appealing shapes, characters with large expressive eyes and bright catchlights, one clear emotion readable in every pose, ${look}, soft warm three-point lighting with gentle rim light and soft shadows, subtle volumetric glow around light sources, warm family-film color grade; depicting ${subject}.` +
       (cast
         ? ` Recurring characters — include ONLY those this moment's narration calls for, and keep each one's design EXACTLY the same whenever they appear: ${cast}.`
         : "") +
-      ` Show only the people and things this scene describes — no mascots, no invented animal companions, no extra recurring characters. Vertical 9:16 composition, ${NO_TEXT}.`,
+      ` Show only the people and things this scene describes — no mascots, no invented animal companions, no extra recurring characters. Vertical 9:16 composition, ${NO_TEXT}.`;
+    },
     // Image-to-video rule: describe motion, emotion and ONE camera move only —
     // never re-describe the scene the still already fixes. The camera's
     // character follows the scene's mood, same signal the score reads.

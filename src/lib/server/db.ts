@@ -2329,6 +2329,8 @@ export interface TranscriptWord {
   s: number;
   e: number;
   sp?: number;
+  /** 1 = sung/chanted song word — rendered as sing-along karaoke captions. */
+  k?: number;
 }
 
 export interface Clip {

@@ -453,6 +453,59 @@ export async function setYouTubeThumbnail(
   }
 }
 
+/**
+ * Upload an SRT caption track to a published YouTube video (captions.insert,
+ * multipart). Best-effort: tokens granted before the captions scope was in
+ * use, or channels without caption access, get a 401/403 — the caller skips.
+ */
+export async function uploadYouTubeCaption(
+  email: string,
+  videoId: string,
+  srt: Buffer,
+  language = "en"
+): Promise<{ ok: boolean; detail: string }> {
+  const { getPlatformAccount } = await import("./db");
+  const acct = getPlatformAccount(email, "youtube");
+  if (!acct) return { ok: false, detail: "YouTube is not connected for this account" };
+  const token = await freshToken(email, acct);
+  if (!token) return { ok: false, detail: "YouTube token expired — reconnect the account" };
+  try {
+    const meta = JSON.stringify({
+      snippet: { videoId, language, name: "", isDraft: false },
+    });
+    const boundary = `vf-cap-${Date.now().toString(36)}`;
+    const body = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
+          `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`
+      ),
+      srt,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+    const res = await fetch(
+      "https://uploads.googleapis.com/upload/youtube/v3/captions?part=snippet&uploadType=multipart",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body: new Uint8Array(body),
+      }
+    );
+    if (res.status === 401 || res.status === 403) {
+      return {
+        ok: false,
+        detail: `YouTube rejected the caption upload (${res.status}) — reconnect the account to grant caption access`,
+      };
+    }
+    if (!res.ok) return { ok: false, detail: `captions.insert ${res.status}` };
+    return { ok: true, detail: "captions uploaded" };
+  } catch {
+    return { ok: false, detail: "could not reach YouTube" };
+  }
+}
+
 export async function deliverVideo(
   email: string,
   platform: string,

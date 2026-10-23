@@ -421,6 +421,130 @@ function moodFor(text: string): Mood {
   return "shepherd";
 }
 
+// --- Ambience / foley layer ---
+//
+// Synthesized soundscapes (fully owned, no asset licensing): fireside crackle
+// with night crickets under the storytelling frame, wind and low thunder under
+// storms, waves for the sea, light wind for journeys. Rendered once to cached
+// 30s loops, then windowed over the film exactly like the score.
+
+type Amb = "fireside" | "storm" | "waves" | "wind" | "crickets";
+
+const AMB_GRAPHS: Record<Amb, { inputs: string[]; fc: string }> = {
+  fireside: {
+    inputs: ["anoisesrc=colour=brown:r=44100:d=30", "anoisesrc=colour=white:r=44100:d=30"],
+    fc: "[0:a]highpass=f=250,lowpass=f=2800,tremolo=f=9:d=0.9,volume=0.8[f];[1:a]highpass=f=3800,lowpass=f=5600,tremolo=f=12:d=0.95,tremolo=f=0.4:d=0.9,volume=0.3[c];[f][c]amix=inputs=2:normalize=0[a]",
+  },
+  storm: {
+    inputs: ["anoisesrc=colour=brown:r=44100:d=30", "anoisesrc=colour=pink:r=44100:d=30"],
+    fc: "[0:a]lowpass=f=150,tremolo=f=0.13:d=0.95,volume=0.9[r];[1:a]lowpass=f=1000,tremolo=f=0.3:d=0.7,volume=0.7[w];[r][w]amix=inputs=2:normalize=0[a]",
+  },
+  waves: {
+    inputs: ["anoisesrc=colour=pink:r=44100:d=30"],
+    fc: "[0:a]lowpass=f=500,tremolo=f=0.12:d=0.85,volume=0.8[a]",
+  },
+  wind: {
+    inputs: ["anoisesrc=colour=pink:r=44100:d=30"],
+    fc: "[0:a]lowpass=f=800,tremolo=f=0.22:d=0.6,volume=0.55[a]",
+  },
+  crickets: {
+    inputs: ["anoisesrc=colour=white:r=44100:d=30"],
+    fc: "[0:a]highpass=f=3800,lowpass=f=6000,tremolo=f=13:d=0.95,tremolo=f=0.35:d=0.9,volume=0.3[a]",
+  },
+};
+
+async function ensureAmb(kind: Amb): Promise<string | null> {
+  fs.mkdirSync(MUSIC_DIR, { recursive: true });
+  const wav = path.join(MUSIC_DIR, `amb_${kind}.wav`);
+  if (fs.existsSync(wav) && fs.statSync(wav).size > 100_000) return wav;
+  const g = AMB_GRAPHS[kind];
+  const args = ["-y", ...g.inputs.flatMap((i) => ["-f", "lavfi", "-i", i]), "-filter_complex",
+    `${g.fc.slice(0, -3)},aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo[a]`,
+    "-map", "[a]", wav];
+  const code = await sh("ffmpeg", args);
+  return code === 0 && fs.existsSync(wav) ? wav : null;
+}
+
+const SEA_RE = /\b(sea|waves?|boat|shore|harbor|sail|deep dark sea|fish)\b/i;
+const STORMY_RE = /\b(storm|thunder|tempest|howl|gale|rain)\b/i;
+
+function ambFor(text: string, frame: boolean | undefined): Amb | null {
+  if (frame) return "fireside";
+  if (STORMY_RE.test(text)) return "storm";
+  if (SEA_RE.test(text)) return "waves";
+  const m = moodFor(text);
+  if (m === "night") return "crickets";
+  if (m === "travel" || m === "tension") return "wind";
+  return null;
+}
+
+/**
+ * Build the film's ambience track: windowed soundscapes under the scenes
+ * (silence where none applies), concatenated to ambience.wav in the plan dir.
+ */
+export async function buildAmbience(
+  planDir: string,
+  beats: { text: string; start: number; dur: number; frame?: boolean }[],
+  duration: number,
+  lead: number,
+  tail: number
+): Promise<string | null> {
+  try {
+    const total = lead + duration + tail;
+    const raw: { amb: Amb | null; start: number; end: number }[] = [
+      { amb: null, start: 0, end: lead },
+    ];
+    for (const b of beats) {
+      const amb = ambFor(b.text, b.frame);
+      const start = lead + b.start;
+      const end = start + b.dur;
+      const prev = raw[raw.length - 1];
+      if (prev && (prev.amb === amb || end - start < 5)) prev.end = end;
+      else raw.push({ amb, start, end });
+    }
+    raw[raw.length - 1].end = total;
+    // Merge sub-9s slivers into their neighbor so beds don't flicker.
+    const windows: { amb: Amb | null; start: number; end: number }[] = [];
+    for (const w of raw) {
+      const prev = windows[windows.length - 1];
+      if (prev && w.end - w.start < 9) prev.end = w.end;
+      else windows.push({ ...w });
+    }
+    if (!windows.some((w) => w.amb)) return null;
+    const parts: string[] = [];
+    for (let i = 0; i < windows.length; i++) {
+      const w = windows[i];
+      const len = w.end - w.start;
+      if (len <= 0.2) continue;
+      const part = `amb_part${i}.wav`;
+      if (w.amb) {
+        const src = await ensureAmb(w.amb);
+        if (!src) return null;
+        const fadeOut = Math.max(0.1, len - 1.5);
+        const code = await sh("ffmpeg", ["-y", "-stream_loop", "-1", "-i", src, "-t", len.toFixed(3),
+          "-af", `afade=t=in:d=1.5,afade=t=out:st=${fadeOut.toFixed(2)}:d=1.5,aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo`,
+          part], planDir);
+        if (code !== 0) return null;
+      } else {
+        const code = await sh("ffmpeg", ["-y", "-f", "lavfi", "-i",
+          `anullsrc=r=44100:cl=stereo`, "-t", len.toFixed(3),
+          "-af", "aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo", part], planDir);
+        if (code !== 0) return null;
+      }
+      parts.push(part);
+    }
+    if (!parts.length) return null;
+    fs.writeFileSync(path.join(planDir, "amb_list.txt"), parts.map((p) => `file '${p}'`).join("\n"), "utf8");
+    const code = await sh("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", "amb_list.txt", "-c", "copy", "ambience.wav"], planDir);
+    for (const p of parts) fs.rmSync(path.join(planDir, p), { force: true });
+    fs.rmSync(path.join(planDir, "amb_list.txt"), { force: true });
+    if (code !== 0 || !fs.existsSync(path.join(planDir, "ambience.wav"))) return null;
+    return "ambience.wav";
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Build the film's score: mood windows from the beats (in film time, i.e.
  * including the title-card lead), theme over the open and close, cues looped,

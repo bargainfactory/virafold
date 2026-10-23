@@ -170,15 +170,31 @@ export function buildAss(
     const start = Math.max(0, chunk[0].s - clipStart);
     const end = Math.min(clipEnd - clipStart, chunk[chunk.length - 1].e - clipStart);
     if (end > start) {
-      let text = assEscape(chunk.map((w) => w.w).join(" "));
-      if (cfg.upper) text = text.toUpperCase();
-      if (text) {
-        const sp = chunk[0].sp;
-        const tint =
-          sp !== undefined ? `{\\1c&H${SPEAKER_TINTS[sp % SPEAKER_TINTS.length]}&}` : "";
+      if (chunk[0].k) {
+        // Sing-along karaoke: song words fill word-by-word as they're sung
+        // (ASS \k sweeps SecondaryColour → PrimaryColour), slightly enlarged,
+        // gold on white — kids can sing along like a bouncing ball.
+        const parts = chunk.map((w, j) => {
+          const next = chunk[j + 1];
+          const cs = Math.max(1, Math.round(((next ? next.s : w.e) - w.s) * 100));
+          let t = assEscape(w.w);
+          if (cfg.upper) t = t.toUpperCase();
+          return `{\\k${cs}}${t}${j < chunk.length - 1 ? " " : ""}`;
+        });
         events.push(
-          `Dialogue: 0,${fmtAssTime(start)},${fmtAssTime(end)},Default,,0,0,0,,${tint}${text}`
+          `Dialogue: 0,${fmtAssTime(start)},${fmtAssTime(end)},Default,,0,0,0,,{\\fscx118\\fscy118}{\\1c&H3CD7F0&}{\\2c&HFFFFFF&}${parts.join("")}`
         );
+      } else {
+        let text = assEscape(chunk.map((w) => w.w).join(" "));
+        if (cfg.upper) text = text.toUpperCase();
+        if (text) {
+          const sp = chunk[0].sp;
+          const tint =
+            sp !== undefined ? `{\\1c&H${SPEAKER_TINTS[sp % SPEAKER_TINTS.length]}&}` : "";
+          events.push(
+            `Dialogue: 0,${fmtAssTime(start)},${fmtAssTime(end)},Default,,0,0,0,,${tint}${text}`
+          );
+        }
       }
     }
     chunk = [];
@@ -187,8 +203,10 @@ export function buildAss(
   // the punchy 3-word chunks tuned for vertical Shorts.
   const chunkWords = res.w > res.h ? cfg.wordsPerChunk + 3 : cfg.wordsPerChunk;
   for (const w of inRange) {
-    // A speaker change (diarized interviews) always starts a fresh caption.
+    // A speaker change (diarized interviews) always starts a fresh caption,
+    // and song words never share a caption with spoken ones (karaoke chunks).
     if (chunk.length && w.sp !== undefined && w.sp !== chunk[chunk.length - 1].sp) flush();
+    if (chunk.length && (w.k ? 1 : 0) !== (chunk[chunk.length - 1].k ? 1 : 0)) flush();
     chunk.push(w);
     const dur = chunk[chunk.length - 1].e - chunk[0].s;
     if (chunk.length >= chunkWords || dur >= (res.w > res.h ? 3.2 : 2.2)) flush();
@@ -212,6 +230,40 @@ export function buildAss(
     ...events,
     "",
   ].join("\n");
+}
+
+/**
+ * Plain SRT closed captions from word timings (offset = the title-card lead),
+ * grouped into ~7-word cues — uploaded to YouTube alongside the published
+ * video so the burned-in captions get a real, searchable caption track too.
+ */
+export function srtFromWords(words: TranscriptWord[], offset = 0): string {
+  const fmt = (t: number) => {
+    const ms = Math.max(0, Math.round(t * 1000));
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor(ms / 60000) % 60;
+    const s = Math.floor(ms / 1000) % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms % 1000).padStart(3, "0")}`;
+  };
+  const cues: string[] = [];
+  let chunk: TranscriptWord[] = [];
+  const flush = () => {
+    if (!chunk.length) return;
+    const text = chunk.map((w) => w.w).join(" ").trim();
+    if (text) {
+      cues.push(
+        `${cues.length + 1}\n${fmt(chunk[0].s + offset)} --> ${fmt(chunk[chunk.length - 1].e + offset)}\n${text}\n`
+      );
+    }
+    chunk = [];
+  };
+  for (const w of words) {
+    if (chunk.length && w.sp !== undefined && w.sp !== chunk[chunk.length - 1].sp) flush();
+    chunk.push(w);
+    if (chunk.length >= 7 || chunk[chunk.length - 1].e - chunk[0].s >= 3.2) flush();
+  }
+  flush();
+  return cues.join("\n");
 }
 
 /** Video frame dimensions via ffprobe; null when unreadable. */
@@ -614,6 +666,10 @@ export interface FilmBeat {
   file: string;
   /** The exact image prompt used (re-roll fuel); empty for broll/cards/arch. */
   prompt: string;
+  /** Storytelling-frame beat (the fireside) — drives the ambience layer. */
+  frame?: boolean;
+  /** Sung beat (a song run) — its captions render as sing-along karaoke. */
+  song?: boolean;
 }
 
 export interface FilmPlan {
@@ -634,6 +690,9 @@ export interface FilmPlan {
   camera?: string;
   /** Mood-mapped score track in the plan dir, mixed under the narration. */
   music?: string;
+  /** Synthesized ambience/foley track (fireside crackle, wind, waves) in the
+   *  plan dir, mixed very low under everything. */
+  ambience?: string;
   /** Branded title/end card segments and the timeline they add around the voice. */
   openCard?: string;
   endCard?: string;
@@ -809,10 +868,20 @@ export async function makeFilmCards(
     const common = [
       "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30", "-an",
     ];
+    // Cast-art open: when the render built a cast sheet, the title card plays
+    // over the heroes themselves — blurred and dimmed so the type still reads —
+    // like a real feature's one-sheet. Indigo card otherwise.
+    const sheet = fs.existsSync(path.join(planDir, "castsheet.png"));
     const open = await run(
       "ffmpeg",
-      ["-y", "-f", "lavfi", "-t", String(lead), "-i", `color=c=0x15112a:s=${R.w}x${R.h}:r=30`,
+      ["-y",
+       ...(sheet
+         ? ["-loop", "1", "-t", String(lead), "-i", "castsheet.png"]
+         : ["-f", "lavfi", "-t", String(lead), "-i", `color=c=0x15112a:s=${R.w}x${R.h}:r=30`]),
        "-vf",
+       (sheet
+         ? `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h},boxblur=8,eq=brightness=-0.25:saturation=0.85,`
+         : "") +
        `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=h*0.30,` +
        `drawtext=fontfile=${FONT}:textfile=card_main.txt:fontsize=${big}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=(h-text_h)/2,` +
        `fade=t=in:d=0.5,fade=t=out:st=${(lead - 0.5).toFixed(1)}:d=0.5,setsar=1`,
@@ -854,6 +923,8 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
   const tail = plan.tail ?? 0;
   const total = lead + plan.duration + tail;
   const music = plan.music && fs.existsSync(path.join(planDir, plan.music)) ? plan.music : null;
+  const ambience =
+    plan.ambience && fs.existsSync(path.join(planDir, plan.ambience)) ? plan.ambience : null;
 
   const args = ["-y", "-i", "silent.mp4", "-i", plan.voiceFile,
     "-f", "lavfi", "-t", String(total),
@@ -862,17 +933,35 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
   if (music) {
     // Voice delayed past the title card; the score ducks under it via
     // sidechain compression and carries the cards and the end credits alone.
+    // The ambience layer (fireside crackle, wind, waves) sits even lower —
+    // felt more than heard, under both the voice and the score.
     args.push("-i", music);
+    let ambPart = "";
+    const mixIns = ["[voB]", "[bed]", "[md]"];
+    if (ambience) {
+      args.push("-i", ambience);
+      ambPart = `[4:a]volume=0.12,apad[am];`;
+      mixIns.push("[am]");
+    }
     fc =
       `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=2[voA][voB];` +
       `[3:a]volume=0.32,apad[mu];[mu][voA]sidechaincompress=threshold=0.02:ratio=6:attack=80:release=900[md];` +
       `[2:a]volume=0.03[bed];` +
-      `[voB][bed][md]amix=inputs=3:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
+      ambPart +
+      `${mixIns.join("")}amix=inputs=${mixIns.length}:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
       `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
   } else if (lead > 0 || tail > 0) {
+    let ambPart = "";
+    const mixIns = ["[vo]", "[bed]"];
+    if (ambience) {
+      args.push("-i", ambience);
+      ambPart = `[3:a]volume=0.12,apad[am];`;
+      mixIns.push("[am]");
+    }
     fc =
       `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[2:a]volume=0.05[bed];` +
-      `[vo][bed]amix=inputs=2:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
+      ambPart +
+      `${mixIns.join("")}amix=inputs=${mixIns.length}:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
       `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
   } else {
     fc = "[2:a]volume=0.05[bed];[1:a][bed]amix=inputs=2:duration=first[mix];[mix]loudnorm=I=-14:TP=-1.5:LRA=11[a]";
@@ -976,7 +1065,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   let voiceFile = "voice.mp3";
   let duration: number;
   let words: TranscriptWord[];
-  let dialogueBeats: { text: string; dur: number; frame?: boolean; speak?: string }[] | null = null;
+  let dialogueBeats: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean }[] | null = null;
 
   try {
     if (dialogue) {
@@ -1036,7 +1125,15 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         for (const c of cands.slice(0, 6)) speakSet.set(c.i, { portrait: c.portrait, meta: c.meta });
       }
       const spIndex = new Map<string, number>();
-      const segs: { file: string; dur: number; line: (typeof dialogue)[number]; sp?: number; speak?: string }[] = [];
+      const segs: {
+        file: string;
+        dur: number;
+        line: (typeof dialogue)[number];
+        sp?: number;
+        speak?: string;
+        song?: boolean;
+        gap?: number;
+      }[] = [];
       for (let i = 0; i < dialogue.length; i++) {
         const line = dialogue[i];
         const v = voices.get(line.speaker);
@@ -1100,10 +1197,39 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         }
         segs.push({ file: f, dur: d, line, sp, ...(speakVid ? { speak: speakVid } : {}) });
       }
-      // Stitch: pad each line with the gap, concat, decode to WAV once.
+      // Song runs: four or more consecutive short cast lines trading back and
+      // forth read as sung verses — their captions render as sing-along
+      // karaoke, and their words carry the k flag through alignment.
+      {
+        const isSongLine = (s: (typeof segs)[number]) =>
+          isFrameLine(s.line) && s.line.text.length < 100;
+        let runStart = 0;
+        for (let i = 0; i <= segs.length; i++) {
+          if (i < segs.length && isSongLine(segs[i])) continue;
+          const run = segs.slice(runStart, i);
+          if (run.length >= 4 && new Set(run.map((s) => s.line.speaker)).size >= 2) {
+            for (const s of run) s.song = true;
+          }
+          runStart = i + 1;
+        }
+      }
+      // Comic and interactive timing: a flat 0.3s gap between every line reads
+      // robotic. Call-and-response lines hold 2.5s so kids can actually shout
+      // the answer; punchy cast exclamations get a 0.7s beat for the laugh to
+      // land. Song lines keep the tight musical gap.
+      const INTERACT_RE =
+        /say it (out loud|with me)|i'?ll wait|we'?ll wait|shout it|got it\?|do you have (it|them) in your mind/i;
+      for (const s of segs) {
+        s.gap = INTERACT_RE.test(s.line.text)
+          ? 2.5
+          : !s.song && isFrameLine(s.line) && /[!?]["']?$/.test(s.line.text.trim())
+            ? 0.7
+            : LINE_GAP;
+      }
+      // Stitch: pad each line with its gap, concat, decode to WAV once.
       const inputs = segs.flatMap((s) => ["-i", s.file]);
       const fc =
-        segs.map((_, i) => `[${i}:a]apad=pad_dur=${LINE_GAP}[p${i}]`).join(";") +
+        segs.map((s, i) => `[${i}:a]apad=pad_dur=${(s.gap ?? LINE_GAP).toFixed(2)}[p${i}]`).join(";") +
         `;${segs.map((_, i) => `[p${i}]`).join("")}concat=n=${segs.length}:v=0:a=1[a]`;
       const cres = await run(
         "ffmpeg",
@@ -1122,8 +1248,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // illustration sooner (5s vs 8s), so the tale gets most of the pictures.
       words = [];
       let t = 0;
-      const beatsAcc: { text: string; dur: number; frame?: boolean; speak?: string }[] = [];
-      let acc = { text: "", dur: 0, frame: false };
+      const beatsAcc: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean }[] = [];
+      let acc = { text: "", dur: 0, frame: false, song: false };
       const flush = () => {
         if (acc.dur <= 0) return;
         const prev = beatsAcc[beatsAcc.length - 1];
@@ -1132,26 +1258,44 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (prev && !prev.speak && acc.dur < 2) {
           prev.dur += acc.dur;
           prev.text += ` ${acc.text.trim()}`;
-        } else beatsAcc.push({ text: acc.text.trim(), dur: acc.dur, frame: acc.frame });
-        acc = { text: "", dur: 0, frame: acc.frame };
+        } else {
+          beatsAcc.push({
+            text: acc.text.trim(),
+            dur: acc.dur,
+            frame: acc.frame,
+            ...(acc.song ? { song: true } : {}),
+          });
+        }
+        acc = { text: "", dur: 0, frame: acc.frame, song: acc.song };
       };
       for (const s of segs) {
+        const gap = s.gap ?? LINE_GAP;
         for (const w of estimateWords(s.line.text, s.dur)) {
-          words.push({ ...w, s: w.s + t, e: w.e + t, ...(s.sp !== undefined ? { sp: s.sp } : {}) });
+          words.push({
+            ...w,
+            s: w.s + t,
+            e: w.e + t,
+            ...(s.sp !== undefined ? { sp: s.sp } : {}),
+            ...(s.song ? { k: 1 } : {}),
+          });
         }
-        t += s.dur + LINE_GAP;
+        t += s.dur + gap;
         // A speaking close-up is always its own beat: one line, one clip.
         if (s.speak) {
           flush();
-          beatsAcc.push({ text: s.line.text, dur: s.dur + LINE_GAP, frame: true, speak: s.speak });
-          acc = { text: "", dur: 0, frame: true };
+          beatsAcc.push({ text: s.line.text, dur: s.dur + gap, frame: true, speak: s.speak });
+          acc = { text: "", dur: 0, frame: true, song: false };
           continue;
         }
         const frame = isFrameLine(s.line);
-        if (acc.dur > 0 && frame !== acc.frame) flush();
+        const song = s.song === true;
+        // A song starting or ending is a visual boundary too — the sing-along
+        // beat gets its own illustration window.
+        if (acc.dur > 0 && (frame !== acc.frame || song !== acc.song)) flush();
         acc.frame = frame;
+        acc.song = song;
         acc.text += ` ${s.line.text}`;
-        acc.dur += s.dur + LINE_GAP;
+        acc.dur += s.dur + gap;
         if (acc.dur >= (frame ? 8 : 5)) flush();
       }
       if (acc.dur > 0) {
@@ -1166,16 +1310,22 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // with each word re-assigned its line's speaker for the caption tints.
       const aligned = await alignNarration(jobDir, voiceFile);
       if (aligned && aligned.length >= words.length * 0.5) {
-        const windows: { s: number; e: number; sp?: number }[] = [];
+        const windows: { s: number; e: number; sp?: number; k?: number }[] = [];
         let wt = 0;
         for (const seg of segs) {
-          windows.push({ s: wt, e: wt + seg.dur + LINE_GAP, sp: seg.sp });
-          wt += seg.dur + LINE_GAP;
+          const gap = seg.gap ?? LINE_GAP;
+          windows.push({ s: wt, e: wt + seg.dur + gap, sp: seg.sp, ...(seg.song ? { k: 1 } : {}) });
+          wt += seg.dur + gap;
         }
         words = aligned.map((w) => {
           const mid = (w.s + w.e) / 2;
           const win = windows.find((x) => mid >= x.s && mid < x.e);
-          return win?.sp !== undefined ? { ...w, sp: win.sp } : w;
+          if (!win) return w;
+          return {
+            ...w,
+            ...(win.sp !== undefined ? { sp: win.sp } : {}),
+            ...(win.k ? { k: 1 } : {}),
+          };
         });
       }
     } else {
@@ -1449,7 +1599,12 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const beatExtra = beatFrame === true ? "" : propExtra;
           let beatPrompt =
             (styleDef
-              ? styleDef.imagePrompt(beatSubject, i, beatCast)
+              ? styleDef.imagePrompt(
+                  beatSubject,
+                  i,
+                  beatCast,
+                  scenes.length > 1 ? i / (scenes.length - 1) : 0
+                )
               : imagePromptFor(beatSubject, i)) + beatExtra;
           if (wide) {
             beatPrompt = beatPrompt.replace(
@@ -1583,6 +1738,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           kind: kinds[i],
           file: images[i],
           prompt: beatPrompts[i] ?? "",
+          ...((b as { frame?: boolean }).frame === true ? { frame: true } : {}),
+          ...((b as { song?: boolean }).song === true ? { song: true } : {}),
         };
         t0 += d;
         return fb;
@@ -1605,14 +1762,29 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // film, and the mood-mapped score mixed (and ducked) under the voice.
       const cards = await makeFilmCards(jobDir, plan, clip.title).catch(() => null);
       if (cards) Object.assign(plan, cards);
-      const { buildScore } = await import("./music");
+      const { buildScore, buildAmbience } = await import("./music");
       const score = await buildScore(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
       if (score) plan.music = score;
+      // SFX/ambience layer: synthesized soundscapes (fireside crackle under
+      // the frame, wind on journeys, waves at sea) windowed over the film.
+      const amb = await buildAmbience(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
+      if (amb) plan.ambience = amb;
       for (const b of planBeats) {
         await renderBeatSegment(jobDir, plan, b);
       }
       await spliceFilm(jobDir, plan, outAbs);
       fs.writeFileSync(path.join(jobDir, "plan.json"), JSON.stringify(plan), "utf8");
+      // Closed-caption sidecar: the real word timings (shifted past the title
+      // card) as SRT — the scheduler uploads it to YouTube after publishing.
+      try {
+        fs.writeFileSync(
+          path.join(jobDir, "captions.srt"),
+          srtFromWords(words, plan.lead ?? 0),
+          "utf8"
+        );
+      } catch {
+        /* captions sidecar is a bonus */
+      }
       // Persist the working dir as the clip's edit plan (replacing any older one).
       const planDir = planDirFor(clip.id);
       fs.rmSync(planDir, { recursive: true, force: true });
@@ -1653,6 +1825,42 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         }
       } catch {
         /* study notes are a bonus — never fail a finished film over them */
+      }
+      // YouTube chapters, computed from the plan's real timeline and appended
+      // to the description — YouTube parses "M:SS Title" lines into a chapter
+      // bar, which doubles as a parent's map of the episode.
+      try {
+        const lead = plan.lead ?? 0;
+        const fmt = (s: number) =>
+          `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+        const marks: { t: number; label: string }[] = [{ t: 0, label: "Opening" }];
+        if (lead > 0) marks.push({ t: lead, label: "By the lamplight" });
+        const firstStory = planBeats.find((b) => b.frame !== true);
+        if (firstStory) marks.push({ t: lead + firstStory.start, label: "The story begins" });
+        let inSong = false;
+        let verseDone = false;
+        for (const b of planBeats) {
+          if (b.song && !inSong) marks.push({ t: lead + b.start, label: "Sing along" });
+          inSong = b.song === true;
+          if (!verseDone && /lamp down low/i.test(b.text)) {
+            marks.push({ t: lead + b.start, label: "The memory verse" });
+            verseDone = true;
+          }
+        }
+        marks.push({ t: lead + t0, label: "Goodnight" });
+        marks.sort((a, b) => a.t - b.t);
+        // YouTube needs chapters at least 10s apart — spacing measured against
+        // the last KEPT mark, so one crowded label never knocks out the rest.
+        const kept: typeof marks = [];
+        for (const m of marks) {
+          if (!kept.length || m.t - kept[kept.length - 1].t >= 10) kept.push(m);
+        }
+        if (kept.length >= 3) {
+          const block = `Chapters:\n${kept.map((m) => `${fmt(m.t)} ${m.label}`).join("\n")}`;
+          clip.reason = clip.reason?.trim() ? `${clip.reason.trim()}\n\n${block}` : block;
+        }
+      } catch {
+        /* chapters are a bonus too */
       }
     } else {
       const args = [

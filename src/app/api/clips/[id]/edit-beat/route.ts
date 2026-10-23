@@ -103,6 +103,13 @@ export async function POST(
       const score = await buildScore(dir, plan.beats, plan.duration, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
       if (score) plan.music = score;
     }
+    // Same for the ambience layer — its windows are baked to beat timings.
+    if (plan.ambience) {
+      const { buildAmbience } = await import("@/lib/server/music");
+      const amb = await buildAmbience(dir, plan.beats, plan.duration, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
+      if (amb) plan.ambience = amb;
+      else delete plan.ambience;
+    }
     try {
       await spliceFilm(dir, plan, path.join(process.cwd(), clip.outputPath));
     } catch (e) {

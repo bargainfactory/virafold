@@ -110,6 +110,27 @@ export async function publishDuePosts(): Promise<number> {
               /* best-effort — unverified channels can't set thumbnails */
             }
           }
+          // Closed captions: films persist a captions.srt sidecar next to
+          // their edit plan — uploaded as a real caption track (searchable,
+          // toggleable, auto-translatable) alongside the burned-in captions.
+          if (result.ok && externalId && post.platform === "YouTube") {
+            try {
+              const fsx = await import("node:fs");
+              const { planDirFor } = await import("./render");
+              const srtPath = path.join(planDirFor(clip.id), "captions.srt");
+              if (fsx.existsSync(srtPath)) {
+                const { uploadYouTubeCaption } = await import("./connect");
+                await uploadYouTubeCaption(
+                  post.userEmail,
+                  externalId,
+                  fsx.readFileSync(srtPath),
+                  clip.lang || "en"
+                );
+              }
+            } catch {
+              /* captions are best-effort — the burned-in ones always exist */
+            }
+          }
         }
       } else if (clip && clip.status !== "ready") {
         // Not rendered yet — push the slot 10 minutes and let it retry.
