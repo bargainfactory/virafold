@@ -338,6 +338,11 @@ const WONDER_RE =
   /\b(let there be|creat|heavens?|glory|miracle|spoke|light broke|amazed|wonder|obey|stars? (came|declare)|very good)\b/i;
 const NIGHT_RE = /\b(night|sleep|asleep|lamp down|bed(time)?|quiet|still|hush|moonlit|evening)\b/i;
 
+/** Shared scene-mood read — the score and the camera breathe together. */
+export function sceneMood(text: string): Mood {
+  return moodFor(text);
+}
+
 function moodFor(text: string): Mood {
   if (TENSION_RE.test(text)) return "tension";
   if (JOY_RE.test(text)) return "joy";

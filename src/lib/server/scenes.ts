@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { llmComplete } from "./generate";
+import { sceneMood } from "./music";
 
 export interface SceneBar {
   label: string;
@@ -135,9 +136,22 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
         : "") +
       ` Show only the people and things this scene describes — no mascots, no invented animal companions, no extra recurring characters. Vertical 9:16 composition, ${NO_TEXT}.`,
     // Image-to-video rule: describe motion, emotion and ONE camera move only —
-    // never re-describe the scene the still already fixes.
-    motionPrompt: (subject) =>
-      `One clear emotional performance beat: ${subject}. The character's feeling leads the motion — eyes, brows and posture shift naturally with it. Gentle character movement with soft bouncy secondary motion and slow background parallax. One camera move only: a slow, gentle push-in. Keep the exact same art style, character designs, lighting and framing. Add no new characters, no new objects, no text.`,
+    // never re-describe the scene the still already fixes. The camera's
+    // character follows the scene's mood, same signal the score reads.
+    motionPrompt: (subject) => {
+      const mood = sceneMood(subject);
+      const cam =
+        mood === "tension"
+          ? "a slow, creeping push-in with the faintest handheld sway"
+          : mood === "joy"
+            ? "a buoyant, gently drifting camera"
+            : mood === "wonder"
+              ? "a gentle rising crane move"
+              : mood === "night"
+                ? "an almost-still camera that barely breathes"
+                : "a slow, gentle push-in";
+      return `One clear emotional performance beat: ${subject}. The character's feeling leads the motion — eyes, brows and posture shift naturally with it. Gentle character movement with soft bouncy secondary motion and slow background parallax. One camera move only: ${cam}. Keep the exact same art style, character designs, lighting and framing. Add no new characters, no new objects, no text.`;
+    },
     allowBroll: false,
     allowCards: false,
     castSheet: true,
@@ -366,7 +380,7 @@ export async function planScenes(
       "- list: the beat enumerates 2-4 concrete steps/items → listTitle + listItems (max 5 words each).",
       "- quote: the beat is one punchy declarative line worth reading on screen → quote (the line, max 12 words, verbatim or lightly trimmed).",
       "- broll: the beat describes a real-world activity, place, or object that stock footage definitely has (someone typing, rain on a window, a busy street, pouring coffee) → brollQuery: a 2-5 word stock-footage search phrase, concrete and literal.",
-      "- image: everything else → imageSubject: a concrete, filmable subject (max 12 words), literal not abstract — a person doing something, an object, a place. Never 'abstract concept of growth'. The subject must restate what THIS beat's narration itself describes — never a subject the narration doesn't mention.",
+      "- image: everything else → imageSubject: a concrete, filmable subject (max 12 words), literal not abstract — a person doing something, an object, a place. Never 'abstract concept of growth'. The subject must restate what THIS beat's narration itself describes — never a subject the narration doesn't mention. When the narration dwells on a small object (coins, bread, stones, a lamp), make the subject an extreme close-up detail shot of that object.",
       "HARD RULE: every number you output must appear verbatim in that beat's narration. Never invent or round numbers.",
       "Return scenes in the same order and count as the beats. Vary the kinds — a run of three identical kinds is a failure unless the narration demands it.",
     ].join("\n"),

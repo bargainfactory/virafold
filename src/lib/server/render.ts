@@ -630,6 +630,8 @@ export interface FilmPlan {
   wide?: boolean;
   /** "straight" = studio cut grammar: no per-beat fades (cards carry them). */
   cuts?: string;
+  /** "v2" = directed camera pass on still beats (eased mood-matched moves). */
+  camera?: string;
   /** Mood-mapped score track in the plan dir, mixed under the narration. */
   music?: string;
   /** Branded title/end card segments and the timeline they add around the voice. */
@@ -646,6 +648,59 @@ function planResOf(plan: FilmPlan): PlayRes {
 
 const CINE_LOOK =
   "curves=blue='0/0.06 0.5/0.47 1/0.92':red='0/0.02 0.5/0.53 1/1',eq=contrast=1.06:saturation=1.08,";
+
+// Camera pass v2: still beats get directed moves instead of one flat zoom —
+// eased (smoothstep) with a short hold before the move starts, magnitude and
+// character chosen by the scene's mood (shared with the score), move TYPE
+// matched to the shot in the framing rotation (wides drift laterally,
+// close-ups push, reveals rise, three-quarters travel diagonally), zooms
+// anchored center (the old default drifted toward the top-left corner),
+// a slow Dutch tilt under tension, and a brief jolt on impact beats.
+const IMPACT_RE = /\b(fell|falling|crash(ed)?|thunder|struck|slammed|shook|burst|collapsed|toppled)\b/i;
+
+function cameraV2(b: FilmBeat, frames: number, R: PlayRes, mood: string): string {
+  const W = R.w, H = R.h;
+  const OW = 2 * Math.round((W * 1.08) / 2);
+  const OH = 2 * Math.round((H * 1.08) / 2);
+  const hold = Math.min(15, Math.floor(frames / 4));
+  const span = Math.max(1, frames - 1 - hold);
+  const P = `min(1,max(0,(on-${hold})/${span}))`;
+  const E = `(${P}*${P}*(3-2*${P}))`;
+  const mag =
+    mood === "tension" ? 0.06 : mood === "joy" ? 0.16 : mood === "wonder" ? 0.14 : mood === "night" ? 0.05 : 0.1;
+  const out = b.i % 2 === 1; // alternate push and pull across beats
+  const zIn = `1+${mag.toFixed(3)}*${E}`;
+  const zOut = `${(1 + mag).toFixed(3)}-${mag.toFixed(3)}*${E}`;
+  let z = out ? zOut : zIn;
+  let x = `iw/2-(iw/zoom/2)`;
+  let y = `ih/2-(ih/zoom/2)`;
+  const shot = b.i % 5;
+  if (shot === 0) {
+    // Wide: constant gentle zoom, the landscape slides past laterally.
+    z = (1 + mag * 0.7).toFixed(3);
+    x = out ? `(iw-iw/zoom)*(1-${E})` : `(iw-iw/zoom)*${E}`;
+  } else if (shot === 3) {
+    // Reveal: the camera rises through the frame while pushing in.
+    z = zIn;
+    y = `(ih-ih/zoom)*(1-${E})`;
+  } else if (shot === 4) {
+    // Three-quarter: diagonal travel from one corner's story to the other's.
+    z = (1 + mag).toFixed(3);
+    x = out ? `(iw-iw/zoom)*(1-${E})` : `(iw-iw/zoom)*${E}`;
+    y = out ? `(ih-ih/zoom)*${E}` : `(ih-ih/zoom)*(1-${E})`;
+  }
+  const scale2 = `scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH}`;
+  const zp = `zoompan=z='${z}':x='${x}':y='${y}':d=${frames}:s=${OW}x${OH}:fps=30`;
+  const secs = (frames / 30).toFixed(2);
+  const tilt =
+    mood === "tension" && (shot === 1 || shot === 2)
+      ? `rotate=a='0.045*min(1\\,t/${secs})':ow=${OW}:oh=${OH}:c=black,`
+      : "";
+  const jolt = IMPACT_RE.test(b.text)
+    ? `crop=${W}:${H}:x='(iw-${W})/2+if(lt(n,12),9*sin(n*12.9),0)':y='(ih-${H})/2+if(lt(n,12),6*sin(n*17.3),0)'`
+    : `crop=${W}:${H}:x='(iw-${W})/2':y='(ih-${H})/2'`;
+  return `${scale2},${zp},${tilt}${jolt}`;
+}
 
 function beatFrames(plan: FilmPlan, b: FilmBeat): number {
   const startF = Math.round(b.start * 30);
@@ -685,12 +740,17 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
     inputs = ["-stream_loop", "-1", "-t", (dur + 0.5).toFixed(2), "-i", b.file];
     fc = `[0:v]${scale},fps=30,${look}${fades},setsar=1,ass=${assName}[v]`;
   } else if (b.kind === "image" || b.kind === "arch") {
-    const zoom =
-      b.i % 2 === 0
-        ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=${R.w}x${R.h}:fps=30`
-        : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=${R.w}x${R.h}:fps=30`;
     inputs = ["-i", b.file];
-    fc = `[0:v]${scale},${zoom},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}[v]`;
+    if (plan.camera === "v2") {
+      const { sceneMood } = await import("./music");
+      fc = `[0:v]${cameraV2(b, frames, R, sceneMood(b.text))},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}[v]`;
+    } else {
+      const zoom =
+        b.i % 2 === 0
+          ? `zoompan=z='min(zoom+0.0012,1.12)':d=${frames}:s=${R.w}x${R.h}:fps=30`
+          : `zoompan=z='if(eq(on,1),1.12,max(zoom-0.0012,1.0))':d=${frames}:s=${R.w}x${R.h}:fps=30`;
+      fc = `[0:v]${scale},${zoom},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}[v]`;
+    }
   } else {
     inputs = ["-loop", "1", "-t", (dur + 0.3).toFixed(2), "-framerate", "30", "-i", b.file];
     fc =
@@ -1409,6 +1469,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // characters match pixel-for-pixel across scenes.
           const maxJobs = clip.animate >= 2 ? scenes.length : 8;
           const tasks: (() => Promise<void>)[] = [];
+          // One dolly-zoom per premium film: the single most dramatic reveal
+          // gets the Vertigo treatment on the premium model.
+          let dollyUsed = false;
           for (let i = 0; i < scenes.length && tasks.length < maxJobs; i++) {
             if (kinds[i] !== "image") continue;
             const want = Math.min(15, Math.max(1, Math.ceil(beats[i].dur)));
@@ -1420,15 +1483,22 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               clip.animate === 3 &&
               castRefs.length > 0 &&
               (dialogueBeats ? (beats[idx] as { frame?: boolean }).frame === true : false);
+            const dolly =
+              !dollyUsed &&
+              clip.animate === 3 &&
+              /\b(giant|towered|towering|loomed|enormous|vast|mighty|wall of)\b/i.test(beats[idx].text);
+            if (dolly) dollyUsed = true;
             tasks.push(() =>
               animateStill({
                 email: clip.userEmail,
                 pngPath: path.join(jobDir, images[idx]),
-                motion: styleDef
-                  ? styleDef.motionPrompt(subject)
-                  : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
+                motion: dolly
+                  ? `A dramatic dolly zoom on ${subject}: the camera slowly pulls back while the lens zooms in, the background stretching and receding behind the unmoving subject — a feeling of awe and unease. One move only. Keep the exact art style, characters, lighting and framing; add no new elements, no text.`
+                  : styleDef
+                    ? styleDef.motionPrompt(subject)
+                    : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
                 durationSec: beats[idx].dur,
-                model: premiumRef ? ANIM_MODELS.premium : ANIM_MODELS.lite,
+                model: dolly || premiumRef ? ANIM_MODELS.premium : ANIM_MODELS.lite,
                 ...(premiumRef ? { refPaths: castRefs } : {}),
               })
                 .then((res) => {
@@ -1486,6 +1556,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         lang: clip.lang || "en",
         ...(wide ? { wide: true } : {}),
         cuts: "straight",
+        camera: "v2",
       };
       // Studio dressing, both best-effort: branded title/end cards around the
       // film, and the mood-mapped score mixed (and ducked) under the voice.
