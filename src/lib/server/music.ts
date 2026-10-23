@@ -465,6 +465,65 @@ async function ensureAmb(kind: Amb): Promise<string | null> {
   return code === 0 && fs.existsSync(wav) ? wav : null;
 }
 
+// --- One-shot foley ---
+//
+// Discrete, slightly exaggerated cartoon SFX fired by story keywords at the
+// beat where they happen — the clink when the Samaritan pays, the crack of
+// thunder, the splash when Jonah goes in. Synthesized (no licensing), cached
+// like the beds, overlaid onto the ambience track so one mix carries both.
+
+type Sfx = "thunder" | "splash" | "coins" | "knock" | "whoosh" | "sparkle";
+
+const SFX_GRAPHS: Record<Sfx, { inputs: string[]; fc: string }> = {
+  thunder: {
+    inputs: ["anoisesrc=colour=brown:r=44100:d=2.6"],
+    fc: "[0:a]lowpass=f=220,volume='2.6*exp(-2.0*t)':eval=frame,afade=t=in:d=0.04[a]",
+  },
+  splash: {
+    inputs: ["anoisesrc=colour=white:r=44100:d=1.1"],
+    fc: "[0:a]highpass=f=400,lowpass=f=3200,volume='2.0*exp(-3.5*t)':eval=frame,afade=t=in:d=0.02[a]",
+  },
+  coins: {
+    inputs: ["sine=frequency=2473:r=44100:d=0.6", "sine=frequency=3089:r=44100:d=0.5"],
+    fc: "[0:a]volume='0.8*exp(-9*t)':eval=frame[c0];[1:a]volume='0.7*exp(-9*t)':eval=frame,adelay=140:all=1[c1];[c0][c1]amix=inputs=2:normalize=0[a]",
+  },
+  knock: {
+    inputs: ["sine=frequency=85:r=44100:d=0.45", "sine=frequency=82:r=44100:d=0.45"],
+    fc: "[0:a]volume='1.7*exp(-16*t)':eval=frame[k0];[1:a]volume='1.5*exp(-16*t)':eval=frame,adelay=230:all=1[k1];[k0][k1]amix=inputs=2:normalize=0[a]",
+  },
+  whoosh: {
+    inputs: ["anoisesrc=colour=pink:r=44100:d=0.9"],
+    fc: "[0:a]bandpass=f=900:width_type=q:w=1.2,afade=t=in:d=0.25,afade=t=out:st=0.45:d=0.45,volume=1.7[a]",
+  },
+  sparkle: {
+    inputs: ["sine=frequency=1568:r=44100:d=0.8", "sine=frequency=1976:r=44100:d=0.7", "sine=frequency=2637:r=44100:d=0.9"],
+    fc: "[0:a]volume='0.55*exp(-5*t)':eval=frame[s0];[1:a]volume='0.55*exp(-5*t)':eval=frame,adelay=130:all=1[s1];[2:a]volume='0.6*exp(-4*t)':eval=frame,adelay=260:all=1[s2];[s0][s1][s2]amix=inputs=3:normalize=0[a]",
+  },
+};
+
+async function ensureSfx(kind: Sfx): Promise<string | null> {
+  fs.mkdirSync(MUSIC_DIR, { recursive: true });
+  const wav = path.join(MUSIC_DIR, `sfx_${kind}.wav`);
+  if (fs.existsSync(wav) && fs.statSync(wav).size > 10_000) return wav;
+  const g = SFX_GRAPHS[kind];
+  const args = ["-y", ...g.inputs.flatMap((i) => ["-f", "lavfi", "-i", i]), "-filter_complex",
+    `${g.fc.slice(0, -3)},aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo[a]`,
+    "-map", "[a]", wav];
+  const code = await sh("ffmpeg", args);
+  return code === 0 && fs.existsSync(wav) ? wav : null;
+}
+
+// Keyword → foley. Scripts direct their own sound by using these words at the
+// moment the thing happens (the kit documents the palette).
+const SFX_TRIGGERS: { kind: Sfx; re: RegExp }[] = [
+  { kind: "thunder", re: /\b(thunder|lightning|crack(ed)? across the sky)\b/i },
+  { kind: "splash", re: /\b(splash(ed)?|overboard|into the (sea|waves|water)|plunged)\b/i },
+  { kind: "coins", re: /\b(coins?|denari(us|i)|silver pieces|pieces of silver|gold pieces|clink(ed)?)\b/i },
+  { kind: "knock", re: /\b(knock(ed)?|pounded on|hammer-blow|hammered|thudded)\b/i },
+  { kind: "whoosh", re: /\b(sling (sang|whirled)|whirled|whoosh(ed)?|swooped|rushed past)\b/i },
+  { kind: "sparkle", re: /\b(let there be light|light broke|shone|glowed to life|healed|rainbow|miracle)\b/i },
+];
+
 const SEA_RE = /\b(sea|waves?|boat|shore|harbor|sail|deep dark sea|fish)\b/i;
 const STORMY_RE = /\b(storm|thunder|tempest|howl|gale|rain)\b/i;
 
@@ -484,13 +543,29 @@ function ambFor(text: string, frame: boolean | undefined): Amb | null {
  */
 export async function buildAmbience(
   planDir: string,
-  beats: { text: string; start: number; dur: number; frame?: boolean }[],
+  beats: { text: string; start: number; dur: number; frame?: boolean; song?: boolean }[],
   duration: number,
   lead: number,
   tail: number
 ): Promise<string | null> {
   try {
     const total = lead + duration + tail;
+    // One-shot foley hits: scan the beats for trigger words. One hit per
+    // beat, never during a song, 8s cooldown per kind so nothing spams.
+    const hits: { kind: Sfx; at: number }[] = [];
+    const lastAt: Partial<Record<Sfx, number>> = {};
+    for (const b of beats) {
+      if (b.song) continue;
+      for (const t of SFX_TRIGGERS) {
+        if (!t.re.test(b.text)) continue;
+        const at = lead + b.start + 0.3;
+        if (lastAt[t.kind] !== undefined && at - lastAt[t.kind]! < 8) continue;
+        lastAt[t.kind] = at;
+        hits.push({ kind: t.kind, at });
+        break;
+      }
+      if (hits.length >= 14) break;
+    }
     const raw: { amb: Amb | null; start: number; end: number }[] = [
       { amb: null, start: 0, end: lead },
     ];
@@ -510,7 +585,7 @@ export async function buildAmbience(
       if (prev && w.end - w.start < 9) prev.end = w.end;
       else windows.push({ ...w });
     }
-    if (!windows.some((w) => w.amb)) return null;
+    if (!windows.some((w) => w.amb) && !hits.length) return null;
     const parts: string[] = [];
     for (let i = 0; i < windows.length; i++) {
       const w = windows[i];
@@ -535,10 +610,39 @@ export async function buildAmbience(
     }
     if (!parts.length) return null;
     fs.writeFileSync(path.join(planDir, "amb_list.txt"), parts.map((p) => `file '${p}'`).join("\n"), "utf8");
-    const code = await sh("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", "amb_list.txt", "-c", "copy", "ambience.wav"], planDir);
+    const bedName = hits.length ? "amb_bed.wav" : "ambience.wav";
+    const code = await sh("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", "amb_list.txt", "-c", "copy", bedName], planDir);
     for (const p of parts) fs.rmSync(path.join(planDir, p), { force: true });
     fs.rmSync(path.join(planDir, "amb_list.txt"), { force: true });
-    if (code !== 0 || !fs.existsSync(path.join(planDir, "ambience.wav"))) return null;
+    if (code !== 0 || !fs.existsSync(path.join(planDir, bedName))) return null;
+    // Overlay the one-shots onto the bed at their timestamps. They're boosted
+    // well above the bed (the whole track is mixed low under the voice), with
+    // a limiter so stacked hits never wrap-clip the 16-bit WAV.
+    if (hits.length) {
+      const srcs = new Map<Sfx, string>();
+      const usable: { src: string; at: number }[] = [];
+      for (const h of hits) {
+        if (!srcs.has(h.kind)) {
+          const s = await ensureSfx(h.kind);
+          if (s) srcs.set(h.kind, s);
+        }
+        const s = srcs.get(h.kind);
+        if (s) usable.push({ src: s, at: h.at });
+      }
+      if (usable.length) {
+        const args = ["-y", "-i", "amb_bed.wav"];
+        for (const u of usable) args.push("-i", u.src);
+        const fc =
+          usable.map((u, i) => `[${i + 1}:a]volume=2.4,adelay=${Math.round(u.at * 1000)}:all=1[s${i}]`).join(";") +
+          `;[0:a]${usable.map((_, i) => `[s${i}]`).join("")}amix=inputs=${usable.length + 1}:duration=first:normalize=0,alimiter=limit=0.95[a]`;
+        const mix = await sh("ffmpeg", ["-y", ...args, "-filter_complex", fc, "-map", "[a]",
+          "-c:a", "pcm_s16le", "ambience.wav"], planDir);
+        fs.rmSync(path.join(planDir, "amb_bed.wav"), { force: true });
+        if (mix !== 0 || !fs.existsSync(path.join(planDir, "ambience.wav"))) return null;
+      } else {
+        fs.renameSync(path.join(planDir, "amb_bed.wav"), path.join(planDir, "ambience.wav"));
+      }
+    }
     return "ambience.wav";
   } catch {
     return null;
