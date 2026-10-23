@@ -143,13 +143,19 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
       const cam =
         mood === "tension"
           ? "a slow, creeping push-in with the faintest handheld sway"
-          : mood === "joy"
-            ? "a buoyant, gently drifting camera"
-            : mood === "wonder"
-              ? "a gentle rising crane move"
-              : mood === "night"
-                ? "an almost-still camera that barely breathes"
-                : "a slow, gentle push-in";
+          : mood === "sorrow"
+            ? "a slow, mournful drift that settles into stillness"
+            : mood === "joy"
+              ? "a buoyant, gently drifting camera"
+              : mood === "majesty"
+                ? "a stately, slowly rising wide move"
+                : mood === "wonder"
+                  ? "a gentle rising crane move"
+                  : mood === "travel"
+                    ? "a steady lateral tracking move following the journey"
+                    : mood === "night"
+                      ? "an almost-still camera that barely breathes"
+                      : "a slow, gentle push-in";
       return `One clear emotional performance beat: ${subject}. The character's feeling leads the motion — eyes, brows and posture shift naturally with it. Gentle character movement with soft bouncy secondary motion and slow background parallax. One camera move only: ${cam}. Keep the exact same art style, character designs, lighting and framing. Add no new characters, no new objects, no text.`;
     },
     allowBroll: false,
@@ -239,7 +245,7 @@ export async function storyCastFor(title: string, script: string): Promise<strin
     [
       "From this narrated screenplay, pick the 1-3 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
       "For each, give: name (exactly as the script calls them) and design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature. Period-appropriate to the story's setting.",
-      "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with warm tan, sun-browned Middle-Eastern skin tones. If Jesus appears, describe Him reverently and historically — a warm tan complexion, dark wavy hair and beard, simple robes.",
+      "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with warm tan, sun-browned Middle-Eastern skin tones. If Jesus appears, describe Him reverently and consistently: tall — six feet two, standing clearly taller than those around Him — a warm tan complexion, dark wavy hair and beard, simple robes, a calm and kind face.",
       "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
     ].join("\n"),
     `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,

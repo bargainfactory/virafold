@@ -262,6 +262,65 @@ const CUES: Record<string, Cue> = {
     ],
   },
 
+  // Lament — original, D minor, a slow falling flute line over low strings.
+  sorrow: {
+    bpm: 54,
+    tracks: [
+      {
+        prog: FLUTE, ch: 0,
+        notes: mel([
+          [2, 3, "D5"], [5, 2, "C5"], [7, 2, "A4"], [9, 4, "F4"],
+          [14, 3, "G4"], [17, 2, "A4"], [19, 5, "D4"],
+        ], 56),
+      },
+      {
+        prog: STRINGS, ch: 1,
+        notes: pad([[0, 8, "D3", true], [8, 6, "Bb2"], [14, 6, "G2", true], [20, 6, "D3", true]], 34),
+      },
+      { prog: CELLO, ch: 2, notes: mel([[0, 8, "D2"], [8, 6, "Bb1"], [14, 6, "G1"], [20, 6, "D2"]], 30) },
+    ],
+  },
+
+  // Majesty — original processional: stately block chords, a fanfare-like
+  // flute on long tones, for glory, praise and decree moments.
+  majesty: {
+    bpm: 84,
+    tracks: [
+      {
+        prog: FLUTE, ch: 0,
+        notes: mel([
+          [0, 2, "C5"], [2, 2, "G5"], [4, 3, "E5"], [7, 1, "F5"], [8, 4, "G5"],
+          [12, 2, "A5"], [14, 2, "G5"], [16, 2, "E5"], [18, 2, "D5"], [20, 4, "C5"],
+        ], 70),
+      },
+      {
+        prog: STRINGS, ch: 1,
+        notes: pad([
+          [0, 4, "C3"], [4, 4, "F3"], [8, 4, "C3"], [12, 4, "F3"], [16, 2, "G3"], [18, 2, "G3"], [20, 4, "C3"],
+        ], 52),
+      },
+      { prog: CELLO, ch: 2, notes: mel([[0, 4, "C2"], [4, 4, "F2"], [8, 4, "C2"], [12, 4, "F2"], [16, 4, "G2"], [20, 4, "C2"]], 46) },
+    ],
+  },
+
+  // On the road — original walking figure: light harp pulse and a simple
+  // stepping flute motif for journeys and crossings.
+  travel: {
+    bpm: 100,
+    tracks: [
+      {
+        prog: FLUTE, ch: 0,
+        notes: mel([
+          [0, 1, "G4"], [1, 1, "A4"], [2, 1, "B4"], [3, 1, "G4"],
+          [4, 1, "C5"], [5, 1, "B4"], [6, 2, "A4"],
+          [8, 1, "G4"], [9, 1, "A4"], [10, 1, "B4"], [11, 1, "D5"], [12, 2, "C5"], [14, 2, "G4"],
+        ], 62),
+      },
+      { prog: HARP, ch: 2, notes: arp([[0, 4, "C4"], [4, 4, "G3"], [8, 4, "A3", true], [12, 4, "C4"]], 54) },
+      { prog: STRINGS, ch: 1, notes: pad([[0, 8, "C3"], [8, 4, "A2", true], [12, 4, "C3"]], 32) },
+    ],
+  },
+
   // Wonder — strings and harp over the Pachelbel progression.
   wonder: {
     bpm: 68,
@@ -328,15 +387,23 @@ async function ensureCue(name: string): Promise<string | null> {
   return wav;
 }
 
-type Mood = "theme" | "morning" | "shepherd" | "joy" | "night" | "tension" | "wonder";
+type Mood =
+  | "theme" | "morning" | "shepherd" | "joy" | "night" | "tension" | "wonder"
+  | "sorrow" | "majesty" | "travel";
 
 const TENSION_RE =
-  /\b(storm|wind|waves?|thunder|afraid|fear|lions?|giant|robbers?|danger|pit|prison|flood|wept|cried|trouble|enem|sink|dark)\b/i;
+  /\b(storm|wind|waves?|thunder|afraid|fear|lions?|giant|robbers?|danger|pit|prison|flood|trouble|enem|sink|dark)\b/i;
+const SORROW_RE =
+  /\b(wept|weeping|cried|tears|sad(ness)?|sorrow|alone|lonely|missed|mourn|grie(f|ved)|heart (sank|broke)|half alive)\b/i;
 const JOY_RE =
   /\b(rejoice|celebrat|party|laugh|found|healed|home|rainbow|feast|joy|glad|danced|sang|sing|thank|hooray|welcome)\b/i;
+const MAJESTY_RE =
+  /\b(glory|praise|holy|worship|altar|decree|throne|king of|heavens? declare|salvation belongs)\b/i;
 const WONDER_RE =
-  /\b(let there be|creat|heavens?|glory|miracle|spoke|light broke|amazed|wonder|obey|stars? (came|declare)|very good)\b/i;
+  /\b(let there be|creat|heavens?|miracle|spoke|light broke|amazed|wonder|obey|stars? (came|declare)|very good)\b/i;
 const NIGHT_RE = /\b(night|sleep|asleep|lamp down|bed(time)?|quiet|still|hush|moonlit|evening)\b/i;
+const TRAVEL_RE =
+  /\b(road|journey|set out|sailed|traveled|walked (all|for|down)|miles|path wound|caravan|marched)\b/i;
 
 /** Shared scene-mood read — the score and the camera breathe together. */
 export function sceneMood(text: string): Mood {
@@ -345,9 +412,12 @@ export function sceneMood(text: string): Mood {
 
 function moodFor(text: string): Mood {
   if (TENSION_RE.test(text)) return "tension";
+  if (SORROW_RE.test(text)) return "sorrow";
   if (JOY_RE.test(text)) return "joy";
+  if (MAJESTY_RE.test(text)) return "majesty";
   if (WONDER_RE.test(text)) return "wonder";
   if (NIGHT_RE.test(text)) return "night";
+  if (TRAVEL_RE.test(text)) return "travel";
   return "shepherd";
 }
 

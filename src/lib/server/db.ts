@@ -2209,6 +2209,13 @@ export function seriesProgress(email: string): {
 }
 
 /** Vision-QA verdict on a ready render; null clears the flag. */
+/** Replace a clip's reason/description text (study notes, disclosures). */
+export function setClipReason(email: string, id: string, reason: string): void {
+  getDb()
+    .prepare("UPDATE clips SET reason = ? WHERE id = ? AND user_email = ?")
+    .run(reason, id, email.toLowerCase());
+}
+
 export function setClipQa(email: string, id: string, note: string | null): void {
   getDb()
     .prepare("UPDATE clips SET qa_note = ? WHERE id = ? AND user_email = ?")

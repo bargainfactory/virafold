@@ -667,7 +667,12 @@ function cameraV2(b: FilmBeat, frames: number, R: PlayRes, mood: string): string
   const P = `min(1,max(0,(on-${hold})/${span}))`;
   const E = `(${P}*${P}*(3-2*${P}))`;
   const mag =
-    mood === "tension" ? 0.06 : mood === "joy" ? 0.16 : mood === "wonder" ? 0.14 : mood === "night" ? 0.05 : 0.1;
+    mood === "tension" ? 0.06
+      : mood === "sorrow" || mood === "night" ? 0.05
+        : mood === "joy" ? 0.16
+          : mood === "wonder" ? 0.14
+            : mood === "majesty" || mood === "travel" ? 0.12
+              : 0.1;
   const out = b.i % 2 === 1; // alternate push and pull across beats
   const zIn = `1+${mag.toFixed(3)}*${E}`;
   const zOut = `${(1 + mag).toFixed(3)}-${mag.toFixed(3)}*${E}`;
@@ -1410,7 +1415,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const beatFrame = dialogueBeats ? (beats[i] as { frame?: boolean }).frame === true : null;
           const beatSubject =
             beatFrame === true
-              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures, the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}`
+              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}`
               : scene.imageSubject
                 ? // Anchor the picture to the words being spoken over it, not
                   // just the planner's abstraction — illustration follows text.
@@ -1576,6 +1581,41 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       fs.renameSync(jobDir, planDir);
       const { setClipRenderMeta } = await import("./db");
       setClipRenderMeta(clip.userEmail, clip.id, { hasPlan: true });
+      // Study notes (pedagogy layer): scripture references + the historical,
+      // geographical and cultural facts the script itself teaches, compiled
+      // into the clip's description text — it rides into YouTube on publish.
+      // Facts only from the script; best-effort, never blocks the render.
+      try {
+        const { llmComplete } = await import("./generate");
+        const res = await llmComplete(
+          "From this children's Bible screenplay, extract study notes for a YouTube description. Return JSON: scripture = the passage(s) the script retells or quotes (e.g. 'Luke 10:25-37'); facts = 2 to 4 one-sentence historical, geographical, cultural or religious-context facts THAT THE SCRIPT ITSELF STATES (e.g. what a denarius was worth, why Samaritans and Jews were estranged, the geography of a road). Never invent facts the script doesn't contain.",
+          clip.script.slice(0, 7000),
+          {
+            type: "object",
+            properties: {
+              scripture: { type: "string" },
+              facts: { type: "array", items: { type: "string" } },
+            },
+            required: ["scripture", "facts"],
+            additionalProperties: false,
+          },
+          { tier: "standard", maxTokens: 400, context: "study-notes" }
+        );
+        if (res?.text) {
+          const n = JSON.parse(res.text) as { scripture: string; facts: string[] };
+          if (n.scripture) {
+            const notes = [
+              `📖 Scripture: ${n.scripture}`,
+              ...n.facts.slice(0, 4).map((f) => `• ${f}`),
+            ].join("\n");
+            // Mutate in memory: the final updateClip composes reason from
+            // clip.reason + disclosures, so the notes ride along in order.
+            clip.reason = clip.reason?.trim() ? `${clip.reason.trim()}\n\n${notes}` : notes;
+          }
+        }
+      } catch {
+        /* study notes are a bonus — never fail a finished film over them */
+      }
     } else {
       const args = [
         "-y",
@@ -1625,7 +1665,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // Source credit + AI-motion disclosure ride the reason field into the
       // publish description — Pixabay's API terms ask that the footage source
       // be shown, and generated motion is disclosed as a matter of honesty.
-      ...(brollProviders.size || animUsed || ugcUsed
+      ...(brollProviders.size || animUsed || ugcUsed || clip.reason?.trim()
         ? {
             reason:
               `${clip.reason ?? ""}`.trim() +
