@@ -1596,7 +1596,16 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                   `${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${scene.text.slice(0, 130)}"`
                 : scene.text.slice(0, 120);
           const beatCast = beatFrame === false ? (storyCast ?? undefined) : (cast ?? undefined);
-          const beatExtra = beatFrame === true ? "" : propExtra;
+          // Story beats: the recurring cast may ONLY appear when the narration
+          // names them — the Ep9 audit found the hero leaking into scenes he
+          // couldn't be in (ashore watching his own ship, among the sailors
+          // after going overboard). Also a brand-safety rail: divine presence
+          // is light, never a drawn figure.
+          const storyGuard =
+            beatFrame === false
+              ? " Include a recurring character ONLY if this exact narration moment explicitly mentions them — if it does not name them, leave them out of the image entirely. Never depict God as a person or human figure: when the narration has God speak, act or answer, show His presence ONLY as warm light from the sky."
+              : "";
+          const beatExtra = (beatFrame === true ? "" : propExtra) + storyGuard;
           let beatPrompt =
             (styleDef
               ? styleDef.imagePrompt(
@@ -1620,7 +1629,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               const { editImage } = await import("./images");
               const out = await editImage(
                 castSheetPng!,
-                `${beatPrompt} Compose this as a NEW scene using EXACTLY the characters from the reference image — same faces, same outfits, same designs. Include only the characters this moment calls for, in a natural composition — never the reference's side-by-side lineup.`
+                `${beatPrompt} Compose this as a NEW scene using EXACTLY the characters from the reference image — same faces, same outfits, same designs. Include only the characters this moment calls for, in a natural composition — never the reference's side-by-side lineup. FULL-BLEED cinematic frame filling the entire image edge to edge — NOT a storybook page, no page borders, no margins, no caption area, and ABSOLUTELY NO text, letters, or words anywhere; if any text or page layout would appear, replace it with plain scenery instead.`
               );
               if (out) return out;
             }
