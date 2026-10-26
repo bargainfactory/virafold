@@ -428,7 +428,7 @@ function moodFor(text: string): Mood {
 // storms, waves for the sea, light wind for journeys. Rendered once to cached
 // 30s loops, then windowed over the film exactly like the score.
 
-type Amb = "fireside" | "storm" | "waves" | "wind" | "crickets";
+type Amb = "fireside" | "storm" | "waves" | "wind" | "crickets" | "rain";
 
 // Noise-colour beds read as HISS under close dialogue (heard as "white noise
 // when Naomi talks"), so the fireside and crickets beds are built from sparse
@@ -453,6 +453,12 @@ const AMB_GRAPHS: Record<Amb, { inputs: string[]; fc: string }> = {
   crickets: {
     inputs: ["sine=frequency=4150:r=44100:d=30", "sine=frequency=3650:r=44100:d=30"],
     fc: "[0:a]tremolo=f=27:d=0.97,tremolo=f=1.3:d=0.94,volume=0.14[c0];[1:a]tremolo=f=22:d=0.97,tremolo=f=0.8:d=0.94,adelay=400:all=1,volume=0.1[c1];[c0][c1]amix=inputs=2:normalize=0[a]",
+  },
+  // Gentle rain (vs. the storm bed's heavy rumble): the proven recipe from the
+  // ambient-loop generator — a soft pink wash plus velvet-noise droplets.
+  rain: {
+    inputs: ["anoisesrc=colour=pink:r=44100:d=30", "anoisesrc=colour=velvet:r=44100:seed=11:density=0.00024:d=30"],
+    fc: "[0:a]highpass=f=300,lowpass=f=7000,volume=0.2[r];[1:a]bandpass=f=2400:width_type=q:w=7,aecho=0.6:0.4:45|85:0.3|0.18,volume=5[d];[r][d]amix=inputs=2:normalize=0[a]",
   },
 };
 
@@ -529,11 +535,13 @@ const SFX_TRIGGERS: { kind: Sfx; re: RegExp }[] = [
 ];
 
 const SEA_RE = /\b(sea|waves?|boat|shore|harbor|sail|deep dark sea|fish)\b/i;
-const STORMY_RE = /\b(storm|thunder|tempest|howl|gale|rain)\b/i;
+const STORMY_RE = /\b(storm|thunder|tempest|howl|gale)\b/i;
+const RAIN_RE = /\b(rain(ed|ing|drops)?|drizzle|downpour|drummed on the (great )?roof)\b/i;
 
 function ambFor(text: string, frame: boolean | undefined): Amb | null {
   if (frame) return "fireside";
   if (STORMY_RE.test(text)) return "storm";
+  if (RAIN_RE.test(text)) return "rain";
   if (SEA_RE.test(text)) return "waves";
   const m = moodFor(text);
   if (m === "night") return "crickets";
