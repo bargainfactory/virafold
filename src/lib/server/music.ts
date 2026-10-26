@@ -454,11 +454,16 @@ const AMB_GRAPHS: Record<Amb, { inputs: string[]; fc: string }> = {
     inputs: ["sine=frequency=4150:r=44100:d=30", "sine=frequency=3650:r=44100:d=30"],
     fc: "[0:a]tremolo=f=27:d=0.97,tremolo=f=1.3:d=0.94,volume=0.14[c0];[1:a]tremolo=f=22:d=0.97,tremolo=f=0.8:d=0.94,adelay=400:all=1,volume=0.1[c1];[c0][c1]amix=inputs=2:normalize=0[a]",
   },
-  // Gentle rain (vs. the storm bed's heavy rumble): the proven recipe from the
-  // ambient-loop generator — a soft pink wash plus velvet-noise droplets.
+  // Gentle rain (vs. the storm bed's heavy rumble). v2: crisp, realistic —
+  // a quiet wash under tick-sharp high droplets (barely filtered, so the
+  // transients stay crisp) and sparse lower "plips" with one short bounce.
   rain: {
-    inputs: ["anoisesrc=colour=pink:r=44100:d=30", "anoisesrc=colour=velvet:r=44100:seed=11:density=0.00024:d=30"],
-    fc: "[0:a]highpass=f=300,lowpass=f=7000,volume=0.2[r];[1:a]bandpass=f=2400:width_type=q:w=7,aecho=0.6:0.4:45|85:0.3|0.18,volume=5[d];[r][d]amix=inputs=2:normalize=0[a]",
+    inputs: [
+      "anoisesrc=colour=pink:r=44100:d=30",
+      "anoisesrc=colour=velvet:r=44100:seed=23:density=0.0007:d=30",
+      "anoisesrc=colour=velvet:r=44100:seed=47:density=0.00016:d=30",
+    ],
+    fc: "[0:a]highpass=f=400,lowpass=f=5500,volume=0.13[w];[1:a]highpass=f=2800,lowpass=f=9500,volume=4.2[t];[2:a]bandpass=f=1300:width_type=q:w=2.2,aecho=0.5:0.25:22:0.22,volume=5.5[p];[w][t][p]amix=inputs=3:normalize=0[a]",
   },
 };
 

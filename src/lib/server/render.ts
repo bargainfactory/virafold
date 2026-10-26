@@ -1990,7 +1990,9 @@ const SOUNDSCAPE_BASE: Record<string, string> = {
     ocean:
       "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=600,tremolo=f=0.1:d=0.8,volume=0.55[o];anoisesrc=colour=white:sample_rate=44100,highpass=f=2500,tremolo=f=0.1:d=0.7,volume=0.05[f];[o][f]amix=inputs=2:duration=longest,volume=1.3",
     "brown-noise": "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=500,volume=0.5",
-    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=300,lowpass=f=7000,volume=0.24[r];anoisesrc=colour=velvet:sample_rate=44100:seed=11:density=0.00012,bandpass=f=2400:width_type=q:w=7,aecho=0.6:0.4:45|85:0.3|0.18,volume=5[d];[r][d]amix=inputs=2:duration=longest,volume=1.4",
+    // v2: crisper, more realistic — quiet wash, tick-sharp high droplets,
+    // sparse lower plips with one short bounce (echo smeared the old drops).
+    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=400,lowpass=f=5500,volume=0.16[r];anoisesrc=colour=velvet:sample_rate=44100:seed=23:density=0.0005,highpass=f=2800,lowpass=f=9500,volume=4.2[t];anoisesrc=colour=velvet:sample_rate=44100:seed=47:density=0.00012,bandpass=f=1300:width_type=q:w=2.2,aecho=0.5:0.25:22:0.22,volume=5.5[p];[r][t][p]amix=inputs=3:duration=longest,volume=1.3",
     wind: "anoisesrc=colour=pink:sample_rate=44100,lowpass=f=900,tremolo=f=0.1:d=0.55,volume=0.4",
     // The four below are original synthesis INSPIRED BY the categories
     // myNoise.net users love most (their audio is proprietary — these share
