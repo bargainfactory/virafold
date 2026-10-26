@@ -430,10 +430,13 @@ function moodFor(text: string): Mood {
 
 type Amb = "fireside" | "storm" | "waves" | "wind" | "crickets";
 
+// Noise-colour beds read as HISS under close dialogue (heard as "white noise
+// when Naomi talks"), so the fireside and crickets beds are built from sparse
+// velvet-noise pops and tonal chirps instead — crackle and crickets, not static.
 const AMB_GRAPHS: Record<Amb, { inputs: string[]; fc: string }> = {
   fireside: {
-    inputs: ["anoisesrc=colour=brown:r=44100:d=30", "anoisesrc=colour=white:r=44100:d=30"],
-    fc: "[0:a]highpass=f=250,lowpass=f=2800,tremolo=f=9:d=0.9,volume=0.8[f];[1:a]highpass=f=3800,lowpass=f=5600,tremolo=f=12:d=0.95,tremolo=f=0.4:d=0.9,volume=0.3[c];[f][c]amix=inputs=2:normalize=0[a]",
+    inputs: ["anoisesrc=colour=brown:r=44100:d=30", "anoisesrc=colour=velvet:r=44100:seed=7:density=0.0005:d=30"],
+    fc: "[0:a]lowpass=f=380,tremolo=f=0.4:d=0.5,volume=0.45[f];[1:a]bandpass=f=1700:width_type=q:w=4,aecho=0.6:0.4:35|90:0.35|0.18,volume=7[p];[f][p]amix=inputs=2:normalize=0[a]",
   },
   storm: {
     inputs: ["anoisesrc=colour=brown:r=44100:d=30", "anoisesrc=colour=pink:r=44100:d=30"],
@@ -448,14 +451,15 @@ const AMB_GRAPHS: Record<Amb, { inputs: string[]; fc: string }> = {
     fc: "[0:a]lowpass=f=800,tremolo=f=0.22:d=0.6,volume=0.55[a]",
   },
   crickets: {
-    inputs: ["anoisesrc=colour=white:r=44100:d=30"],
-    fc: "[0:a]highpass=f=3800,lowpass=f=6000,tremolo=f=13:d=0.95,tremolo=f=0.35:d=0.9,volume=0.3[a]",
+    inputs: ["sine=frequency=4150:r=44100:d=30", "sine=frequency=3650:r=44100:d=30"],
+    fc: "[0:a]tremolo=f=27:d=0.97,tremolo=f=1.3:d=0.94,volume=0.14[c0];[1:a]tremolo=f=22:d=0.97,tremolo=f=0.8:d=0.94,adelay=400:all=1,volume=0.1[c1];[c0][c1]amix=inputs=2:normalize=0[a]",
   },
 };
 
 async function ensureAmb(kind: Amb): Promise<string | null> {
   fs.mkdirSync(MUSIC_DIR, { recursive: true });
-  const wav = path.join(MUSIC_DIR, `amb_${kind}.wav`);
+  // amb2_: the v1 noise-bed cache must not serve the reworked graphs.
+  const wav = path.join(MUSIC_DIR, `amb2_${kind}.wav`);
   if (fs.existsSync(wav) && fs.statSync(wav).size > 100_000) return wav;
   const g = AMB_GRAPHS[kind];
   const args = ["-y", ...g.inputs.flatMap((i) => ["-f", "lavfi", "-i", i]), "-filter_complex",

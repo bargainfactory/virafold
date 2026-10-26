@@ -938,13 +938,17 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
     args.push("-i", music);
     let ambPart = "";
     const mixIns = ["[voB]", "[bed]", "[md]"];
+    // The ambience ducks under the voice too (gentler than the score's duck),
+    // so beds breathe between lines instead of hissing under close dialogue.
+    const voSplit = ambience ? 3 : 2;
+    const voC = ambience ? "[voC]" : "";
     if (ambience) {
       args.push("-i", ambience);
-      ambPart = `[4:a]volume=0.12,apad[am];`;
+      ambPart = `[4:a]volume=0.14,apad[amA];[amA][voC]sidechaincompress=threshold=0.02:ratio=4:attack=120:release=1000[am];`;
       mixIns.push("[am]");
     }
     fc =
-      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=2[voA][voB];` +
+      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=${voSplit}[voA][voB]${voC};` +
       `[3:a]volume=0.32,apad[mu];[mu][voA]sidechaincompress=threshold=0.02:ratio=6:attack=80:release=900[md];` +
       `[2:a]volume=0.03[bed];` +
       ambPart +
@@ -952,14 +956,18 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
       `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
   } else if (lead > 0 || tail > 0) {
     let ambPart = "";
-    const mixIns = ["[vo]", "[bed]"];
+    let voSplitPart = "";
+    const mixIns = [ambience ? "[voB]" : "[vo]", "[bed]"];
     if (ambience) {
       args.push("-i", ambience);
-      ambPart = `[3:a]volume=0.12,apad[am];`;
+      voSplitPart = `[vo]asplit=2[voB][voC];`;
+      ambPart = `[3:a]volume=0.14,apad[amA];[amA][voC]sidechaincompress=threshold=0.02:ratio=4:attack=120:release=1000[am];`;
       mixIns.push("[am]");
     }
     fc =
-      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[2:a]volume=0.05[bed];` +
+      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];` +
+      voSplitPart +
+      `[2:a]volume=0.05[bed];` +
       ambPart +
       `${mixIns.join("")}amix=inputs=${mixIns.length}:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
       `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
