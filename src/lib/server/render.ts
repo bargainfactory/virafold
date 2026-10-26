@@ -1992,7 +1992,10 @@ const SOUNDSCAPE_BASE: Record<string, string> = {
     "brown-noise": "anoisesrc=colour=brown:sample_rate=44100,lowpass=f=500,volume=0.5",
     // v2: crisper, more realistic — quiet wash, tick-sharp high droplets,
     // sparse lower plips with one short bounce (echo smeared the old drops).
-    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=400,lowpass=f=5500,volume=0.16[r];anoisesrc=colour=velvet:sample_rate=44100:seed=23:density=0.0005,highpass=f=2800,lowpass=f=9500,volume=4.2[t];anoisesrc=colour=velvet:sample_rate=44100:seed=47:density=0.00012,bandpass=f=1300:width_type=q:w=2.2,aecho=0.5:0.25:22:0.22,volume=5.5[p];[r][t][p]amix=inputs=3:duration=longest,volume=1.3",
+    // Every 5 minutes a soft distant thunder roll swells and decays over
+    // ~12s (first roll near 4:48 so the opening stays gentle); the roll is
+    // part of the continuous graph, so there is never an audible seam.
+    rain: "anoisesrc=colour=pink:sample_rate=44100,highpass=f=400,lowpass=f=5500,volume=0.16[r];anoisesrc=colour=velvet:sample_rate=44100:seed=23:density=0.0005,highpass=f=2800,lowpass=f=9500,volume=4.2[t];anoisesrc=colour=velvet:sample_rate=44100:seed=47:density=0.00012,bandpass=f=1300:width_type=q:w=2.2,aecho=0.5:0.25:22:0.22,volume=5.5[p];anoisesrc=colour=brown:sample_rate=44100:seed=5,lowpass=f=140,tremolo=f=0.17:d=0.6,volume='if(lt(mod(t+12,300),12),2.4*exp(-0.45*mod(t+12,300)),0)':eval=frame[th];[r][t][p][th]amix=inputs=4:duration=longest,volume=1.3",
     wind: "anoisesrc=colour=pink:sample_rate=44100,lowpass=f=900,tremolo=f=0.1:d=0.55,volume=0.4",
     // The four below are original synthesis INSPIRED BY the categories
     // myNoise.net users love most (their audio is proprietary — these share
@@ -2072,17 +2075,35 @@ async function renderAmbientLoop(clip: Clip & { userEmail: string }): Promise<vo
     const half = F / 2;
     const AMP = 0.055;
     const z = `if(lte(on,${half}),1+${AMP}*on/${half},1+${AMP}*(${F}-on)/${half})`;
+    const drift = `zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${F}:s=1920x1080:fps=${FPS},setsar=1`;
+    // Rain scenes get visible falling rain: temporal noise stretched into
+    // vertical streaks, softened and screen-blended — torrential-on-the-
+    // window-glass energy, and identical in every loop pass so the seam at
+    // the palindrome boundary stays invisible.
+    const rainy =
+      soundscape === "rain" || soundscape === "thunder" || /\brain|storm|monsoon|torrential\b/i.test(theme);
     r = await run(
       "ffmpeg",
-      [
-        "-y", "-loop", "1", "-i", "prep.png",
-        "-vf",
-        `zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${F}:s=1920x1080:fps=${FPS},setsar=1`,
-        "-frames:v", String(F),
-        "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage", "-crf", "27",
-        "-pix_fmt", "yuv420p", "-an",
-        "base.mp4",
-      ],
+      rainy
+        ? [
+            "-y", "-loop", "1", "-i", "prep.png",
+            "-f", "lavfi", "-i", `nullsrc=s=1920x120:r=${FPS},noise=alls=85:allf=t+u,format=gray,eq=contrast=5.5:brightness=-0.52`,
+            "-filter_complex",
+            `[0:v]${drift}[dr];[1:v]scale=1920:1080,gblur=sigma=0.7[rt];[dr][rt]blend=all_mode=screen:all_opacity=0.3[v]`,
+            "-map", "[v]",
+            "-frames:v", String(F),
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "25",
+            "-pix_fmt", "yuv420p", "-an",
+            "base.mp4",
+          ]
+        : [
+            "-y", "-loop", "1", "-i", "prep.png",
+            "-vf", drift,
+            "-frames:v", String(F),
+            "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage", "-crf", "27",
+            "-pix_fmt", "yuv420p", "-an",
+            "base.mp4",
+          ],
       jobDir
     );
     if (r.code !== 0) throw new Error(`ambient base render failed: ${r.err.slice(-200)}`);
@@ -2103,8 +2124,17 @@ async function renderAmbientLoop(clip: Clip & { userEmail: string }): Promise<vo
     // masks the loop seams and fills the spectrum. Fallback: synth only,
     // continuous for the whole runtime.
     let bed: string | null = null;
+    // Our own recorded loops (ElevenLabs SFX, data/music/el_*.wav) beat a
+    // Freesound fetch: curated, always available, already loop-trimmed.
+    const elBedName = { rain: "el_rain.wav", wind: "el_wind.wav", ocean: "el_waves.wav", thunder: "el_storm.wav" }[
+      soundscape as string
+    ];
+    if (elBedName) {
+      const elBed = path.join(process.cwd(), "data", "music", elBedName);
+      if (fs.existsSync(elBed) && fs.statSync(elBed).size > 100_000) bed = elBed;
+    }
     const realQuery = AMBIENT_REAL_QUERIES[soundscape];
-    if (realQuery) {
+    if (!bed && realQuery) {
       const { fetchFieldRecording } = await import("./scenes");
       bed = await fetchFieldRecording(jobDir, "bed.mp3", realQuery);
     }
