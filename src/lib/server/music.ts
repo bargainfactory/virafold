@@ -469,6 +469,10 @@ const AMB_GRAPHS: Record<Amb, { inputs: string[]; fc: string }> = {
 
 async function ensureAmb(kind: Amb): Promise<string | null> {
   fs.mkdirSync(MUSIC_DIR, { recursive: true });
+  // Recorded-quality override: a generated/curated loop dropped into the
+  // music cache (e.g. ElevenLabs SFX) beats the synthesized bed.
+  const override = path.join(MUSIC_DIR, `el_${kind}.wav`);
+  if (fs.existsSync(override) && fs.statSync(override).size > 100_000) return override;
   // amb2_: the v1 noise-bed cache must not serve the reworked graphs.
   const wav = path.join(MUSIC_DIR, `amb2_${kind}.wav`);
   if (fs.existsSync(wav) && fs.statSync(wav).size > 100_000) return wav;
@@ -518,6 +522,8 @@ const SFX_GRAPHS: Record<Sfx, { inputs: string[]; fc: string }> = {
 
 async function ensureSfx(kind: Sfx): Promise<string | null> {
   fs.mkdirSync(MUSIC_DIR, { recursive: true });
+  const override = path.join(MUSIC_DIR, `el_sfx_${kind}.wav`);
+  if (fs.existsSync(override) && fs.statSync(override).size > 10_000) return override;
   const wav = path.join(MUSIC_DIR, `sfx_${kind}.wav`);
   if (fs.existsSync(wav) && fs.statSync(wav).size > 10_000) return wav;
   const g = SFX_GRAPHS[kind];
