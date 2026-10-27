@@ -133,6 +133,31 @@ export async function POST(
   } else if (mode === "reroll") {
     img = await generateBackground(basePrompt);
   } else if (mode === "prompt") {
+    // Conversational editing: an LLM first translates the user's casual
+    // request ("lose the second lamb, warmer light") into one precise
+    // img2img instruction, with the scene's narration as context. The raw
+    // text remains the fallback, so the editor never blocks on the LLM.
+    let refined = instruction;
+    try {
+      const { llmComplete } = await import("@/lib/server/generate");
+      const r = await llmComplete(
+        "You translate a casual edit request into ONE precise image-editing instruction (max 50 words) for an image-to-image model. Keep the user's intent exactly. Name concrete visual changes only — add/remove/recolor/relight/reframe specific things. Never add text to the image. Return JSON {instruction}.",
+        `Scene narration: ${b.text.slice(0, 200)}\nUser request: ${instruction}`,
+        {
+          type: "object",
+          properties: { instruction: { type: "string" } },
+          required: ["instruction"],
+          additionalProperties: false,
+        },
+        { tier: "standard", maxTokens: 150, context: "beat-chat-edit" }
+      );
+      if (r?.text) {
+        const j = JSON.parse(r.text) as { instruction?: string };
+        if (j.instruction && j.instruction.trim().length >= 3) refined = j.instruction.trim().slice(0, 300);
+      }
+    } catch {
+      /* raw instruction works fine */
+    }
     // Image-to-image on the beat's reference: the still itself, or — for an
     // animated beat — the source still its motion was generated from.
     const srcAbs = path.join(dir, b.file);
@@ -144,10 +169,11 @@ export async function POST(
     if (refAbs) {
       img = await editImage(
         fs.readFileSync(refAbs),
-        `${instruction}. Keep the overall art style, palette, and composition of the image the same. No text, no watermark.`
+        `${refined}. Keep the overall art style, palette, and composition of the image the same. No text, no watermark.`
       );
     }
-    if (!img) img = await generateBackground(`${basePrompt} ${instruction}.`);
+    if (!img) img = await generateBackground(`${basePrompt} ${refined}.`);
+    instruction = refined;
   } else {
     return NextResponse.json({ error: "Unknown mode" }, { status: 400 });
   }

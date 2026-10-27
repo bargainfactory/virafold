@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
-import { Film, Loader2, Paperclip, RefreshCw, Trash2, Wand2, X } from "lucide-react";
+import { Clapperboard, Film, Loader2, Paperclip, RefreshCw, Trash2, Wand2, X } from "lucide-react";
 
 interface Beat {
   i: number;
@@ -42,8 +42,32 @@ export default function SceneEditor({
   const [promptFor, setPromptFor] = useState<number | null>(null);
   const [instruction, setInstruction] = useState("");
   const [bust, setBust] = useState(0);
+  const [animating, setAnimating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadIdx = useRef<number>(-1);
+
+  // Storyboard-first: animate every approved still into full motion in place.
+  const animateFilm = useCallback(async () => {
+    if (animating || busy !== null) return;
+    const stills = (beats ?? []).filter((b) => b.image).length;
+    if (stills === 0) return;
+    if (!window.confirm(t("ed.animFilmConfirm").replace("{n}", String(stills)))) return;
+    setAnimating(true);
+    try {
+      const res = await fetch(`/api/clips/${clipId}/animate-film`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = await res.json().catch(() => null);
+      if (res.ok) {
+        addToast(t("ed.animFilmStarted"));
+        onEdited();
+      } else addToast(d?.error ?? t("clips.renderFailed"), "error");
+    } finally {
+      setAnimating(false);
+    }
+  }, [animating, busy, beats, clipId, addToast, t, onEdited]);
 
   const load = useCallback(() => {
     fetch(`/api/clips/${clipId}/plan`, { cache: "no-store" })
@@ -98,9 +122,22 @@ export default function SceneEditor({
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <Film className="w-4 h-4 text-neon-purple" /> {t("ed.title")}
           </h2>
-          <button onClick={onClose} aria-label={t("inbox.dismiss")} className="text-cyber-muted hover:text-foreground">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            {(beats ?? []).some((b) => b.image) && (
+              <button
+                onClick={animateFilm}
+                disabled={animating || busy !== null}
+                className="flex items-center gap-1.5 rounded-lg border border-neon-purple/40 bg-neon-purple/10 px-3 py-1.5 text-xs font-medium text-neon-purple hover:bg-neon-purple/20 disabled:opacity-50"
+                title={t("ed.animFilmTitle")}
+              >
+                {animating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clapperboard className="w-3.5 h-3.5" />}
+                {t("ed.animFilm")}
+              </button>
+            )}
+            <button onClick={onClose} aria-label={t("inbox.dismiss")} className="text-cyber-muted hover:text-foreground">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         <p className="px-6 pt-3 text-xs text-cyber-muted">{t("ed.hint")}</p>
         <div className="p-6 overflow-y-auto">

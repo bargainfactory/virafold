@@ -871,12 +871,41 @@ export async function buildScore(
       carved = next.filter((w) => w.end - w.start > 0.05);
     }
 
+    // The song slot: real song tracks dropped into planDir/songs/ override the
+    // synthesized song cues — jingle.* for the lamp-lighting jingle, then
+    // song1.*, song2.* for each later song run in order. Works for manually
+    // produced tracks (Suno) and API-composed ones (ElevenLabs Music) alike;
+    // instrumental mixes sit correctly under the chanted vocals.
+    const songsDir = path.join(planDir, "songs");
+    const songFile = (base: string): string | null => {
+      for (const ext of ["wav", "mp3", "m4a"]) {
+        const p = path.join(songsDir, `${base}.${ext}`);
+        if (fs.existsSync(p) && fs.statSync(p).size > 50_000) return p;
+      }
+      return null;
+    };
+    let songNo = 0;
     const parts: string[] = [];
     for (let i = 0; i < carved.length; i++) {
       const w = carved[i];
       const len = w.end - w.start;
       if (len <= 0.5 && w.cue !== "quiet") continue;
       const part = `score_part${i}.wav`;
+      let override: string | null = null;
+      if (w.cue === "jingle") override = songFile("jingle");
+      else if (w.cue === "song") {
+        songNo++;
+        override = songFile(`song${songNo}`);
+      }
+      if (override) {
+        const fadeOut = Math.max(0.1, len - 1.5);
+        const code = await sh("ffmpeg", ["-y", "-stream_loop", "-1", "-i", override, "-t", len.toFixed(3),
+          "-af", `volume=1.4,afade=t=in:d=0.6,afade=t=out:st=${fadeOut.toFixed(2)}:d=1.5,aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo`,
+          part], planDir);
+        if (code !== 0) return null;
+        parts.push(part);
+        continue;
+      }
       if (w.cue === "quiet") {
         const code = await sh("ffmpeg", ["-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
           "-t", len.toFixed(3), "-af", "aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo", part], planDir);
