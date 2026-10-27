@@ -1169,7 +1169,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             const res = await generateSpeakClip({
               email: clip.userEmail,
               startImagePath: srcAbs,
-              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions. Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
+              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions, hands relaxed and OUT OF FRAME below the composition (no hand gestures — the model mangles fingers). Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
               voiceId: v,
               durationSec: Math.min(15, line.text.length / 15 + 2.5),
             });
