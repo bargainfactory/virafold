@@ -888,10 +888,10 @@ export async function makeFilmCards(
        (sheet
          ? `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h},boxblur=8,` +
            `zoompan=z='min(1.10,1+0.0011*on)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${R.w}x${R.h}:fps=30,` +
-           `eq=brightness='-0.27+0.04*sin(2*PI*t/2.2)':saturation=0.85,`
+           `eq=brightness='-0.42+0.04*sin(2*PI*t/2.2)':saturation=0.8,`
          : "") +
-       `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=h*0.30:alpha='min(1,t*2.5)',` +
-       `drawtext=fontfile=${FONT}:textfile=card_main.txt:fontsize=${big}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=(h-text_h)/2:alpha='min(1,max(0,(t-0.55)*2))',` +
+       `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:borderw=3:bordercolor=black@0.7:x=(w-text_w)/2:y=h*0.30:alpha='min(1,t*2.5)',` +
+       `drawtext=fontfile=${FONT}:textfile=card_main.txt:fontsize=${big}:fontcolor=0xf3ebdc:borderw=4:bordercolor=black@0.75:x=(w-text_w)/2:y=(h-text_h)/2:alpha='min(1,max(0,(t-0.55)*2))',` +
        `fade=t=in:d=0.4,fade=t=out:st=${(lead - 0.5).toFixed(1)}:d=0.5,setsar=1`,
        ...common, "card_open.mp4"],
       planDir
