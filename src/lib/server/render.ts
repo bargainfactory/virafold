@@ -720,6 +720,20 @@ const CINE_LOOK =
 // a slow Dutch tilt under tension, and a brief jolt on impact beats.
 const IMPACT_RE = /\b(fell|falling|crash(ed)?|thunder|struck|slammed|shook|burst|collapsed|toppled)\b/i;
 
+// Camera v3 shot grammar — the award-film moves, chosen from the narration
+// itself so scripts direct the camera with plain words (documented in the kit).
+export const REACTION_RE =
+  /\b(gasped|stared|amazed|astonish|realiz|eyes (went|grew|widened)|mouth(s)? (fell|dropped)|could not believe|froze|breath (caught|held)|held (his|her|their) breath|openmouthed|speechless)\b/i;
+export const REVEAL_RE =
+  /\b(five thousand|ten thousand|whole (city|crowd|hillside|valley|army)|as far as (the eye|anyone)|stretched (from|across|out)|covered the (hill|earth|land)|from one (edge|horizon)|thousands upon thousands)\b/i;
+export const GOD_SEES_RE =
+  /\b(he saw (them|him|her)|god (saw|watched|remember(ed)?)|looked down (from|on|at)|heaven (saw|watched)|from (far )?above)\b/i;
+export const TRIUMPH_RE =
+  /\b(stood up (straight|tall)|rose to his feet|stepped forward|came up out|lifted (his|her) head|standing his tallest|walked out (free|into the morning))\b/i;
+export const VULNERABLE_RE =
+  /\b((all )?alone\b.*\b(pit|den|dark|thorn|road|sea|dust)|lay in the dust|small and (alone|shivering)|curled up|huddled|utterly alone)\b/i;
+export const CREEP_RE = /\b(breathing in the dark|golden eyes|crept|creeping|silence|held its breath|watching|waited in the dark)\b/i;
+
 function cameraV2(b: FilmBeat, frames: number, R: PlayRes, mood: string): string {
   const W = R.w, H = R.h;
   const OW = 2 * Math.round((W * 1.08) / 2);
@@ -769,6 +783,53 @@ function cameraV2(b: FilmBeat, frames: number, R: PlayRes, mood: string): string
   return `${scale2},${zp},${tilt}${jolt}`;
 }
 
+/**
+ * Camera v3: the award-shot pass on still beats. Narration words choose the
+ * move — a crash zoom lands Pip's punchlines, realizations get the Spielberg
+ * push-in, scale lines get the pull-back reveal, held-breath night beats get
+ * the imperceptible creep — and anything unmatched falls through to the v2
+ * directed move set. plan.camera === "v3" gates it; old plans re-encode
+ * exactly as rendered.
+ */
+function cameraV3(b: FilmBeat, frames: number, R: PlayRes, mood: string): string {
+  const W = R.w, H = R.h;
+  const OW = 2 * Math.round((W * 1.08) / 2);
+  const OH = 2 * Math.round((H * 1.08) / 2);
+  const scale2 = `scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH}`;
+  const centerCrop = `crop=${W}:${H}:x='(iw-${W})/2':y='(ih-${H})/2'`;
+  const t = b.text || "";
+  const gag = b.frame === true && !b.song && /[!?]["']?\s*$/.test(t.trim()) && t.length < 90;
+
+  if (gag) {
+    // Crash zoom: a fast comedic punch-in over 8 frames, then hold the look.
+    const zp = `zoompan=z='if(lt(on,8),1+0.16*on/8,1.16)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${OW}x${OH}:fps=30`;
+    return `${scale2},${zp},${centerCrop}`;
+  }
+  if (REACTION_RE.test(t)) {
+    // Spielberg push-in: slow, committed, onto the realization.
+    const hold = Math.min(8, Math.floor(frames / 6));
+    const span = Math.max(1, frames - 1 - hold);
+    const P = `min(1,max(0,(on-${hold})/${span}))`;
+    const E = `(${P}*${P}*(3-2*${P}))`;
+    const zp = `zoompan=z='1+0.20*${E}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${OW}x${OH}:fps=30`;
+    return `${scale2},${zp},${centerCrop}`;
+  }
+  if (REVEAL_RE.test(t)) {
+    // Pull-back reveal: tight on the small thing, widening into the scale.
+    const span = Math.max(1, frames - 1);
+    const P = `min(1,on/${span})`;
+    const E = `(${P}*${P}*(3-2*${P}))`;
+    const zp = `zoompan=z='1.22-0.22*${E}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${OW}x${OH}:fps=30`;
+    return `${scale2},${zp},${centerCrop}`;
+  }
+  if ((mood === "night" || mood === "tension" || mood === "storm") && frames > 200 && (CREEP_RE.test(t) || VULNERABLE_RE.test(t))) {
+    // The imperceptible creep: so slow a child only feels it.
+    const zp = `zoompan=z='1+0.035*on/${frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${OW}x${OH}:fps=30`;
+    return `${scale2},${zp},${centerCrop}`;
+  }
+  return cameraV2(b, frames, R, mood);
+}
+
 function beatFrames(plan: FilmPlan, b: FilmBeat): number {
   const startF = Math.round(b.start * 30);
   const endF =
@@ -801,14 +862,37 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
       ? "null"
       : `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
   const scale = `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h}`;
+  // Camera v3 extras that live at the segment level: the storybook iris on
+  // the film's final beat, and a whip-slide into each later beat of a song
+  // run so the chants feel kinetic.
+  const isLast = plan.beats.length > 0 && plan.beats[plan.beats.length - 1].i === b.i;
+  const pos = plan.beats.findIndex((x) => x.i === b.i);
+  const prevSong = pos > 0 && plan.beats[pos - 1]?.song === true;
+  const iris =
+    plan.camera === "v3" && isLast && frames > 60
+      ? `,vignette=a='min(PI/2,PI/5+(PI/2-PI/5)*max(0,n-${frames - 45})/45)':eval=frame`
+      : "";
   let inputs: string[];
   let fc: string;
   if (b.kind === "broll" || b.kind === "anim" || b.kind === "speak") {
     inputs = ["-stream_loop", "-1", "-t", (dur + 0.5).toFixed(2), "-i", b.file];
-    fc = `[0:v]${scale},fps=30,${look}${fades},setsar=1,ass=${assName}[v]`;
+    if (plan.camera === "v3" && b.song === true && prevSong) {
+      // Whip-slide: the clip lands with a fast 6-frame lateral settle.
+      const OW = 2 * Math.round((R.w * 1.08) / 2);
+      const OH = 2 * Math.round((R.h * 1.08) / 2);
+      fc =
+        `[0:v]scale=${OW}:${OH}:force_original_aspect_ratio=increase,crop=${OW}:${OH},fps=30,` +
+        `crop=${R.w}:${R.h}:x='if(lt(n,6),(iw-${R.w})*(1-n/6),(iw-${R.w})/2)':y='(ih-${R.h})/2',` +
+        `${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
+    } else {
+      fc = `[0:v]${scale},fps=30,${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
+    }
   } else if (b.kind === "image" || b.kind === "arch") {
     inputs = ["-i", b.file];
-    if (plan.camera === "v2") {
+    if (plan.camera === "v3") {
+      const { sceneMood } = await import("./music");
+      fc = `[0:v]${cameraV3(b, frames, R, sceneMood(b.text))},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}${iris}[v]`;
+    } else if (plan.camera === "v2") {
       const { sceneMood } = await import("./music");
       fc = `[0:v]${cameraV2(b, frames, R, sceneMood(b.text))},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}[v]`;
     } else {
@@ -1056,6 +1140,21 @@ export async function extractBeatPreview(planDir: string, b: FilmBeat): Promise<
     planDir
   );
   return res.code === 0 && fs.existsSync(abs) ? name : null;
+}
+
+// Camera v3 framing injection for story stills: the narration's own words
+// pick the award framing. Priority: the divine overhead beats everything,
+// then triumph/vulnerability angles; unmatched beats keep the rotation.
+function framePrefixFor(text: string): string {
+  if (GOD_SEES_RE.test(text))
+    return "seen from directly overhead in a God's-eye bird's-eye view, the figures small below: ";
+  if (TRIUMPH_RE.test(text))
+    return "from a dramatic low angle, the figure standing tall against the sky: ";
+  if (VULNERABLE_RE.test(text))
+    return "from a high angle looking down, the lone figure small in the lower third of the frame: ";
+  if (/\bthrough (his|her|their) (own )?eyes\b|point of view/i.test(text))
+    return "a first-person point-of-view shot, seen through the character's own eyes: ";
+  return "";
 }
 
 // Pause between spoken dialogue lines — reads as a natural beat, not a cut.
@@ -1654,8 +1753,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               : scene.imageSubject
                 ? // Anchor the picture to the words being spoken over it, not
                   // just the planner's abstraction — illustration follows text.
-                  `${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${scene.text.slice(0, 130)}"`
-                : scene.text.slice(0, 120);
+                  `${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${scene.text.slice(0, 130)}"`
+                : `${framePrefixFor(scene.text)}${scene.text.slice(0, 120)}`;
           const beatCast = beatFrame === false ? (storyCast ?? undefined) : (cast ?? undefined);
           // Story beats: the recurring cast may ONLY appear when the narration
           // names them — the Ep9 audit found the hero leaking into scenes he
@@ -1836,7 +1935,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         lang: clip.lang || "en",
         ...(wide ? { wide: true } : {}),
         cuts: "straight",
-        camera: "v2",
+        camera: "v3",
       };
       // Studio dressing, both best-effort: branded title/end cards around the
       // film, and the mood-mapped score mixed (and ducked) under the voice.

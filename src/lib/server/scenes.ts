@@ -156,22 +156,34 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
     // character follows the scene's mood, same signal the score reads.
     motionPrompt: (subject) => {
       const mood = sceneMood(subject);
+      // Camera v3 vocabulary: the narration's own words pick award moves
+      // before the mood fallback — overhead descents for the divine gaze,
+      // pull-back reveals for scale, face push-ins for realizations, rack
+      // focus for small-object moments, strong parallax on journeys.
       const cam =
-        mood === "tension"
-          ? "a slow, creeping push-in with the faintest handheld sway"
-          : mood === "sorrow"
-            ? "a slow, mournful drift that settles into stillness"
-            : mood === "joy"
-              ? "a buoyant, gently drifting camera"
-              : mood === "majesty"
-                ? "a stately, slowly rising wide move"
-                : mood === "wonder"
-                  ? "a gentle rising crane move"
-                  : mood === "travel"
-                    ? "a steady lateral tracking move following the journey"
-                    : mood === "night"
-                      ? "an almost-still camera that barely breathes"
-                      : "a slow, gentle push-in";
+        /\b(he saw (them|him|her)|god (saw|watched|remember)|looked down (from|on)|from (far )?above)\b/i.test(subject)
+          ? "a slow overhead descent, a God's-eye view drifting gently downward over the scene"
+          : /\b(five thousand|whole (city|crowd|hillside|valley)|stretched (from|across)|thousands upon thousands)\b/i.test(subject)
+            ? "a slow pull-back reveal, starting close and widening until the full scale of the scene fills the frame"
+            : /\b(gasped|stared|amazed|astonish|realiz|eyes (went|grew|widened)|could not believe|froze)\b/i.test(subject)
+              ? "a slow, committed push-in on the character's face as the realization lands"
+              : /\b(coins?|bread|loaves|stones?|lamp|cup|seed|leaf)\b.*\b(hand|palm|close|held)\b/i.test(subject)
+                ? "a gentle rack focus, pulling focus from the small object in the foreground to the scene behind it"
+                : mood === "tension" || mood === "storm"
+                  ? "a slow, creeping push-in with the faintest handheld sway"
+                  : mood === "sorrow"
+                    ? "a slow, mournful drift that settles into stillness"
+                    : mood === "joy"
+                      ? "a buoyant, gently drifting camera"
+                      : mood === "majesty"
+                        ? "a stately, slowly rising wide move"
+                        : mood === "wonder"
+                          ? "a gentle rising crane move"
+                          : mood === "travel"
+                            ? "a steady lateral tracking move following the journey, with strong parallax — the foreground passing faster than the distant background"
+                            : mood === "night"
+                              ? "an almost-still camera that barely breathes"
+                              : "a slow, gentle push-in";
       return `One clear emotional performance beat: ${subject}. The character's feeling leads the motion — eyes, brows and posture shift naturally with it. Gentle character movement with soft bouncy secondary motion and slow background parallax. One camera move only: ${cam}. Keep the exact same art style, character designs, lighting and framing. Add no new characters, no new objects, no text.`;
     },
     allowBroll: false,
