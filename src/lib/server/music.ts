@@ -791,7 +791,7 @@ const SCORE_INTERACT_RE =
 // The film's biggest lines get two seconds of silence first, then a bloom —
 // nothing makes a miracle land like the music holding its breath.
 const CLIMAX_RE =
-  /\bpeace\.?,? be still\b|let there be light|your faith has made you|today,? salvation|and he answered me|it is very good|rise,? and go your way/i;
+  /\bpeace\.?,? be still\b|let there be light|your faith has made you|today,? salvation|and he answered me|it is very good|rise,? and go your way|the battle is the lord'?s/i;
 
 export async function buildScore(
   planDir: string,
