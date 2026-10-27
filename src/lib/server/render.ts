@@ -1123,12 +1123,24 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       const speakSet = new Map<number, { portrait: string; meta: string }>();
       if (clip.animate === 3 && (clip.lang || "en") === "en") {
         const { isXaiVoice } = await import("./dialogue");
+        // Voice-consistency guard: a character whose lines route to
+        // ElevenLabs (elevenVoiceMap) must NOT get xAI-voiced lip-sync
+        // close-ups — the voice would switch mid-film. Close-ups stay for
+        // characters whose everyday TTS voice IS the xAI voice (xAI still
+        // rejects caller-supplied reference audio, re-probed 2026-10-27).
+        let elMapped = new Set<string>();
+        try {
+          const { resolveField } = await import("./integrations");
+          elMapped = new Set(Object.keys(JSON.parse(resolveField("voiceover", "elevenVoiceMap") || "{}")));
+        } catch {
+          /* no map — no exclusions */
+        }
         const cands: { i: number; len: number; portrait: string; meta: string }[] = [];
         for (let i = 0; i < dialogue.length; i++) {
           const line = dialogue[i];
           if (!isFrameLine(line)) continue;
           const v = voices.get(line.speaker);
-          if (!v || !isXaiVoice(v)) continue;
+          if (!v || !isXaiVoice(v) || elMapped.has(v)) continue;
           // Keep comfortable headroom under the model's 15s cap — a line that
           // needs ~13s got its last sentence truncated once; ≤10s estimated
           // speech plus the +2.5s budget below always fits.
