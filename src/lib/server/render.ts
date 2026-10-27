@@ -875,6 +875,9 @@ export async function makeFilmCards(
     // over the heroes themselves — blurred and dimmed so the type still reads —
     // like a real feature's one-sheet. Indigo card otherwise.
     const sheet = fs.existsSync(path.join(planDir, "castsheet.png"));
+    // A living opening: the cast art breathes (slow push-in + a warm glow
+    // pulse like lamplight catching) while the brand line arrives first and
+    // the title blooms in after it — a générique, not a slide.
     const open = await run(
       "ffmpeg",
       ["-y",
@@ -883,11 +886,13 @@ export async function makeFilmCards(
          : ["-f", "lavfi", "-t", String(lead), "-i", `color=c=0x15112a:s=${R.w}x${R.h}:r=30`]),
        "-vf",
        (sheet
-         ? `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h},boxblur=8,eq=brightness=-0.25:saturation=0.85,`
+         ? `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h},boxblur=8,` +
+           `zoompan=z='min(1.10,1+0.0011*on)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${R.w}x${R.h}:fps=30,` +
+           `eq=brightness='-0.27+0.04*sin(2*PI*t/2.2)':saturation=0.85,`
          : "") +
-       `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=h*0.30,` +
-       `drawtext=fontfile=${FONT}:textfile=card_main.txt:fontsize=${big}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=(h-text_h)/2,` +
-       `fade=t=in:d=0.5,fade=t=out:st=${(lead - 0.5).toFixed(1)}:d=0.5,setsar=1`,
+       `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=h*0.30:alpha='min(1,t*2.5)',` +
+       `drawtext=fontfile=${FONT}:textfile=card_main.txt:fontsize=${big}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=(h-text_h)/2:alpha='min(1,max(0,(t-0.55)*2))',` +
+       `fade=t=in:d=0.4,fade=t=out:st=${(lead - 0.5).toFixed(1)}:d=0.5,setsar=1`,
        ...common, "card_open.mp4"],
       planDir
     );
@@ -1623,9 +1628,17 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // narration's world alone — the cast never crowds the tale, and the
           // setting/product props belong to the story, not the fireside.
           const beatFrame = dialogueBeats ? (beats[i] as { frame?: boolean }).frame === true : null;
+          // Lesson moments get a visual callback: a dream-vignette of the
+          // story floats in the lamplight while the lesson is drawn out, so
+          // the value lands with a picture, not just words.
+          const lessonBeat =
+            beatFrame === true &&
+            /\bso,? little ones\b|the lesson|remember (this|that|it)|carry (this |it )?to bed|say (them|it) with me/i.test(
+              scene.text
+            );
           const beatSubject =
             beatFrame === true
-              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}`
+              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}${lessonBeat ? " — and floating softly in the warm air above the lamp, a small golden dream-vignette glows, showing the very scene of tonight's story that these words recall" : ""}`
               : scene.imageSubject
                 ? // Anchor the picture to the words being spoken over it, not
                   // just the planner's abstraction — illustration follows text.

@@ -424,6 +424,36 @@ const CUES: Record<string, Cue> = {
       },
     ],
   },
+  // The lamp-lighting jingle — the series' signature tune. The SAME bouncy
+  // melody opens every episode under the chanted jingle, so kids learn it by
+  // heart: a bright sol-mi nursery hook with the clap-pulse underneath.
+  jingle: {
+    bpm: 108,
+    tracks: [
+      {
+        prog: FLUTE, ch: 0,
+        notes: mel([
+          [0, 0.5, "G4"], [0.5, 0.5, "E4"], [1, 0.5, "G4"], [1.5, 0.5, "E4"],
+          [2, 0.5, "A4"], [2.5, 0.5, "G4"], [3, 1, "E4"],
+          [4, 0.5, "C5"], [4.5, 0.5, "B4"], [5, 0.5, "A4"], [5.5, 0.5, "G4"], [6, 2, "G4"],
+          [8, 0.5, "E4"], [8.5, 0.5, "G4"], [9, 0.5, "A4"], [9.5, 0.5, "C5"],
+          [10, 0.5, "B4"], [10.5, 0.5, "A4"], [11, 1, "G4"],
+          [12, 0.5, "A4"], [12.5, 0.5, "G4"], [13, 0.5, "E4"], [13.5, 0.5, "D4"], [14, 2, "C4"],
+        ], 82),
+      },
+      {
+        prog: WOODBLOCK, ch: 1,
+        notes: ([0, 4, 8, 12] as number[]).flatMap((bar) => [
+          [bar, 0.3, n("C5"), 80], [bar + 1, 0.3, n("C5"), 54], [bar + 1.75, 0.2, n("G4"), 44],
+          [bar + 2, 0.3, n("C5"), 76], [bar + 3, 0.3, n("C5"), 54],
+        ] as NoteEv[]),
+      },
+      {
+        prog: HARP, ch: 2,
+        notes: arp([[0, 4, "C3"], [4, 4, "F3"], [8, 4, "C3"], [12, 4, "G3"]], 46),
+      },
+    ],
+  },
 };
 
 // --- Rendering & assembly ---
@@ -753,7 +783,7 @@ export async function buildAmbience(
  * faded and concatenated into score.wav inside the plan dir.
  */
 // Score v2 cue labels: moods plus the sing-along pulse and musical rests.
-type ScoreCue = Mood | "song" | "quiet";
+type ScoreCue = Mood | "song" | "quiet" | "jingle";
 
 // Call-and-response holds — the score rests so kids answer into quiet.
 const SCORE_INTERACT_RE =
@@ -776,12 +806,20 @@ export async function buildScore(
     // Cue windows from beats: song runs get the clap pulse, interactive
     // holds get silence, everything else its mood; blips join neighbors.
     const raw: { cue: ScoreCue; start: number; end: number }[] = [];
+    // The FIRST song run of the film is the lamp-lighting jingle — it gets
+    // the series' signature tune; later songs get the clap-pulse vamp.
+    let jingleDone = false;
+    let inSong = false;
     for (const b of beats) {
-      const cue: ScoreCue = b.song
-        ? "song"
-        : SCORE_INTERACT_RE.test(b.text)
-          ? "quiet"
-          : moodFor(b.text);
+      let cue: ScoreCue;
+      if (b.song) {
+        cue = !jingleDone && lead + b.start < 120 ? ("jingle" as ScoreCue) : "song";
+        inSong = true;
+      } else {
+        if (inSong) jingleDone = true;
+        inSong = false;
+        cue = SCORE_INTERACT_RE.test(b.text) ? "quiet" : moodFor(b.text);
+      }
       const start = lead + b.start;
       const end = start + b.dur;
       const prev = raw[raw.length - 1];
@@ -873,6 +911,12 @@ export async function buildScore(
     // Overlays: miracle stingers where light breaks (and at each climax, right
     // ON the line after its silence), and character motifs at first lines.
     const hits: { wav: string; at: number; vol: number }[] = [];
+    // Opening sting: every episode begins with the harp-rush bloom over the
+    // title card — a tiny "the lamp is lighting" moment before the story.
+    {
+      const w = await ensureCue("stinger");
+      if (w) hits.push({ wav: w, at: 0.4, vol: 0.75 });
+    }
     const sparkleRe = SFX_TRIGGERS.find((t) => t.kind === "sparkle")!.re;
     let lastSting = -999;
     for (const b of beats) {
