@@ -693,6 +693,9 @@ export interface FilmPlan {
   /** Synthesized ambience/foley track (fireside crackle, wind, waves) in the
    *  plan dir, mixed very low under everything. */
   ambience?: string;
+  /** Character entrance motifs (first line of each cast member, voice-time
+   *  seconds) — overlaid on the score; persisted so rebuilds keep them. */
+  motifs?: { at: number; who: string }[];
   /** Branded title/end card segments and the timeline they add around the voice. */
   openCard?: string;
   endCard?: string;
@@ -726,7 +729,7 @@ function cameraV2(b: FilmBeat, frames: number, R: PlayRes, mood: string): string
   const P = `min(1,max(0,(on-${hold})/${span}))`;
   const E = `(${P}*${P}*(3-2*${P}))`;
   const mag =
-    mood === "tension" ? 0.06
+    mood === "tension" || mood === "storm" ? 0.06
       : mood === "sorrow" || mood === "night" ? 0.05
         : mood === "joy" ? 0.16
           : mood === "wonder" ? 0.14
@@ -1074,6 +1077,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   let duration: number;
   let words: TranscriptWord[];
   let dialogueBeats: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean }[] | null = null;
+  // Character entrance motifs (voice-time): each cast member's first line.
+  const speakerMotifs: { at: number; who: string }[] = [];
 
   try {
     if (dialogue) {
@@ -1233,6 +1238,22 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           : !s.song && isFrameLine(s.line) && /[!?]["']?$/.test(s.line.text.trim())
             ? 0.7
             : LINE_GAP;
+      }
+      // Character entrance motifs: the moment each cast member first speaks
+      // (Pip's flute hop, Eli's strings, Naomi's harp strum on the score) —
+      // computed with the final per-line gaps so timings match the stitch.
+      {
+        const MOTIF_WHO: Record<string, string> = { PIP: "pip", ELI: "eli", NAOMI: "naomi" };
+        const seen = new Set<string>();
+        let mt = 0;
+        for (const s of segs) {
+          const who = MOTIF_WHO[s.line.speaker];
+          if (who && !seen.has(who)) {
+            seen.add(who);
+            speakerMotifs.push({ at: mt, who });
+          }
+          mt += s.dur + (s.gap ?? LINE_GAP);
+        }
       }
       // Stitch: pad each line with its gap, concat, decode to WAV once.
       const inputs = segs.flatMap((s) => ["-i", s.file]);
@@ -1451,6 +1472,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           constrainScenes,
           castSheetFor,
           storyCastFor,
+          storyPropsFor,
         } = await import("./scenes");
         const { generateBackground } = await import("./images");
         // Visual style preset (Animation Studio): bakes art direction + motion
@@ -1539,6 +1561,12 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         const storyCast = dialogueBeats
           ? await storyCastFor(clip.title, clip.script).catch(() => null)
           : null;
+        // Object-continuity lock: the story's recurring objects (a ship, an
+        // ark, a den) designed once and pinned into every beat that mentions
+        // them — one film drew four different vessels before this existed.
+        const storyProps = dialogueBeats
+          ? await storyPropsFor(clip.title, clip.script).catch(() => null)
+          : null;
         // Documentary (no style preset) still honors a recurring character.
         if (!styleDef && propCast) {
           propExtra += ` Recurring character, EXACT same design in every scene: ${propCast}.`;
@@ -1613,7 +1641,17 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             beatFrame === false
               ? " Include a recurring character ONLY if this exact narration moment explicitly mentions them — if it does not name them, leave them out of the image entirely. Never depict God as a person or human figure: when the narration has God speak, act or answer, show His presence ONLY as warm light from the sky."
               : "";
-          const beatExtra = (beatFrame === true ? "" : propExtra) + storyGuard;
+          // Pin any recurring object this beat mentions to its one design.
+          let propsGuard = "";
+          if (beatFrame === false && storyProps) {
+            const lower = scene.text.toLowerCase();
+            for (const p of storyProps) {
+              if (p.keywords.some((kw) => kw && lower.includes(kw))) {
+                propsGuard += ` The ${p.name} must look EXACTLY the same as in every other scene: ${p.design}.`;
+              }
+            }
+          }
+          const beatExtra = (beatFrame === true ? "" : propExtra) + storyGuard + propsGuard;
           let beatPrompt =
             (styleDef
               ? styleDef.imagePrompt(
@@ -1780,7 +1818,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       const cards = await makeFilmCards(jobDir, plan, clip.title).catch(() => null);
       if (cards) Object.assign(plan, cards);
       const { buildScore, buildAmbience } = await import("./music");
-      const score = await buildScore(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
+      if (speakerMotifs.length) plan.motifs = speakerMotifs;
+      const score = await buildScore(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0, plan.motifs).catch(() => null);
       if (score) plan.music = score;
       // SFX/ambience layer: synthesized soundscapes (fireside crackle under
       // the frame, wind on journeys, waves at sea) windowed over the film.

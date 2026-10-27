@@ -100,7 +100,7 @@ export async function POST(
     // still lands on the ending instead of being trimmed mid-phrase.
     if (plan.music) {
       const { buildScore } = await import("@/lib/server/music");
-      const score = await buildScore(dir, plan.beats, plan.duration, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
+      const score = await buildScore(dir, plan.beats, plan.duration, plan.lead ?? 0, plan.tail ?? 0, plan.motifs).catch(() => null);
       if (score) plan.music = score;
     }
     // Same for the ambience layer — its windows are baked to beat timings.

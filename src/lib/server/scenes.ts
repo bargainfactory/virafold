@@ -262,6 +262,7 @@ export async function storyCastFor(title: string, script: string): Promise<strin
       "From this narrated screenplay, pick the 1-3 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
       "For each, give: name (exactly as the script calls them) and design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature. Period-appropriate to the story's setting.",
       "Describe ONLY the character's appearance and clothing — never held objects, carried items, props, or actions (a 'clutching coins' detail would wrongly appear in every single scene).",
+      "State each character's AGE explicitly and concretely at the age they are DURING the story's main events (e.g. 'an elderly man of about eighty with white hair', 'a boy of about ten') — age drift between scenes is the most jarring failure, so the stated age must hold for every scene.",
       "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with warm tan, sun-browned Middle-Eastern skin tones. If Jesus appears, describe Him reverently and consistently: tall — six feet two, standing clearly taller than those around Him — a warm tan complexion, dark wavy hair and beard, simple robes, a calm and kind face.",
       "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
     ].join("\n"),
@@ -390,6 +391,62 @@ function deterministicScene(beat: { text: string; dur: number }, i: number): Sce
   };
 }
 
+const STORY_PROPS_SCHEMA = {
+  type: "object",
+  properties: {
+    props: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          keywords: { type: "array", items: { type: "string" } },
+          design: { type: "string" },
+        },
+        required: ["name", "keywords", "design"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["props"],
+  additionalProperties: false,
+};
+
+/**
+ * Recurring STORY objects/places (a ship, an ark, a den, an inn) designed
+ * ONCE per film — the object-continuity lock. Injected into every beat whose
+ * narration mentions them, so the ship that leaves the harbor is the same
+ * ship the crew rows and the same ship the hero is thrown from (a real
+ * failure: one film drew four different vessels).
+ */
+export async function storyPropsFor(
+  title: string,
+  script: string
+): Promise<{ name: string; keywords: string[]; design: string }[] | null> {
+  const res = await llmComplete(
+    [
+      "From this narrated screenplay, pick up to 3 recurring OBJECTS or PLACES of the story being told that appear in several scenes (a ship, an ark, a pit, a den, an inn, a tree). Skip anything that appears only once and skip people and animals.",
+      "For each give: name; keywords — 3-6 lowercase words/phrases from the script that signal the object is in a scene (e.g. for a ship: ship, deck, sail, hold, overboard); design — a concrete visual description under 30 words that PINS the object's look and SCALE (size relative to people, color, materials, distinctive features, mast/sail count if a vessel).",
+      "The design must stay true for the whole story — if the object is large (a ship, an ark), say LARGE and state it clearly so no scene shrinks it.",
+    ].join("\n"),
+    `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,
+    STORY_PROPS_SCHEMA as unknown as Record<string, unknown>,
+    { tier: "standard", maxTokens: 500, context: "story-props" }
+  );
+  if (!res) return null;
+  try {
+    const parsed = JSON.parse(res.text) as { props: { name: string; keywords: string[]; design: string }[] };
+    if (!Array.isArray(parsed.props) || parsed.props.length === 0) return null;
+    return parsed.props.slice(0, 3).map((p) => ({
+      name: String(p.name).slice(0, 40),
+      keywords: (p.keywords ?? []).slice(0, 6).map((k) => String(k).toLowerCase()),
+      design: String(p.design).slice(0, 220),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 export async function planScenes(
   beats: { text: string; dur: number }[],
   title: string
@@ -405,6 +462,7 @@ export async function planScenes(
       "- broll: the beat describes a real-world activity, place, or object that stock footage definitely has (someone typing, rain on a window, a busy street, pouring coffee) → brollQuery: a 2-5 word stock-footage search phrase, concrete and literal.",
       "- image: everything else → imageSubject: a concrete, filmable subject (max 12 words), literal not abstract — a person doing something, an object, a place. Never 'abstract concept of growth'. The subject must restate what THIS beat's narration itself describes — never a subject the narration doesn't mention. When the narration dwells on a small object (coins, bread, stones, a lamp), make the subject an extreme close-up detail shot of that object.",
       "HARD RULE: every number you output must appear verbatim in that beat's narration. Never invent or round numbers.",
+      "HARD RULE — story chronology: the beats are in story order, and each subject may only show what has ALREADY happened by that beat. Nobody is wounded before the attack, rescued before the rescue, or present after they have left; an object under construction is not finished early. When a beat's narration is ambiguous, match the state set by the beats before it.",
       "Return scenes in the same order and count as the beats. Vary the kinds — a run of three identical kinds is a failure unless the narration demands it.",
     ].join("\n"),
     `Video title: ${title}\n\nNarration beats:\n${beats

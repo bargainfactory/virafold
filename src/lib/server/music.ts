@@ -116,8 +116,9 @@ function mel(seq: [number, number, string][], vel = 76): NoteEv[] {
   return seq.map(([s, d, name]) => [s, d, n(name), vel]);
 }
 
-// GM programs: 73 flute, 48 string ensemble, 46 harp, 42 cello.
-const FLUTE = 73, STRINGS = 48, HARP = 46, CELLO = 42;
+// GM programs: 73 flute, 48 string ensemble, 46 harp, 42 cello,
+// 47 timpani, 115 woodblock.
+const FLUTE = 73, STRINGS = 48, HARP = 46, CELLO = 42, TIMPANI = 47, WOODBLOCK = 115;
 
 // --- The cue library ---
 
@@ -352,6 +353,77 @@ const CUES: Record<string, Cue> = {
       },
     ],
   },
+  // Storm — timpani heartbeat under trembling low strings; swells with the
+  // thunder one-shots instead of borrowing the generic tension cue.
+  storm: {
+    bpm: 92,
+    tracks: [
+      {
+        prog: TIMPANI, ch: 0,
+        notes: Array.from({ length: 16 }, (_, b) => [b, 0.6, n("D2"), b % 4 === 0 ? 92 : 68] as NoteEv),
+      },
+      {
+        prog: CELLO, ch: 1,
+        notes: Array.from({ length: 64 }, (_, i) => [i * 0.25, 0.25, n(i % 8 < 4 ? "D3" : "C3"), 52] as NoteEv),
+      },
+      {
+        prog: STRINGS, ch: 2,
+        notes: pad([[0, 4, "D3", true], [4, 4, "Bb2"], [8, 4, "G2", true], [12, 4, "A2"]], 56),
+      },
+    ],
+  },
+  // Sing-along pulse — a clap-friendly woodblock tick with a light harp vamp;
+  // the orchestra steps back so the chant leads and kids have a beat to clap.
+  song: {
+    bpm: 104,
+    tracks: [
+      {
+        prog: WOODBLOCK, ch: 0,
+        notes: ([0, 4, 8, 12] as number[]).flatMap((bar) => [
+          [bar, 0.3, n("C5"), 88], [bar + 1, 0.3, n("C5"), 58], [bar + 1.75, 0.2, n("G4"), 48],
+          [bar + 2, 0.3, n("C5"), 82], [bar + 3, 0.3, n("C5"), 58],
+        ] as NoteEv[]),
+      },
+      {
+        prog: HARP, ch: 1,
+        notes: arp([[0, 4, "F3"], [4, 4, "C3"], [8, 4, "Bb3"], [12, 4, "C3"]], 48),
+      },
+    ],
+  },
+  // Miracle stinger (one-shot ~3.5s): harp rush up into a string-and-flute
+  // bloom — overlaid exactly where light breaks and wonders happen.
+  stinger: {
+    bpm: 100,
+    tracks: [
+      {
+        prog: HARP, ch: 0,
+        notes: ["C4", "E4", "G4", "C5", "E5", "G5", "C6", "E6"].map(
+          (p, i) => [i * 0.25, 0.3, n(p), 72] as NoteEv
+        ),
+      },
+      { prog: STRINGS, ch: 1, notes: pad([[1, 4.5, "C4"]], 58) },
+      { prog: FLUTE, ch: 2, notes: mel([[2, 1, "G5"], [3, 2.5, "C6"]], 66) },
+    ],
+  },
+  // Character entrance motifs (one-shots): Pip's two-note flute hop, Eli's
+  // gentle string dyad, Naomi's harp strum — played at each one's first line.
+  motif_pip: {
+    bpm: 120,
+    tracks: [{ prog: FLUTE, ch: 0, notes: mel([[0, 0.4, "G5"], [0.5, 1.2, "C6"]], 84) }],
+  },
+  motif_eli: {
+    bpm: 100,
+    tracks: [{ prog: STRINGS, ch: 0, notes: [[0, 2, n("E4"), 54], [0, 2, n("G4"), 54]] as NoteEv[] }],
+  },
+  motif_naomi: {
+    bpm: 110,
+    tracks: [
+      {
+        prog: HARP, ch: 0,
+        notes: [[0, 0.2, n("C4"), 70], [0.2, 0.2, n("E4"), 70], [0.4, 0.2, n("G4"), 70], [0.6, 1.4, n("C5"), 74]] as NoteEv[],
+      },
+    ],
+  },
 };
 
 // --- Rendering & assembly ---
@@ -389,7 +461,7 @@ async function ensureCue(name: string): Promise<string | null> {
 
 type Mood =
   | "theme" | "morning" | "shepherd" | "joy" | "night" | "tension" | "wonder"
-  | "sorrow" | "majesty" | "travel";
+  | "sorrow" | "majesty" | "travel" | "storm";
 
 const TENSION_RE =
   /\b(storm|wind|waves?|thunder|afraid|fear|lions?|giant|robbers?|danger|pit|prison|flood|trouble|enem|sink|dark)\b/i;
@@ -410,7 +482,10 @@ export function sceneMood(text: string): Mood {
   return moodFor(text);
 }
 
+const STORM_MOOD_RE = /\b(storm|thunder|tempest|gale|howl(ing|ed)?|waves? (rose|broke|towered)|wall of (black )?water|sky collapsed)\b/i;
+
 function moodFor(text: string): Mood {
+  if (STORM_MOOD_RE.test(text)) return "storm";
   if (TENSION_RE.test(text)) return "tension";
   if (SORROW_RE.test(text)) return "sorrow";
   if (JOY_RE.test(text)) return "joy";
@@ -677,29 +752,48 @@ export async function buildAmbience(
  * including the title-card lead), theme over the open and close, cues looped,
  * faded and concatenated into score.wav inside the plan dir.
  */
+// Score v2 cue labels: moods plus the sing-along pulse and musical rests.
+type ScoreCue = Mood | "song" | "quiet";
+
+// Call-and-response holds — the score rests so kids answer into quiet.
+const SCORE_INTERACT_RE =
+  /say it (out loud|with me)|i'?ll wait|we'?ll wait|shout it|got it\?|do you have (it|them) in your mind/i;
+// The film's biggest lines get two seconds of silence first, then a bloom —
+// nothing makes a miracle land like the music holding its breath.
+const CLIMAX_RE =
+  /\bpeace\.?,? be still\b|let there be light|your faith has made you|today,? salvation|and he answered me|it is very good|rise,? and go your way/i;
+
 export async function buildScore(
   planDir: string,
-  beats: { text: string; start: number; dur: number }[],
+  beats: { text: string; start: number; dur: number; song?: boolean }[],
   duration: number,
   lead: number,
-  tail: number
+  tail: number,
+  motifs?: { at: number; who: string }[]
 ): Promise<string | null> {
   try {
     const total = lead + duration + tail;
-    // Mood windows from beats, merged; short blips join their neighbor.
-    const raw: { mood: Mood; start: number; end: number }[] = [];
+    // Cue windows from beats: song runs get the clap pulse, interactive
+    // holds get silence, everything else its mood; blips join neighbors.
+    const raw: { cue: ScoreCue; start: number; end: number }[] = [];
     for (const b of beats) {
-      const mood = moodFor(b.text);
+      const cue: ScoreCue = b.song
+        ? "song"
+        : SCORE_INTERACT_RE.test(b.text)
+          ? "quiet"
+          : moodFor(b.text);
       const start = lead + b.start;
       const end = start + b.dur;
       const prev = raw[raw.length - 1];
-      if (prev && (prev.mood === mood || end - start < 6)) prev.end = end;
-      else raw.push({ mood, start, end });
+      if (prev && (prev.cue === cue || (end - start < 6 && cue !== "quiet"))) prev.end = end;
+      else raw.push({ cue, start, end });
     }
-    const windows: { mood: Mood; start: number; end: number }[] = [];
+    const windows: { cue: ScoreCue; start: number; end: number }[] = [];
     for (const w of raw) {
       const prev = windows[windows.length - 1];
-      if (prev && w.end - w.start < 12) prev.end = w.end;
+      // Short blips merge into the neighbor — but a quiet window stays quiet
+      // even when short: that IS the point of it.
+      if (prev && w.end - w.start < 12 && w.cue !== "quiet" && prev.cue !== "quiet") prev.end = w.end;
       else windows.push({ ...w });
     }
     // Theme bookends.
@@ -707,45 +801,106 @@ export async function buildScore(
     const closeStart = Math.max(openEnd, total - 30);
     const mids = windows
       .map((w) => ({ ...w, start: Math.max(w.start, openEnd), end: Math.min(w.end, closeStart) }))
-      .filter((w) => w.end - w.start >= 8);
-    const final: { mood: Mood; start: number; end: number }[] = [
-      { mood: "theme", start: 0, end: openEnd },
+      .filter((w) => w.end - w.start >= (w.cue === "quiet" ? 2 : 8));
+    const final: { cue: ScoreCue; start: number; end: number }[] = [
+      { cue: "theme", start: 0, end: openEnd },
       ...mids,
-      { mood: "theme", start: closeStart, end: total },
+      { cue: "theme", start: closeStart, end: total },
     ];
     // Close gaps so parts concat into a continuous track.
     for (let i = 1; i < final.length; i++) final[i].start = final[i - 1].end;
     final[final.length - 1].end = total;
 
+    // Pre-climax silence: carve a 2s rest right before each climax beat
+    // (max two per film, min 60s apart), splitting whatever window holds it.
+    const climaxAts: number[] = [];
+    for (const b of beats) {
+      if (!CLIMAX_RE.test(b.text)) continue;
+      const at = lead + b.start;
+      if (climaxAts.length >= 2 || (climaxAts.length && at - climaxAts[climaxAts.length - 1] < 60)) continue;
+      climaxAts.push(at);
+    }
+    let carved = final;
+    for (const at of climaxAts) {
+      const s = Math.max(0, at - 2);
+      const next: typeof final = [];
+      for (const w of carved) {
+        if (w.end <= s || w.start >= at) { next.push(w); continue; }
+        if (w.start < s) next.push({ ...w, end: s });
+        next.push({ cue: "quiet", start: Math.max(w.start, s), end: Math.min(w.end, at) });
+        if (w.end > at) next.push({ ...w, start: at });
+      }
+      carved = next.filter((w) => w.end - w.start > 0.05);
+    }
+
     const parts: string[] = [];
-    for (let i = 0; i < final.length; i++) {
-      const w = final[i];
+    for (let i = 0; i < carved.length; i++) {
+      const w = carved[i];
       const len = w.end - w.start;
-      if (len <= 0.5) continue;
-      const cueWav = (await ensureCue(w.mood)) ?? (await ensureCue("shepherd"));
-      if (!cueWav) return null;
+      if (len <= 0.5 && w.cue !== "quiet") continue;
       const part = `score_part${i}.wav`;
-      const fadeOut = Math.max(0.1, len - 1.5);
-      const code = await sh(
-        "ffmpeg",
-        ["-y", "-stream_loop", "-1", "-i", cueWav, "-t", len.toFixed(3),
-         "-af", `afade=t=in:d=1.0,afade=t=out:st=${fadeOut.toFixed(2)}:d=1.5,aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo`,
-         part],
-        planDir
-      );
-      if (code !== 0) return null;
+      if (w.cue === "quiet") {
+        const code = await sh("ffmpeg", ["-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+          "-t", len.toFixed(3), "-af", "aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo", part], planDir);
+        if (code !== 0) return null;
+      } else {
+        const cueWav = (await ensureCue(w.cue)) ?? (await ensureCue("shepherd"));
+        if (!cueWav) return null;
+        const fadeOut = Math.max(0.1, len - 1.5);
+        const code = await sh(
+          "ffmpeg",
+          ["-y", "-stream_loop", "-1", "-i", cueWav, "-t", len.toFixed(3),
+           "-af", `afade=t=in:d=1.0,afade=t=out:st=${fadeOut.toFixed(2)}:d=1.5,aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=stereo`,
+           part],
+          planDir
+        );
+        if (code !== 0) return null;
+      }
       parts.push(part);
     }
     if (!parts.length) return null;
     fs.writeFileSync(path.join(planDir, "score_list.txt"), parts.map((p) => `file '${p}'`).join("\n"), "utf8");
+    const bedName = "score_bed.wav";
     const code = await sh(
       "ffmpeg",
-      ["-y", "-f", "concat", "-safe", "0", "-i", "score_list.txt", "-c", "copy", "score.wav"],
+      ["-y", "-f", "concat", "-safe", "0", "-i", "score_list.txt", "-c", "copy", bedName],
       planDir
     );
     for (const p of parts) fs.rmSync(path.join(planDir, p), { force: true });
     fs.rmSync(path.join(planDir, "score_list.txt"), { force: true });
-    if (code !== 0 || !fs.existsSync(path.join(planDir, "score.wav"))) return null;
+    if (code !== 0 || !fs.existsSync(path.join(planDir, bedName))) return null;
+
+    // Overlays: miracle stingers where light breaks (and at each climax, right
+    // ON the line after its silence), and character motifs at first lines.
+    const hits: { wav: string; at: number; vol: number }[] = [];
+    const sparkleRe = SFX_TRIGGERS.find((t) => t.kind === "sparkle")!.re;
+    let lastSting = -999;
+    for (const b of beats) {
+      if (b.song) continue;
+      const at = lead + b.start;
+      if ((sparkleRe.test(b.text) || climaxAts.includes(at)) && at - lastSting >= 20) {
+        lastSting = at;
+        const w = await ensureCue("stinger");
+        if (w) hits.push({ wav: w, at, vol: 0.9 });
+        if (hits.length >= 6) break;
+      }
+    }
+    for (const m of motifs ?? []) {
+      const w = await ensureCue(`motif_${m.who}`);
+      if (w) hits.push({ wav: w, at: lead + m.at, vol: 0.8 });
+    }
+    if (!hits.length) {
+      fs.renameSync(path.join(planDir, bedName), path.join(planDir, "score.wav"));
+      return "score.wav";
+    }
+    const args = ["-y", "-i", bedName];
+    for (const h of hits) args.push("-i", h.wav);
+    const fc =
+      hits.map((h, i) => `[${i + 1}:a]volume=${h.vol},adelay=${Math.round(h.at * 1000)}:all=1[s${i}]`).join(";") +
+      `;[0:a]${hits.map((_, i) => `[s${i}]`).join("")}amix=inputs=${hits.length + 1}:duration=first:normalize=0,alimiter=limit=0.95[a]`;
+    const mix = await sh("ffmpeg", ["-y", ...args, "-filter_complex", fc, "-map", "[a]", "-c:a", "pcm_s16le", "score.wav"], planDir);
+    fs.rmSync(path.join(planDir, bedName), { force: true });
+    if (mix !== 0 || !fs.existsSync(path.join(planDir, "score.wav"))) return null;
     return "score.wav";
   } catch {
     return null;
