@@ -147,7 +147,7 @@ export const VIDEO_STYLES: Record<string, VideoStyle> = {
       // the model toward 3D renders and the style drifts shot to shot.
       return `Hand-painted 2D storybook cartoon illustration, flat painterly animation style (never 3D render): ${CARTOON_FRAMING[index % CARTOON_FRAMING.length]}, soft rounded appealing shapes, characters with large expressive eyes and bright catchlights, one clear emotion readable in every pose, ${look}, soft warm three-point lighting with gentle rim light and soft shadows, subtle volumetric glow around light sources, warm family-film color grade; depicting ${subject}.` +
       (cast
-        ? ` Recurring characters — include ONLY those this moment's narration calls for, and keep each one's design EXACTLY the same whenever they appear: ${cast}.`
+        ? ` Recurring characters present in THIS scene — keep each one's design EXACTLY the same as in every other scene where they appear: ${cast}.`
         : "") +
       ` Show only the people and things this scene describes — no mascots, no invented animal companions, no extra recurring characters. Vertical 9:16 composition, ${NO_TEXT}.`;
     },
@@ -252,8 +252,12 @@ const STORY_CAST_SCHEMA = {
       type: "array",
       items: {
         type: "object",
-        properties: { name: { type: "string" }, design: { type: "string" } },
-        required: ["name", "design"],
+        properties: {
+          name: { type: "string" },
+          design: { type: "string" },
+          aliases: { type: "array", items: { type: "string" } },
+        },
+        required: ["name", "design", "aliases"],
         additionalProperties: false,
       },
     },
@@ -262,34 +266,44 @@ const STORY_CAST_SCHEMA = {
   additionalProperties: false,
 };
 
+/** One recurring story character: design pinned once, matched to beats by
+ *  name/alias in code — never left to the image model's judgment. */
+export interface StoryCastChar {
+  name: string;
+  design: string;
+  aliases: string[];
+}
+
 /**
  * Recurring STORY characters for narrated tales with a frame/story split: the
  * people inside the story being told, designed ONCE and injected into every
  * story illustration — so the tale's hero wears the same face in scene 3 and
  * scene 60, exactly like the frame cast does around the lamp.
  */
-export async function storyCastFor(title: string, script: string): Promise<string | null> {
+export async function storyCastFor(title: string, script: string): Promise<StoryCastChar[] | null> {
   const res = await llmComplete(
     [
-      "From this narrated screenplay, pick the 1-3 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
-      "For each, give: name (exactly as the script calls them) and design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature. Period-appropriate to the story's setting.",
+      "From this narrated screenplay, pick the 1-4 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
+      "For each, give: name (exactly as the script calls them); design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature, period-appropriate to the story's setting; and aliases — 2-4 OTHER phrases the narration uses to refer to this character (e.g. 'the giant', 'the king', 'the shepherd boy'). Aliases must be phrases that unambiguously mean THIS character in THIS story — never a word that could mean someone else.",
       "Describe ONLY the character's appearance and clothing — never held objects, carried items, props, or actions (a 'clutching coins' detail would wrongly appear in every single scene).",
       "State each character's AGE explicitly and concretely at the age they are DURING the story's main events (e.g. 'an elderly man of about eighty with white hair', 'a boy of about ten') — age drift between scenes is the most jarring failure, so the stated age must hold for every scene.",
+      "Make every design VISUALLY DISTINCT from the others: different clothing colors and silhouettes, so no two characters could ever be mistaken for each other. A king must read as a king (crown or circlet, royal colors), never as a soldier or a giant.",
       "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with warm tan, sun-browned Middle-Eastern skin tones. If Jesus appears, describe Him reverently and consistently: tall — six feet two, standing clearly taller than those around Him — a warm tan complexion, dark wavy hair and beard, simple robes, a calm and kind face.",
       "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
     ].join("\n"),
     `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,
     STORY_CAST_SCHEMA as unknown as Record<string, unknown>,
-    { tier: "standard", maxTokens: 500, context: "story-cast" }
+    { tier: "standard", maxTokens: 700, context: "story-cast" }
   );
   if (!res) return null;
   try {
-    const parsed = JSON.parse(res.text) as { characters: { name: string; design: string }[] };
+    const parsed = JSON.parse(res.text) as { characters: StoryCastChar[] };
     if (!Array.isArray(parsed.characters) || parsed.characters.length === 0) return null;
-    return parsed.characters
-      .slice(0, 3)
-      .map((c) => `${c.name} — ${c.design}`)
-      .join("; and ");
+    return parsed.characters.slice(0, 4).map((c) => ({
+      name: String(c.name || "").trim(),
+      design: String(c.design || "").trim(),
+      aliases: Array.isArray(c.aliases) ? c.aliases.map((a) => String(a).trim()).filter(Boolean) : [],
+    })).filter((c) => c.name && c.design);
   } catch {
     return null;
   }

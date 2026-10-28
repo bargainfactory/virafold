@@ -33,30 +33,49 @@ export async function synthesizeSpeech(
         if (map[customVoiceId]) elVoice = map[customVoiceId];
         else if (/^[A-Za-z0-9]{16,}$/.test(customVoiceId)) elVoice = customVoiceId; // already an ElevenLabs ID
       } else {
-        elVoice = map.default || ELEVENLABS_VOICE;
+        // Narration (no per-character voice): an explicit map.default wins;
+        // otherwise an operator-chosen xAI narrator (xaiVoiceId) takes the
+        // line — the EL stock voice is only the no-config-at-all fallback.
+        // (Without this, connecting an EL key silently flipped the whole
+        // narration from the chosen male narrator to EL's female default.)
+        elVoice = map.default || (resolveField("voiceover", "xaiVoiceId") ? null : ELEVENLABS_VOICE);
       }
     } catch {
       elVoice = customVoiceId ? null : ELEVENLABS_VOICE;
     }
     if (elVoice) {
-      try {
-        const resp = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${elVoice}?output_format=mp3_44100_128`,
-          {
-            method: "POST",
-            headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
-            body: JSON.stringify({ text: input, model_id: "eleven_multilingual_v2" }),
+      // A mapped character voice must NOT silently fall through to xAI: the
+      // engine's names (luna/helix) are female xAI voices, so one 429 mid-film
+      // used to flip a boy's line into a woman's voice with no trace. Retry
+      // transient failures with backoff, and log loudly if we still fall back.
+      let lastErr = "";
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          const resp = await fetch(
+            `https://api.elevenlabs.io/v1/text-to-speech/${elVoice}?output_format=mp3_44100_128`,
+            {
+              method: "POST",
+              headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
+              body: JSON.stringify({ text: input, model_id: "eleven_multilingual_v2" }),
+            }
+          );
+          if (resp.ok) {
+            return {
+              bytes: Buffer.from(await resp.arrayBuffer()),
+              provider: "elevenlabs:multilingual-v2",
+            };
           }
-        );
-        if (resp.ok) {
-          return {
-            bytes: Buffer.from(await resp.arrayBuffer()),
-            provider: "elevenlabs:multilingual-v2",
-          };
+          lastErr = `HTTP ${resp.status}`;
+          // Only transient statuses earn a retry; a 401/404 never will succeed.
+          if (![429, 500, 502, 503, 504].includes(resp.status)) break;
+        } catch (e) {
+          lastErr = String(e instanceof Error ? e.message : e).slice(0, 120);
         }
-      } catch {
-        /* fall through to xAI */
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
       }
+      console.error(
+        `[tts] ElevenLabs failed for voice "${customVoiceId ?? "default"}" after retries (${lastErr}) — falling back to xAI. Character voices may sound wrong in this render.`
+      );
     }
   }
 

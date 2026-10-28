@@ -670,6 +670,10 @@ export interface FilmBeat {
   frame?: boolean;
   /** Sung beat (a song run) — its captions render as sing-along karaoke. */
   song?: boolean;
+  /** Story-beat speakers (dialogue scripts): who talks in this beat, so the
+   *  character casting stays deterministic even when a line never names its
+   *  own speaker ("Am I a dog…" is still a Goliath scene). */
+  who?: string[];
 }
 
 export interface FilmPlan {
@@ -1180,7 +1184,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   let voiceFile = "voice.mp3";
   let duration: number;
   let words: TranscriptWord[];
-  let dialogueBeats: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean }[] | null = null;
+  let dialogueBeats: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean; who?: string[] }[] | null = null;
   // Character entrance motifs (voice-time): each cast member's first line.
   const speakerMotifs: { at: number; who: string }[] = [];
 
@@ -1393,8 +1397,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // illustration sooner (5s vs 8s), so the tale gets most of the pictures.
       words = [];
       let t = 0;
-      const beatsAcc: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean }[] = [];
-      let acc = { text: "", dur: 0, frame: false, song: false };
+      const beatsAcc: { text: string; dur: number; frame?: boolean; speak?: string; song?: boolean; who?: string[] }[] = [];
+      let acc = { text: "", dur: 0, frame: false, song: false, who: new Set<string>() };
       const flush = () => {
         if (acc.dur <= 0) return;
         const prev = beatsAcc[beatsAcc.length - 1];
@@ -1403,15 +1407,17 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (prev && !prev.speak && acc.dur < 2) {
           prev.dur += acc.dur;
           prev.text += ` ${acc.text.trim()}`;
+          if (acc.who.size) prev.who = [...new Set([...(prev.who ?? []), ...acc.who])];
         } else {
           beatsAcc.push({
             text: acc.text.trim(),
             dur: acc.dur,
             frame: acc.frame,
             ...(acc.song ? { song: true } : {}),
+            ...(acc.who.size ? { who: [...acc.who] } : {}),
           });
         }
-        acc = { text: "", dur: 0, frame: acc.frame, song: acc.song };
+        acc = { text: "", dur: 0, frame: acc.frame, song: acc.song, who: new Set<string>() };
       };
       for (const s of segs) {
         const gap = s.gap ?? LINE_GAP;
@@ -1429,7 +1435,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (s.speak) {
           flush();
           beatsAcc.push({ text: s.line.text, dur: s.dur + gap, frame: true, speak: s.speak });
-          acc = { text: "", dur: 0, frame: true, song: false };
+          acc = { text: "", dur: 0, frame: true, song: false, who: new Set<string>() };
           continue;
         }
         const frame = isFrameLine(s.line);
@@ -1439,6 +1445,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (acc.dur > 0 && (frame !== acc.frame || song !== acc.song)) flush();
         acc.frame = frame;
         acc.song = song;
+        // Story-beat speakers feed the deterministic character casting.
+        if (!frame && s.line.speaker && !/^narrator$/i.test(s.line.speaker)) acc.who.add(s.line.speaker);
         acc.text += ` ${s.line.text}`;
         acc.dur += s.dur + gap;
         if (acc.dur >= (frame ? 8 : 5)) flush();
@@ -1448,6 +1456,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (prev && !prev.speak && acc.dur < 3 && prev.frame === acc.frame) {
           prev.dur += acc.dur;
           prev.text += ` ${acc.text.trim()}`;
+          if (acc.who.size) prev.who = [...new Set([...(prev.who ?? []), ...acc.who])];
         } else flush();
       }
       dialogueBeats = beatsAcc;
@@ -1755,15 +1764,35 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                   // just the planner's abstraction — illustration follows text.
                   `${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${scene.text.slice(0, 130)}"`
                 : `${framePrefixFor(scene.text)}${scene.text.slice(0, 120)}`;
-          const beatCast = beatFrame === false ? (storyCast ?? undefined) : (cast ?? undefined);
-          // Story beats: the recurring cast may ONLY appear when the narration
-          // names them — the Ep9 audit found the hero leaking into scenes he
-          // couldn't be in (ashore watching his own ship, among the sailors
-          // after going overboard). Also a brand-safety rail: divine presence
-          // is light, never a drawn figure.
+          // Deterministic character casting (the Ep1 lesson): a design block in
+          // the prompt means the model PAINTS that character, whatever any
+          // "only if named" clause says — so the decision of who belongs in a
+          // beat is made HERE, in code. A story character enters a beat's
+          // prompt only when that beat's narration names them (name or alias)
+          // or they speak in it; everyone else's design never reaches the model.
+          let beatCast: string | undefined;
+          if (beatFrame === false) {
+            if (storyCast?.length) {
+              const lower = ` ${scene.text.toLowerCase()} `;
+              const who = ((beats[i] as { who?: string[] }).who ?? []).map((w) => w.toLowerCase());
+              const present = storyCast.filter(
+                (c) =>
+                  who.includes(c.name.toLowerCase()) ||
+                  lower.includes(c.name.toLowerCase()) ||
+                  c.aliases.some((a) => a.length > 2 && lower.includes(a.toLowerCase()))
+              );
+              if (present.length) beatCast = present.map((c) => `${c.name} — ${c.design}`).join("; and ");
+            }
+          } else beatCast = cast ?? undefined;
+          // Brand-safety + leak rails for story beats: divine presence is
+          // light, never a drawn figure; and beats that cast no recurring
+          // character must not invent one.
           const storyGuard =
             beatFrame === false
-              ? " Include a recurring character ONLY if this exact narration moment explicitly mentions them — if it does not name them, leave them out of the image entirely. Never depict God as a person or human figure: when the narration has God speak, act or answer, show His presence ONLY as warm light from the sky."
+              ? (beatCast
+                  ? ""
+                  : " None of the story's recurring characters appear in this scene — show only what this narration moment itself describes.") +
+                " Never depict God as a person or human figure: when the narration has God speak, act or answer, show His presence ONLY as warm light from the sky."
               : "";
           // Pin any recurring object this beat mentions to its one design.
           let propsGuard = "";
@@ -1919,6 +1948,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           prompt: beatPrompts[i] ?? "",
           ...((b as { frame?: boolean }).frame === true ? { frame: true } : {}),
           ...((b as { song?: boolean }).song === true ? { song: true } : {}),
+          ...((b as { who?: string[] }).who?.length ? { who: (b as { who?: string[] }).who } : {}),
         };
         t0 += d;
         return fb;
