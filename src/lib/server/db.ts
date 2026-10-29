@@ -380,6 +380,9 @@ export function getDb(): DatabaseSync {
     "ALTER TABLE clips ADD COLUMN has_plan INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE clips ADD COLUMN orient TEXT",
     "ALTER TABLE personas ADD COLUMN charname TEXT",
+    // Live render progress (JSON: {stage, done, total, note, at}) — the
+    // production desk's heartbeat; null outside an active render.
+    "ALTER TABLE clips ADD COLUMN progress TEXT",
   ]) {
     try {
       conn.exec(stmt);
@@ -2373,6 +2376,8 @@ export interface Clip {
   script: string | null;
   outputPath: string | null;
   error: string | null;
+  /** Live render progress JSON ({stage, done, total, note, at}); null when idle. */
+  progress: string | null;
   createdAt: string;
 }
 
@@ -2404,6 +2409,7 @@ function mapClip(row: Record<string, unknown>): Clip {
     script: (row.script as string | null) ?? null,
     outputPath: (row.output_path as string | null) ?? null,
     error: (row.error as string | null) ?? null,
+    progress: (row.progress as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }
@@ -2447,6 +2453,7 @@ export function insertCaptionJob(
     script: null,
     outputPath: null,
     error: null,
+    progress: null,
     createdAt: now,
   };
 }
@@ -2492,6 +2499,7 @@ export function insertAmbientVideo(
     script: v.config,
     outputPath: null,
     error: null,
+    progress: null,
     createdAt: now,
   };
 }
@@ -2536,13 +2544,14 @@ export function insertScriptVideo(
     script: v.script,
     outputPath: null,
     error: null,
+    progress: null,
     createdAt: now,
   };
 }
 
 export function insertClip(
   email: string,
-  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang" | "thumbPath" | "hasPlan" | "orient">
+  c: Omit<Clip, "createdAt" | "outputPath" | "error" | "position" | "focus" | "kind" | "script" | "tight" | "animate" | "vstyle" | "personaId" | "props" | "qaNote" | "lang" | "thumbPath" | "hasPlan" | "orient" | "progress">
 ): Clip {
   const now = new Date().toISOString();
   getDb()
@@ -2582,6 +2591,7 @@ export function insertClip(
     script: null,
     outputPath: null,
     error: null,
+    progress: null,
     createdAt: now,
   };
 }
@@ -2626,13 +2636,14 @@ export function updateClip(
     title?: string;
     outputPath?: string | null;
     error?: string | null;
+    progress?: string | null;
   }
 ): void {
   const cur = getClip(email, id);
   if (!cur) return;
   getDb()
     .prepare(
-      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, reason = ?, title = ?, output_path = ?, error = ? WHERE id = ? AND user_email = ?"
+      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, reason = ?, title = ?, output_path = ?, error = ?, progress = ? WHERE id = ? AND user_email = ?"
     )
     .run(
       patch.status ?? cur.status,
@@ -2644,6 +2655,7 @@ export function updateClip(
       patch.title ?? cur.title,
       patch.outputPath !== undefined ? patch.outputPath : cur.outputPath,
       patch.error !== undefined ? patch.error : cur.error,
+      patch.progress !== undefined ? patch.progress : cur.progress,
       id,
       email.toLowerCase()
     );

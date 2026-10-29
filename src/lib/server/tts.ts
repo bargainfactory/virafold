@@ -56,7 +56,15 @@ export async function synthesizeSpeech(
             {
               method: "POST",
               headers: { "xi-api-key": elevenKey, "Content-Type": "application/json" },
-              body: JSON.stringify({ text: input, model_id: "eleven_multilingual_v2" }),
+              // Operator-configurable model (voiceover integration's
+              // elevenModel field, e.g. "eleven_v4" — probed working
+              // 2026-10-28). The default stays multilingual_v2 so a model
+              // change is a deliberate act at a season boundary, never a
+              // silent mid-season voice shift.
+              body: JSON.stringify({
+                text: input,
+                model_id: resolveField("voiceover", "elevenModel") || "eleven_multilingual_v2",
+              }),
             }
           );
           if (resp.ok) {

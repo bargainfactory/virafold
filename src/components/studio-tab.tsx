@@ -14,6 +14,7 @@ import { useTranslation } from "@/lib/i18n";
 import { Check, Film, Loader2, Paperclip, Rocket, Sparkles, Trash2, UserRound } from "lucide-react";
 import CharacterBuilder from "@/components/character-builder";
 import SeriesTracker from "@/components/series-tracker";
+import ProductionDesk from "@/components/production-desk";
 
 interface Persona {
   id: string;
@@ -274,6 +275,15 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
           placeholder={t("studio.placeholder")}
           className="w-full px-3 py-2.5 bg-cyber-dark border border-cyber-border rounded-lg text-sm text-foreground placeholder:text-cyber-muted focus:outline-none focus:border-neon-purple/50 resize-y"
         />
+        {/* Production Desk: free checklist + cheap blueprint + look preview —
+            the pre-render control room, shown once a real script is pasted. */}
+        {style === "cartoon" && input.trim().split(/\s+/).length >= 120 && (
+          <ProductionDesk
+            script={input}
+            title={input.trim().split(/\r?\n/)[0]?.slice(0, 120) ?? "Untitled"}
+            props={propSel}
+          />
+        )}
         {/* 3D push-buttons: raised bevel at rest (hard bottom edge + top
             highlight), lifted on hover, physically pressed-in + glowing when
             selected — all in the brand purple/blue. */}

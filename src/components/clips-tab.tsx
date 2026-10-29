@@ -175,6 +175,41 @@ interface ClipRow {
   kind: string;
   outputPath: string | null;
   error: string | null;
+  /** Live render progress JSON ({stage, done, total}); null when idle. */
+  progress?: string | null;
+}
+
+/** The render's heartbeat: which stage a long render is in, with a counter
+ *  and a thin bar — hours of "rendering…" reads as a hang; "painting 41/121"
+ *  reads as a machine at work. */
+function RenderProgress({ raw }: { raw?: string | null }) {
+  const { t } = useTranslation();
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as { stage?: string; done?: number; total?: number };
+    if (!p.stage) return null;
+    const pct = p.done && p.total ? Math.min(100, Math.round((p.done / p.total) * 100)) : null;
+    return (
+      <span className="flex items-center gap-2 text-cyber-muted">
+        · {t(`clips.stage.${p.stage}`)}
+        {p.done !== undefined && p.total !== undefined && (
+          <span className="tabular-nums">
+            {p.done}/{p.total}
+          </span>
+        )}
+        {pct !== null && (
+          <span className="inline-block w-20 h-1.5 rounded-full bg-cyber-dark border border-cyber-border overflow-hidden align-middle">
+            <span
+              className="block h-full bg-gradient-to-r from-neon-purple to-electric-blue transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </span>
+        )}
+      </span>
+    );
+  } catch {
+    return null;
+  }
 }
 
 const CLIP_POSITIONS = [
@@ -1160,9 +1195,10 @@ export default function ClipsTab({
                     )}
                 </div>
               ) : (
-                <p className="text-xs text-electric-blue flex items-center gap-1.5">
+                <p className="text-xs text-electric-blue flex flex-wrap items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   {clip.status === "queued" ? t("clips.queuedStatus") : t("clips.rendering")}
+                  {clip.status === "rendering" && <RenderProgress raw={clip.progress} />}
                   {eta[clip.id] && (
                     <span className="text-cyber-muted">
                       · {t("clips.eta").replace("{m}", String(eta[clip.id].etaMin)).replace("{n}", String(eta[clip.id].ahead))}
@@ -1334,9 +1370,10 @@ export default function ClipsTab({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-xs text-electric-blue flex items-center gap-1.5">
+                  <p className="text-xs text-electric-blue flex flex-wrap items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     {clip.status === "queued" ? t("clips.svQueued") : t("clips.svRendering")}
+                    {clip.status === "rendering" && <RenderProgress raw={clip.progress} />}
                     {eta[clip.id] && (
                       <span className="text-cyber-muted">
                         · {t("clips.eta").replace("{m}", String(eta[clip.id].etaMin)).replace("{n}", String(eta[clip.id].ahead))}

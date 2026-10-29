@@ -1176,6 +1176,24 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
   fs.mkdirSync(jobDir, { recursive: true });
   const outAbs = path.join(RENDERS_DIR, `${clip.id}.mp4`);
   const defaultVoice = getCustomVoiceId(clip.userEmail);
+  // Live progress heartbeat: a cheap row update per milestone so the studio
+  // can show WHERE a long render is, not just that it is "rendering". A
+  // feature spends hours in this function — a silent black box reads as a
+  // hang, a stage + counter reads as a machine at work.
+  let lastProg = 0;
+  const prog = (stage: string, done?: number, total?: number): void => {
+    const now = Date.now();
+    if (done !== undefined && now - lastProg < 4000 && done !== total) return; // throttle mid-loop ticks
+    lastProg = now;
+    try {
+      updateClip(clip.userEmail, clip.id, {
+        progress: JSON.stringify({ stage, ...(done !== undefined ? { done, total } : {}), at: now }),
+      });
+    } catch {
+      /* progress is best-effort, never fatal */
+    }
+  };
+  prog("voicing");
 
   // Multi-voice path: speaker-tagged scripts synthesize per line, each
   // speaker in their own voice, stitched with natural gaps. Caption timing
@@ -1268,6 +1286,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         gap?: number;
       }[] = [];
       for (let i = 0; i < dialogue.length; i++) {
+        prog("voicing", i + 1, dialogue.length);
         const line = dialogue[i];
         const v = voices.get(line.speaker);
         const f = `line${i}.mp3`;
@@ -1696,9 +1715,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         if (!styleDef && propCast) {
           propExtra += ` Recurring character, EXACT same design in every scene: ${propCast}.`;
         }
+        prog("designing");
         let scenes = await planScenes(beats, clip.title);
         if (styleDef) scenes = constrainScenes(scenes, styleDef);
         for (let i = 0; i < scenes.length; i++) {
+          prog("painting", i + 1, scenes.length);
           const scene = scenes[i];
           // Speaking close-ups arrive pre-rendered from the voice pass with
           // their speech already in the voice track — the clip IS the visual.
@@ -1937,6 +1958,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // Waves of 5 keep a feature's 80+ generations from stampeding the
           // provider; a standard run's ≤8 jobs finish in two waves.
           for (let w = 0; w < tasks.length; w += 5) {
+            prog("animating", Math.min(w + 5, tasks.length), tasks.length);
             await Promise.all(tasks.slice(w, w + 5).map((f) => f()));
           }
         }
@@ -1987,6 +2009,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // film, and the mood-mapped score mixed (and ducked) under the voice.
       const cards = await makeFilmCards(jobDir, plan, clip.title).catch(() => null);
       if (cards) Object.assign(plan, cards);
+      prog("scoring");
       const { buildScore, buildAmbience, ensureFilmSongs } = await import("./music");
       if (speakerMotifs.length) plan.motifs = speakerMotifs;
       // Real music in the song slot: the shared signature jingle plus an
@@ -2001,8 +2024,10 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       const amb = await buildAmbience(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
       if (amb) plan.ambience = amb;
       for (const b of planBeats) {
+        prog("splicing", b.i + 1, planBeats.length);
         await renderBeatSegment(jobDir, plan, b);
       }
+      prog("splicing", planBeats.length, planBeats.length);
       await spliceFilm(jobDir, plan, outAbs);
       fs.writeFileSync(path.join(jobDir, "plan.json"), JSON.stringify(plan), "utf8");
       // Closed-caption sidecar: the real word timings (shifted past the title
@@ -2169,6 +2194,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       status: "ready",
       outputPath: path.relative(process.cwd(), outAbs),
       error: null,
+      progress: null,
       // Study notes + source credit + AI-motion disclosure ride the reason
       // field into the publish description — Pixabay's API terms ask that the
       // footage source be shown, and generated motion is disclosed as a
@@ -2658,6 +2684,7 @@ export function kickRenderWorker(): void {
           updateClip(next.userEmail, next.id, {
             status: "failed",
             error: msg.slice(0, 300),
+            progress: null,
           });
           insertNotification(next.userEmail, {
             id: `n-${crypto.randomUUID()}`,
