@@ -93,8 +93,18 @@ export async function editImage(image: Buffer, prompt: string): Promise<Buffer |
   }
 }
 
-export async function generateBackground(prompt: string): Promise<Buffer | null> {
-  const xaiKey = resolveField("llm", "xaiApiKey");
+/**
+ * Generate a scene still. The chain is xAI first, OpenAI as fallback —
+ * `forceProvider: "openai"` skips straight to the fallback, which is the
+ * multi-model escape hatch for scenes one model stubbornly gets wrong
+ * (burned-in text is the classic): a different model breaks the rut where
+ * ten re-rolls of the same one won't.
+ */
+export async function generateBackground(
+  prompt: string,
+  forceProvider?: "openai"
+): Promise<Buffer | null> {
+  const xaiKey = forceProvider === "openai" ? null : resolveField("llm", "xaiApiKey");
   if (xaiKey) {
     try {
       const resp = await fetch("https://api.x.ai/v1/images/generations", {

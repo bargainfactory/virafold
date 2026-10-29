@@ -793,6 +793,108 @@ const SCORE_INTERACT_RE =
 const CLIMAX_RE =
   /\bpeace\.?,? be still\b|let there be light|your faith has made you|today,? salvation|and he answered me|it is very good|rise,? and go your way|the battle is the lord'?s/i;
 
+/** The series' signature jingle, composed ONCE via ElevenLabs Music and reused
+ *  by every film — repetition is what turns a jingle into a ritual. */
+const EL_JINGLE_PROMPT =
+  "A playful, instantly memorable 25-second children's storytime TV jingle. " +
+  "Lead melody: a bright wooden flute playing a simple singable two-note call hook " +
+  "(a cheerful sol-mi 'come along!' motif) answered by warm folk harp arpeggios. " +
+  "Rhythm: woodblock taps and soft hand-claps on the beat, gentle and bouncy, moderate tempo. " +
+  "Cozy fireside lamplight feel, major key, warm acoustic folk, suitable for ages 3-7. " +
+  "INSTRUMENTAL ONLY, no vocals, no singing. Consistent energy start to finish so it loops cleanly.";
+
+async function elCompose(key: string, prompt: string, ms: number): Promise<Buffer | null> {
+  try {
+    const r = await fetch("https://api.elevenlabs.io/v1/music", {
+      method: "POST",
+      headers: { "xi-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, music_length_ms: ms }),
+      signal: AbortSignal.timeout(180_000),
+    });
+    if (!r.ok || !(r.headers.get("content-type") || "").includes("audio")) return null;
+    const buf = Buffer.from(await r.arrayBuffer());
+    return buf.length > 50_000 ? buf : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Auto-fill the film's song slot: the shared signature jingle for the
+ * lamp-lighting, and a freshly composed instrumental for each later song run,
+ * written into planDir/songs/ where buildScore's override picks them up.
+ * Every failure is silent — the synthesized cues remain the fallback, so a
+ * music-API hiccup can never block a render. Manually dropped files win:
+ * nothing is overwritten.
+ */
+export async function ensureFilmSongs(
+  planDir: string,
+  beats: { text: string; start: number; dur: number; song?: boolean }[],
+  lead: number
+): Promise<void> {
+  let key: string | null = null;
+  try {
+    const { resolveField } = await import("./integrations");
+    key = resolveField("voiceover", "elevenlabsApiKey") ?? null;
+  } catch {
+    return; // standalone tooling context without the app's module graph
+  }
+  if (!key) return;
+  const songsDir = path.join(planDir, "songs");
+  fs.mkdirSync(songsDir, { recursive: true });
+  const has = (base: string) =>
+    ["wav", "mp3", "m4a"].some((ext) => {
+      const p = path.join(songsDir, `${base}.${ext}`);
+      return fs.existsSync(p) && fs.statSync(p).size > 50_000;
+    });
+  // Song runs, same walk as buildScore's cue pass.
+  const runs: { jingle: boolean; start: number; len: number; text: string }[] = [];
+  let jingleDone = false;
+  let cur: (typeof runs)[number] | null = null;
+  for (const b of beats) {
+    if (b.song) {
+      if (!cur) {
+        cur = { jingle: !jingleDone && lead + b.start < 120, start: lead + b.start, len: 0, text: "" };
+        runs.push(cur);
+      }
+      cur.len += b.dur;
+      cur.text += ` ${b.text}`;
+    } else if (cur) {
+      jingleDone = true;
+      cur = null;
+    }
+  }
+  let songNo = 0;
+  for (const run of runs) {
+    if (run.jingle) {
+      if (has("jingle")) continue;
+      // Shared jingle: composed once into the music cache, copied per film.
+      fs.mkdirSync(MUSIC_DIR, { recursive: true });
+      const shared = path.join(MUSIC_DIR, "el_jingle.mp3");
+      if (!fs.existsSync(shared) || fs.statSync(shared).size < 50_000) {
+        const buf = await elCompose(key, EL_JINGLE_PROMPT, 25_000);
+        if (!buf) continue;
+        fs.writeFileSync(shared, buf);
+      }
+      fs.copyFileSync(shared, path.join(songsDir, "jingle.mp3"));
+    } else {
+      songNo++;
+      if (has(`song${songNo}`)) continue;
+      // Per-episode song: an instrumental composed to the run's own lyrics and
+      // length (the chanted vocals ride on top, so instrumental only). The
+      // slot loops the track, so longer runs than the composition are fine.
+      const ms = Math.round(Math.min(90, Math.max(12, run.len)) * 1000);
+      const prompt =
+        `A joyful children's folk song instrumental to accompany these sung story lyrics: "${run.text.trim().slice(0, 240)}". ` +
+        "Bouncy nursery-rhyme meter a child can clap to, bright flute and warm folk harp lead, " +
+        "hand-clap and woodblock rhythm, major key, warm acoustic storybook feel. " +
+        "INSTRUMENTAL ONLY, no vocals, no singing. Consistent energy so it loops cleanly.";
+      const buf = await elCompose(key, prompt, ms);
+      if (buf) fs.writeFileSync(path.join(songsDir, `song${songNo}.mp3`), buf);
+    }
+  }
+}
+
 export async function buildScore(
   planDir: string,
   beats: { text: string; start: number; dur: number; song?: boolean }[],

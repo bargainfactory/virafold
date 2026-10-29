@@ -1878,6 +1878,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // One dolly-zoom per premium film: the single most dramatic reveal
           // gets the Vertigo treatment on the premium model.
           let dollyUsed = false;
+          const BLOOM_RE =
+            /\b(light (burst|broke|bloomed)|burst (from|out|across)|grass unrolling|land rose up|rolling the dark(ness)? back|bloom(ed|ing) into|sowing sparks|glowed to life|came alive|out of nothing)\b/i;
+          let bloomsUsed = 0;
           for (let i = 0; i < scenes.length && tasks.length < maxJobs; i++) {
             if (kinds[i] !== "image") continue;
             const want = Math.min(15, Math.max(1, Math.ceil(beats[i].dur)));
@@ -1894,17 +1897,30 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               clip.animate === 3 &&
               /\b(giant|towered|towering|loomed|enormous|vast|mighty|wall of)\b/i.test(beats[idx].text);
             if (dolly) dollyUsed = true;
+            // Paint-into-being (the Will Vinton trick): up to two creation or
+            // miracle beats per premium film visibly BLOOM into existence
+            // mid-shot — the scene paints itself — instead of arriving
+            // finished. Reserved for the words that earn it, premium model.
+            const bloom =
+              !dolly &&
+              bloomsUsed < 2 &&
+              clip.animate === 3 &&
+              (dialogueBeats ? (beats[idx] as { frame?: boolean }).frame !== true : true) &&
+              BLOOM_RE.test(beats[idx].text);
+            if (bloom) bloomsUsed++;
             tasks.push(() =>
               animateStill({
                 email: clip.userEmail,
                 pngPath: path.join(jobDir, images[idx]),
                 motion: dolly
                   ? `A dramatic dolly zoom on ${subject}: the camera slowly pulls back while the lens zooms in, the background stretching and receding behind the unmoving subject — a feeling of awe and unease. One move only. Keep the exact art style, characters, lighting and framing; add no new elements, no text.`
-                  : styleDef
-                    ? styleDef.motionPrompt(subject)
-                    : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
+                  : bloom
+                    ? `The scene paints itself into existence: ${subject} — colors and forms blooming outward from the brightest point like living brushstrokes on wet paper, light spreading first and shapes emerging from the glow, one continuous flowering reveal across the whole shot. Keep the exact art style and final composition of the image; the camera holds nearly still; add no new elements, no text.`
+                    : styleDef
+                      ? styleDef.motionPrompt(subject)
+                      : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
                 durationSec: beats[idx].dur,
-                model: dolly || premiumRef ? ANIM_MODELS.premium : ANIM_MODELS.lite,
+                model: dolly || bloom || premiumRef ? ANIM_MODELS.premium : ANIM_MODELS.lite,
                 ...(premiumRef ? { refPaths: castRefs } : {}),
               })
                 .then((res) => {
@@ -1971,8 +1987,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // film, and the mood-mapped score mixed (and ducked) under the voice.
       const cards = await makeFilmCards(jobDir, plan, clip.title).catch(() => null);
       if (cards) Object.assign(plan, cards);
-      const { buildScore, buildAmbience } = await import("./music");
+      const { buildScore, buildAmbience, ensureFilmSongs } = await import("./music");
       if (speakerMotifs.length) plan.motifs = speakerMotifs;
+      // Real music in the song slot: the shared signature jingle plus an
+      // instrumental composed per song run (ElevenLabs Music), landing in
+      // planDir/songs/ where the score's override picks them up. Best-effort —
+      // the synthesized cues remain the fallback.
+      await ensureFilmSongs(jobDir, planBeats, plan.lead ?? 0).catch(() => {});
       const score = await buildScore(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0, plan.motifs).catch(() => null);
       if (score) plan.music = score;
       // SFX/ambience layer: synthesized soundscapes (fireside crackle under
@@ -2114,25 +2135,49 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     if (!fs.existsSync(outAbs) || fs.statSync(outAbs).size === 0) {
       throw new Error("render produced no output");
     }
+    // Study notes for the publish description (dialogue features): a short
+    // summary, the scripture references, and the facts the script actually
+    // teaches — compiled once here so every upload carries them without
+    // anyone writing descriptions by hand. Best-effort: a quiet LLM failure
+    // costs only the notes, never the render.
+    let studyNotes = "";
+    if (dialogueBeats && clip.script && !clip.reason?.trim()) {
+      try {
+        const { llmComplete } = await import("./generate");
+        const r = await llmComplete(
+          "From this children's Bible-story screenplay, write the YouTube description's study notes: first a warm two-sentence summary; then a line starting 'Scripture:' naming the book and chapter(s) the story retells plus the memory verse reference; then 'In this episode you'll learn:' with 3-5 short bullet facts the script actually teaches (geography, customs, word meanings — only things the script really says). Plain text, hyphen bullets, no markdown headers, no hashtags, under 140 words. Return JSON {notes}.",
+          clip.script.slice(0, 6000),
+          { type: "object", properties: { notes: { type: "string" } }, required: ["notes"], additionalProperties: false },
+          { tier: "standard", maxTokens: 400, context: "study-notes" }
+        );
+        if (r?.text) {
+          const j = JSON.parse(r.text) as { notes?: string };
+          if (j.notes && j.notes.trim().length > 40) studyNotes = j.notes.trim().slice(0, 1500);
+        }
+      } catch {
+        /* the description just goes without notes */
+      }
+    }
+    const disclosures = [
+      brollProviders.size ? `Stock footage: ${[...brollProviders].join(", ")}.` : "",
+      ugcUsed ? "The presenter in this video is AI-generated and AI-animated." : "",
+      !ugcUsed && animUsed ? "Some scenes feature AI-generated motion (xAI Imagine)." : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     updateClip(clip.userEmail, clip.id, {
       status: "ready",
       outputPath: path.relative(process.cwd(), outAbs),
       error: null,
-      // Source credit + AI-motion disclosure ride the reason field into the
-      // publish description — Pixabay's API terms ask that the footage source
-      // be shown, and generated motion is disclosed as a matter of honesty.
-      ...(brollProviders.size || animUsed || ugcUsed || clip.reason?.trim()
+      // Study notes + source credit + AI-motion disclosure ride the reason
+      // field into the publish description — Pixabay's API terms ask that the
+      // footage source be shown, and generated motion is disclosed as a
+      // matter of honesty.
+      ...(brollProviders.size || animUsed || ugcUsed || clip.reason?.trim() || studyNotes
         ? {
-            reason:
-              `${clip.reason ?? ""}`.trim() +
-              `${clip.reason?.trim() ? "\n\n" : ""}` +
-              [
-                brollProviders.size ? `Stock footage: ${[...brollProviders].join(", ")}.` : "",
-                ugcUsed ? "The presenter in this video is AI-generated and AI-animated." : "",
-                !ugcUsed && animUsed ? "Some scenes feature AI-generated motion (xAI Imagine)." : "",
-              ]
-                .filter(Boolean)
-                .join(" "),
+            reason: [`${clip.reason ?? ""}`.trim(), studyNotes, disclosures]
+              .filter(Boolean)
+              .join("\n\n"),
           }
         : {}),
     });
