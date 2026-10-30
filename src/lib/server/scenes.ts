@@ -284,6 +284,7 @@ export async function storyCastFor(title: string, script: string): Promise<Story
   const res = await llmComplete(
     [
       "From this narrated screenplay, pick the 1-4 MAIN recurring characters of the STORY BEING TOLD — the tale's own world. Exclude the storyteller and listeners who frame the tale, the narrator, and one-scene extras.",
+      "A recurring GROUP counts as ONE entry when the story keeps returning to it (a ship's crew, 'the disciples', an army, the brothers): give the group one collective design ('twelve bearded Galilean fishermen in earth-tone robes and head-wraps') and aliases like 'the disciples', 'the men', 'the crew' — otherwise every scene invents a different crowd.",
       "For each, give: name (exactly as the script calls them); design — a concrete visual description under 35 words: age, build, hair, skin tone, clothing with specific colors, one distinctive feature, period-appropriate to the story's setting; and aliases — 2-4 OTHER phrases the narration uses to refer to this character (e.g. 'the giant', 'the king', 'the shepherd boy'). Aliases must be phrases that unambiguously mean THIS character in THIS story — never a word that could mean someone else.",
       "Describe ONLY the character's appearance and clothing — never held objects, carried items, props, or actions (a 'clutching coins' detail would wrongly appear in every single scene).",
       "State each character's AGE explicitly and concretely at the age they are DURING the story's main events (e.g. 'an elderly man of about eighty with white hair', 'a boy of about ten') — age drift between scenes is the most jarring failure, so the stated age must hold for every scene.",
@@ -453,6 +454,7 @@ export async function storyPropsFor(
     [
       "From this narrated screenplay, pick up to 3 recurring OBJECTS or PLACES of the story being told that appear in several scenes (a ship, an ark, a pit, a den, an inn, a tree). Skip anything that appears only once and skip people and animals.",
       "For each give: name; keywords — 3-6 lowercase words/phrases from the script that signal the object is in a scene (e.g. for a ship: ship, deck, sail, hold, overboard); design — a concrete visual description under 30 words that PINS the object's look and SCALE (size relative to people, color, materials, distinctive features, mast/sail count if a vessel).",
+      "SCALE must be stated AGAINST A PERSON, concretely — 'large enough to hold thirteen men', 'its first branch at twice a man's height', 'the opening taller than a man' — because without a human anchor every scene re-invents the size.",
       "The design must stay true for the whole story — if the object is large (a ship, an ark), say LARGE and state it clearly so no scene shrinks it.",
     ].join("\n"),
     `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,

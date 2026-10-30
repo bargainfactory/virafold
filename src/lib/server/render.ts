@@ -1777,8 +1777,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             /\bso,? little ones\b|the lesson|remember (this|that|it)|carry (this |it )?to bed|say (them|it) with me/i.test(
               scene.text
             );
-          const beatSubject =
-            beatFrame === true
+          // The series sign-off beat gets its ONE canonical image — every
+          // model invents strangers with Victorian lanterns for "follow for
+          // the next story", so this shot is decided here, not negotiated.
+          const signOff = /follow (for|the next)/i.test(scene.text) && i >= scenes.length - 2;
+          const beatSubject = signOff
+            ? "A single glowing clay oil lamp with a small warm flame resting on a stone windowsill, under a deep indigo starry night sky, warm amber light spilling onto the stone, no people, no animals"
+            : beatFrame === true
               ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}${lessonBeat ? " — and floating softly in the warm air above the lamp, a small golden dream-vignette glows, showing the very scene of tonight's story that these words recall" : ""}`
               : scene.imageSubject
                 ? // Anchor the picture to the words being spoken over it, not
@@ -1843,7 +1848,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           }
           // Frame beats with a cast sheet render as img2img edits of it — the
           // cast's identity comes from pixels, not prose.
-          const anchored = beatFrame === true && castSheetPng !== null;
+          const anchored = beatFrame === true && castSheetPng !== null && !signOff;
           const genOnce = async (): Promise<Buffer | null> => {
             if (anchored) {
               const { editImage } = await import("./images");
@@ -1929,17 +1934,30 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               (dialogueBeats ? (beats[idx] as { frame?: boolean }).frame !== true : true) &&
               BLOOM_RE.test(beats[idx].text);
             if (bloom) bloomsUsed++;
+            // Story beats play under NARRATION, but the motion model loves to
+            // flap character mouths — which reads as the character talking
+            // over the narrator. Pin mouths closed everywhere except sung
+            // beats (the cast really is chanting there) and fireside dialogue
+            // (the voice heard IS that character's line).
+            const mouthGuard =
+              dialogueBeats &&
+              (beats[idx] as { frame?: boolean }).frame !== true &&
+              !(beats[idx] as { song?: boolean }).song
+                ? " No one in the scene is talking: every mouth stays gently closed, no lip movement, no speech gestures."
+                : "";
             tasks.push(() =>
               animateStill({
                 email: clip.userEmail,
                 pngPath: path.join(jobDir, images[idx]),
-                motion: dolly
-                  ? `A dramatic dolly zoom on ${subject}: the camera slowly pulls back while the lens zooms in, the background stretching and receding behind the unmoving subject — a feeling of awe and unease. One move only. Keep the exact art style, characters, lighting and framing; add no new elements, no text.`
-                  : bloom
-                    ? `The scene paints itself into existence: ${subject} — colors and forms blooming outward from the brightest point like living brushstrokes on wet paper, light spreading first and shapes emerging from the glow, one continuous flowering reveal across the whole shot. Keep the exact art style and final composition of the image; the camera holds nearly still; add no new elements, no text.`
-                    : styleDef
-                      ? styleDef.motionPrompt(subject)
-                      : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
+                motion:
+                  (dolly
+                    ? `A dramatic dolly zoom on ${subject}: the camera slowly pulls back while the lens zooms in, the background stretching and receding behind the unmoving subject — a feeling of awe and unease. One move only. Keep the exact art style, characters, lighting and framing; add no new elements, no text.`
+                    : bloom
+                      ? `The scene paints itself into existence: ${subject} — colors and forms blooming outward from the brightest point like living brushstrokes on wet paper, light spreading first and shapes emerging from the glow, one continuous flowering reveal across the whole shot. Keep the exact art style and final composition of the image; the camera holds nearly still; add no new elements, no text.`
+                      : styleDef
+                        ? styleDef.motionPrompt(subject)
+                        : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`) +
+                  mouthGuard,
                 durationSec: beats[idx].dur,
                 model: dolly || bloom || premiumRef ? ANIM_MODELS.premium : ANIM_MODELS.lite,
                 ...(premiumRef ? { refPaths: castRefs } : {}),

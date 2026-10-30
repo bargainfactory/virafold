@@ -86,12 +86,20 @@ export async function POST(
           targets.slice(w, w + 4).map(async (b: FilmBeat) => {
             try {
               const subject = b.text.slice(0, 120);
+              // Mouths stay closed under narration — a flapping mouth reads
+              // as the character talking over the narrator.
+              const mouthGuard =
+                b.frame !== true && !b.song
+                  ? " No one in the scene is talking: every mouth stays gently closed, no lip movement."
+                  : "";
               const res = await animateStill({
                 email,
                 pngPath: path.join(dir, b.file),
-                motion: styleDef
-                  ? styleDef.motionPrompt(subject)
-                  : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`,
+                motion:
+                  (styleDef
+                    ? styleDef.motionPrompt(subject)
+                    : `One camera move only: a slow, gentle drift across ${subject}, with soft natural ambient movement. Keep the scene's content, lighting and framing unchanged; add no new objects, no people, no text.`) +
+                  mouthGuard,
                 durationSec: b.dur,
                 model,
               });
