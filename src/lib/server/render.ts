@@ -889,7 +889,11 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
         `crop=${R.w}:${R.h}:x='if(lt(n,6),(iw-${R.w})*(1-n/6),(iw-${R.w})/2)':y='(ih-${R.h})/2',` +
         `${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
     } else {
-      fc = `[0:v]${scale},fps=30,${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
+      // Speak clips always open on the raw white portrait card for a few
+      // frames before the scene forms — a 0.55s fade-in hides it without
+      // moving the audio a millisecond (lipsync stays intact).
+      const speakFade = b.kind === "speak" ? "fade=t=in:d=0.55," : "";
+      fc = `[0:v]${scale},fps=30,${speakFade}${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
     }
   } else if (b.kind === "image" || b.kind === "arch") {
     inputs = ["-i", b.file];
