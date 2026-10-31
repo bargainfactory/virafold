@@ -1639,7 +1639,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         const archival: string[] = [];
         if (clip.props) {
           try {
-            const { getPersona, personaImagePath } = await import("./db");
+            const { getPersona, personaImagePath, persona360Path } = await import("./db");
             const ids = JSON.parse(clip.props) as string[];
             const chars: string[] = [];
             for (const pid of ids.slice(0, 4)) {
@@ -1653,7 +1653,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               if (!p.meta) continue;
               if (p.ptype === "character" || p.ptype === "presenter") {
                 chars.push(p.meta);
-                const img = personaImagePath(p.id);
+                // The 360° turnaround sheet beats the single portrait as an
+                // identity anchor — multi-view references hold a character's
+                // look through animation far better than one angle.
+                const sheet = persona360Path(p.id);
+                const img = fs.existsSync(sheet) ? sheet : personaImagePath(p.id);
                 if (fs.existsSync(img)) castRefs.push(img);
               }
               else if (p.ptype === "product")
@@ -1709,6 +1713,20 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         const storyCast = dialogueBeats
           ? await storyCastFor(clip.title, clip.script).catch(() => null)
           : null;
+        // 360° profiles for the tale's own characters: one multi-view
+        // turnaround per design, generated once and used as the img2img
+        // identity anchor for every story beat the character carries alone —
+        // the technique AI films use to hold a face across hundreds of shots.
+        const story360: (Buffer | null)[] = [];
+        if (storyCast?.length) {
+          for (let c = 0; c < storyCast.length; c++) {
+            const sheet = await generateBackground(
+              `Character turnaround reference sheet: ${storyCast[c].design} — the exact same character shown in four full-body views side by side on one plain light background: front view, three-quarter view, side profile, and back view, all in the same neutral standing pose, plus one close-up head-and-shoulders detail panel. Hand-painted 2D storybook cartoon style, clean studio reference sheet, consistent flat lighting, absolutely no text, letters or labels.`
+            ).catch(() => null);
+            story360.push(sheet ?? null);
+            if (sheet) fs.writeFileSync(path.join(jobDir, `story360_${c}.png`), sheet);
+          }
+        }
         // Object-continuity lock: the story's recurring objects (a ship, an
         // ark, a den) designed once and pinned into every beat that mentions
         // them — one film drew four different vessels before this existed.
@@ -1801,6 +1819,10 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // prompt only when that beat's narration names them (name or alias)
           // or they speak in it; everyone else's design never reaches the model.
           let beatCast: string | undefined;
+          // When exactly ONE story character carries the beat, their 360°
+          // sheet anchors the image (img2img) instead of prose re-describing
+          // them — pixels hold identity better than words.
+          let soloCast = -1;
           if (beatFrame === false) {
             if (storyCast?.length) {
               const lower = ` ${scene.text.toLowerCase()} `;
@@ -1811,7 +1833,10 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                   lower.includes(c.name.toLowerCase()) ||
                   c.aliases.some((a) => a.length > 2 && lower.includes(a.toLowerCase()))
               );
-              if (present.length) beatCast = present.map((c) => `${c.name} — ${c.design}`).join("; and ");
+              if (present.length) {
+                beatCast = present.map((c) => `${c.name} — ${c.design}`).join("; and ");
+                if (present.length === 1) soloCast = storyCast.indexOf(present[0]);
+              }
             }
           } else beatCast = cast ?? undefined;
           // Brand-safety + leak rails for story beats: divine presence is
@@ -1853,12 +1878,21 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // Frame beats with a cast sheet render as img2img edits of it — the
           // cast's identity comes from pixels, not prose.
           const anchored = beatFrame === true && castSheetPng !== null && !signOff;
+          const storyAnchor = beatFrame === false && !signOff && soloCast >= 0 ? story360[soloCast] : null;
           const genOnce = async (): Promise<Buffer | null> => {
             if (anchored) {
               const { editImage } = await import("./images");
               const out = await editImage(
                 castSheetPng!,
                 `${beatPrompt} Compose this as a NEW scene using EXACTLY the characters from the reference image — same faces, same outfits, same designs. Include only the characters this moment calls for, in a natural composition — never the reference's side-by-side lineup. FULL-BLEED cinematic frame filling the entire image edge to edge — NOT a storybook page, no page borders, no margins, no caption area, and ABSOLUTELY NO text, letters, or words anywhere; if any text or page layout would appear, replace it with plain scenery instead.`
+              );
+              if (out) return out;
+            } else if (storyAnchor) {
+              // Solo story-character beat: the 360° sheet is the identity.
+              const { editImage } = await import("./images");
+              const out = await editImage(
+                storyAnchor,
+                `${beatPrompt} Compose this as a NEW scene using EXACTLY the character from the reference sheet — same face, same hair, same outfit, same proportions — in a natural composition for this moment, never the reference's side-by-side views. FULL-BLEED cinematic frame filling the entire image edge to edge, ABSOLUTELY NO text, letters, or words anywhere.`
               );
               if (out) return out;
             }

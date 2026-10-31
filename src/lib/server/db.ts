@@ -3632,6 +3632,14 @@ export function personaImagePath(id: string): string {
   return path.join(PERSONAS_DIR, `${id}.png`);
 }
 
+/** The persona's 360-degree turnaround sheet (front/three-quarter/profile/back +
+ *  close-up detail panel) — the multi-view identity anchor that keeps a
+ *  character consistent across hundreds of scenes. Generated best-effort
+ *  after the portrait; absent for old personas until regenerated. */
+export function persona360Path(id: string): string {
+  return path.join(PERSONAS_DIR, `${id}-360.png`);
+}
+
 export function insertPersona(
   email: string,
   p: { id: string; name: string; source: "generated" | "uploaded"; ptype: PropType; meta?: string; image: Buffer }

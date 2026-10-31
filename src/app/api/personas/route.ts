@@ -4,10 +4,12 @@ import {
   getFlags,
   insertPersona,
   listPersonas,
+  persona360Path,
   setPersonaMeta,
   type PropType,
 } from "@/lib/server/db";
-import { describeImage, generateBackground } from "@/lib/server/images";
+import { describeImage, editImage, generateBackground } from "@/lib/server/images";
+import fs from "node:fs";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { GEN_WRAP, PTYPES, VISION } from "@/lib/server/prop-prompts";
 
@@ -119,5 +121,20 @@ export async function POST(req: NextRequest) {
   describeImage(img, VISION[ptype])
     .then((meta) => meta && setPersonaMeta(user.email, persona.id, meta))
     .catch(() => {});
+  // 360° profile (characters and presenters): a multi-view turnaround sheet
+  // generated from the approved portrait — the identity anchor that keeps
+  // the character consistent across every scene, the way AI-film character
+  // sheets do (front/three-quarter/profile/back + a close-up detail panel).
+  // Best-effort and async: the persona is usable immediately either way.
+  if (ptype === "character" || ptype === "presenter") {
+    editImage(
+      img,
+      "Character turnaround reference sheet of the EXACT same character from the image — identical face, hair, outfit, colors and proportions — shown in four full-body views side by side on one plain light background: front view, three-quarter view, side profile, and back view, all in the same neutral standing pose, plus one close-up head-and-shoulders detail panel. Clean studio reference sheet, consistent flat lighting, absolutely no text, letters, labels or arrows."
+    )
+      .then((sheet) => {
+        if (sheet) fs.writeFileSync(persona360Path(persona.id), sheet);
+      })
+      .catch(() => {});
+  }
   return NextResponse.json({ persona }, { status: 201 });
 }
