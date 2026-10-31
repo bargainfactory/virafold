@@ -291,8 +291,9 @@ export async function storyCastFor(title: string, script: string): Promise<Story
       "Make every design VISUALLY DISTINCT from the others: different clothing colors and silhouettes, so no two characters could ever be mistaken for each other. A king must read as a king (crown or circlet, royal colors), never as a soldier or a giant.",
       "Historical accuracy for biblical and ancient Near-Eastern stories: describe people with warm tan, sun-browned Middle-Eastern skin tones. If Jesus appears, describe Him reverently and consistently: tall — six feet two, standing clearly taller than those around Him — a warm tan complexion, dark wavy hair and beard, simple robes, a calm and kind face.",
       "Only characters that actually appear in the script. If the tale has no recurring character, return an empty list.",
+      "AUTHORITATIVE PROFILES: if the script contains '# CAST' production-note lines (lines starting with #), those profiles are the writer's own scripture-grounded designs — derive each character's design and aliases FROM them verbatim where given, condensing to the word limit; never contradict them.",
     ].join("\n"),
-    `Title: ${title}\n\nScript:\n${script.slice(0, 6000)}`,
+    `Title: ${title}\n\nScript:\n${script.slice(0, 8000)}`,
     STORY_CAST_SCHEMA as unknown as Record<string, unknown>,
     { tier: "standard", maxTokens: 700, context: "story-cast" }
   );

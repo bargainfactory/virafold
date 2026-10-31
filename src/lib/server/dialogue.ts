@@ -29,6 +29,9 @@ export function parseScreenplay(script: string): DialogueLine[] | null {
   for (const raw of script.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
+    // Production notes: lines starting with # are never spoken — they carry
+    // cast profiles, prop sheets, and director's notes for the design passes.
+    if (line.startsWith("#")) continue;
     const m = TAG_RE.exec(line);
     if (m) {
       tagged++;

@@ -67,7 +67,9 @@ export interface ScriptLint {
 const WPM = 178; // measured narration pace of the render engine
 
 export function lintScript(script: string): ScriptLint {
-  const rawLines = script.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // Production-note lines (#…) are never spoken: cast profiles and director's
+  // notes live there, invisible to runtime and to the checklist's counting.
+  const rawLines = script.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
   const lines: LintLine[] = [];
   const speakers = new Set<string>();
   const storySpeakers = new Set<string>();
