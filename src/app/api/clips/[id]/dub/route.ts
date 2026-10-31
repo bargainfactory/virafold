@@ -26,6 +26,14 @@ const LANGS: Record<string, string> = {
   ja: "Japanese",
   ko: "Korean",
   tr: "Turkish",
+  nl: "Dutch",
+  pl: "Polish",
+  ru: "Russian",
+  th: "Thai",
+  vi: "Vietnamese",
+  zh: "Simplified Chinese",
+  "zh-TW": "Traditional Chinese",
+  ar: "Arabic",
 };
 
 const DUB_SCHEMA = {

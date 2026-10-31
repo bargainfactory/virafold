@@ -674,6 +674,21 @@ export interface FilmBeat {
    *  character casting stays deterministic even when a line never names its
    *  own speaker ("Am I a dog…" is still a Goliath scene). */
   who?: string[];
+  /** Cutting Room — manual per-beat effects, applied at segment encode:
+   *  grade preset, playback speed (video kinds), freeze-frame emphasis, and
+   *  a hand-drawn Ken Burns path for stills (normalized pan/zoom keyframes). */
+  fx?: {
+    grade?: "warm" | "cool" | "night" | "golden" | "dream";
+    speed?: number;
+    freeze?: boolean;
+    kb?: { z0: number; x0: number; y0: number; z1: number; x1: number; y1: number };
+  };
+  /** Cutting Room — per-boundary transitions (dip-to-black pairs fadeOut on
+   *  one beat with fadeIn on the next) even when the film cuts straight. */
+  fadeIn?: boolean;
+  fadeOut?: boolean;
+  /** Cutting Room — the editor's margin note on this beat. */
+  note?: string;
 }
 
 export interface FilmPlan {
@@ -700,6 +715,9 @@ export interface FilmPlan {
   /** Character entrance motifs (first line of each cast member, voice-time
    *  seconds) — overlaid on the score; persisted so rebuilds keep them. */
   motifs?: { at: number; who: string }[];
+  /** Cutting Room — the film's audio mixer, persisted so every resplice
+   *  honors the editor's faders (defaults match the studio mix). */
+  mix?: { voice?: number; music?: number; amb?: number; duck?: number };
   /** Branded title/end card segments and the timeline they add around the voice. */
   openCard?: string;
   endCard?: string;
@@ -858,13 +876,27 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   fs.writeFileSync(path.join(planDir, assName), ass, "utf8");
 
   const look = plan.look && b.kind !== "stat" && b.kind !== "chart" && b.kind !== "list" && b.kind !== "quote" ? CINE_LOOK : "";
+  // Cutting Room grade presets: an editor's color decision applied at the
+  // segment, so it survives every future resplice.
+  const GRADES: Record<string, string> = {
+    warm: "eq=gamma_r=1.05:gamma_b=0.94:saturation=1.12",
+    cool: "eq=gamma_b=1.06:gamma_r=0.95:saturation=0.95",
+    night: "eq=brightness=-0.07:saturation=0.72,colorbalance=bs=0.12:ms=0.06",
+    golden: "colorbalance=rs=0.10:ms=0.05:bs=-0.08,eq=saturation=1.1",
+    dream: "gblur=sigma=1.2,eq=brightness=0.04:saturation=1.08",
+  };
+  const grade = b.fx?.grade && GRADES[b.fx.grade] ? `${GRADES[b.fx.grade]},` : "";
   // Studio cut grammar: straight cuts between scenes (the title and end cards
-  // carry the film's fades). Legacy plans keep their per-beat fades so a
-  // re-rendered scene still matches its neighbors.
+  // carry the film's fades) — unless the editor set a transition on this
+  // boundary (dip-to-black = fadeOut here + fadeIn on the next beat).
+  const fadeParts = [
+    b.fadeIn ? "fade=t=in:st=0:d=0.35" : null,
+    b.fadeOut ? `fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3` : null,
+  ].filter(Boolean);
   const fades =
     plan.cuts === "straight"
-      ? "null"
-      : `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
+      ? grade + (fadeParts.length ? fadeParts.join(",") : "null")
+      : grade + `fade=t=in:st=0:d=0.35,fade=t=out:st=${Math.max(0.4, dur - 0.3).toFixed(2)}:d=0.3`;
   const scale = `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h}`;
   // Camera v3 extras that live at the segment level: the storybook iris on
   // the film's final beat, and a whip-slide into each later beat of a song
@@ -879,7 +911,16 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   let inputs: string[];
   let fc: string;
   if (b.kind === "broll" || b.kind === "anim" || b.kind === "speak") {
-    inputs = ["-stream_loop", "-1", "-t", (dur + 0.5).toFixed(2), "-i", b.file];
+    // Cutting Room speed/freeze (video beats): slow-mo stretches the source,
+    // freeze plays half the beat then holds the frame for emphasis.
+    const speed = b.fx?.speed && b.fx.speed > 0.2 && b.fx.speed <= 3 ? b.fx.speed : 1;
+    const speedFx =
+      b.fx?.freeze
+        ? `trim=end=${(dur / 2).toFixed(2)},tpad=stop_mode=clone:stop_duration=${dur.toFixed(2)},`
+        : speed !== 1
+          ? `setpts=PTS/${speed},`
+          : "";
+    inputs = ["-stream_loop", "-1", "-t", ((dur + 0.5) * Math.max(1, speed)).toFixed(2), "-i", b.file];
     if (plan.camera === "v3" && b.song === true && prevSong) {
       // Whip-slide: the clip lands with a fast 6-frame lateral settle.
       const OW = 2 * Math.round((R.w * 1.08) / 2);
@@ -893,11 +934,24 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
       // frames before the scene forms — a 0.55s fade-in hides it without
       // moving the audio a millisecond (lipsync stays intact).
       const speakFade = b.kind === "speak" ? "fade=t=in:d=0.55," : "";
-      fc = `[0:v]${scale},fps=30,${speakFade}${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
+      fc = `[0:v]${scale},fps=30,${speedFx}${speakFade}${look}${fades},setsar=1,ass=${assName}${iris}[v]`;
     }
   } else if (b.kind === "image" || b.kind === "arch") {
     inputs = ["-i", b.file];
-    if (plan.camera === "v3") {
+    if (b.fx?.kb) {
+      // Manual Ken Burns: the editor's own pan/zoom path (normalized 0..1
+      // positions, zoom 1..1.5) beats any automatic camera when a human has
+      // decided where the eye should travel.
+      const k = b.fx.kb;
+      const z0 = Math.min(1.5, Math.max(1, k.z0));
+      const z1 = Math.min(1.5, Math.max(1, k.z1));
+      const kb =
+        `${scale},zoompan=z='${z0.toFixed(3)}+${(z1 - z0).toFixed(4)}*on/${frames}'` +
+        `:x='(iw-iw/zoom)*(${Math.max(0, Math.min(1, k.x0)).toFixed(3)}+${(Math.max(0, Math.min(1, k.x1)) - Math.max(0, Math.min(1, k.x0))).toFixed(4)}*on/${frames})'` +
+        `:y='(ih-ih/zoom)*(${Math.max(0, Math.min(1, k.y0)).toFixed(3)}+${(Math.max(0, Math.min(1, k.y1)) - Math.max(0, Math.min(1, k.y0))).toFixed(4)}*on/${frames})'` +
+        `:d=${frames}:s=${R.w}x${R.h}:fps=30`;
+      fc = `[0:v]${kb},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}${iris}[v]`;
+    } else if (plan.camera === "v3") {
       const { sceneMood } = await import("./music");
       fc = `[0:v]${cameraV3(b, frames, R, sceneMood(b.text))},${look}vignette=PI/5,noise=alls=5:allf=t,${fades},setsar=1,ass=${assName}${iris}[v]`;
     } else if (plan.camera === "v2") {
@@ -1025,6 +1079,16 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
   const music = plan.music && fs.existsSync(path.join(planDir, plan.music)) ? plan.music : null;
   const ambience =
     plan.ambience && fs.existsSync(path.join(planDir, plan.ambience)) ? plan.ambience : null;
+  // The Cutting Room's faders: persisted per film, clamped to sane ranges so
+  // a wild slider can't blow out the mix (loudnorm still guards the output).
+  const clamp = (v: number | undefined, lo: number, hi: number, dflt: number) =>
+    Math.min(hi, Math.max(lo, typeof v === "number" && Number.isFinite(v) ? v : dflt));
+  const mix = {
+    voice: clamp(plan.mix?.voice, 0.5, 1.6, 1),
+    music: clamp(plan.mix?.music, 0, 0.8, 0.32),
+    amb: clamp(plan.mix?.amb, 0, 0.5, 0.14),
+    duck: clamp(plan.mix?.duck, 1, 12, 6),
+  };
 
   const args = ["-y", "-i", "silent.mp4", "-i", plan.voiceFile,
     "-f", "lavfi", "-t", String(total),
@@ -1044,12 +1108,12 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
     const voC = ambience ? "[voC]" : "";
     if (ambience) {
       args.push("-i", ambience);
-      ambPart = `[4:a]volume=0.14,apad[amA];[amA][voC]sidechaincompress=threshold=0.02:ratio=4:attack=120:release=1000[am];`;
+      ambPart = `[4:a]volume=${mix.amb},apad[amA];[amA][voC]sidechaincompress=threshold=0.02:ratio=4:attack=120:release=1000[am];`;
       mixIns.push("[am]");
     }
     fc =
-      `[1:a]adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=${voSplit}[voA][voB]${voC};` +
-      `[3:a]volume=0.32,apad[mu];[mu][voA]sidechaincompress=threshold=0.02:ratio=6:attack=80:release=900[md];` +
+      `[1:a]volume=${mix.voice},adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=${voSplit}[voA][voB]${voC};` +
+      `[3:a]volume=${mix.music},apad[mu];[mu][voA]sidechaincompress=threshold=0.02:ratio=${mix.duck}:attack=80:release=900[md];` +
       `[2:a]volume=0.03[bed];` +
       ambPart +
       `${mixIns.join("")}amix=inputs=${mixIns.length}:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +

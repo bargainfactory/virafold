@@ -18,6 +18,7 @@ import {
   rememberPlatform,
 } from "@/lib/use-connections";
 import SceneEditor from "@/components/scene-editor";
+import CuttingRoom from "@/components/cutting-room";
 import {
   Calendar,
   Check,
@@ -124,6 +125,14 @@ const DUB_LANGS: [string, string][] = [
   ["ja", "日本語"],
   ["ko", "한국어"],
   ["tr", "Türkçe"],
+  ["nl", "Nederlands"],
+  ["pl", "Polski"],
+  ["ru", "Русский"],
+  ["th", "ไทย"],
+  ["vi", "Tiếng Việt"],
+  ["zh", "中文(简体)"],
+  ["zh-TW", "中文(繁體)"],
+  ["ar", "العربية"],
 ];
 
 /** Date → the local value a datetime-local input expects. */
@@ -540,6 +549,7 @@ export default function ClipsTab({
   const [ambBusy, setAmbBusy] = useState(false);
   const [eta, setEta] = useState<Record<string, { ahead: number; etaMin: number }>>({});
   const [dubSel, setDubSel] = useState<Record<string, string>>({});
+  const [cutFor, setCutFor] = useState<{ id: string; title: string } | null>(null);
   const [editorFor, setEditorFor] = useState<string | null>(null);
   const [vidBust, setVidBust] = useState(0);
   const [dubBusy, setDubBusy] = useState<string | null>(null);
@@ -1326,6 +1336,14 @@ export default function ClipsTab({
                           <Film className="w-3.5 h-3.5" /> {t("ed.open")}
                         </button>
                       )}
+                      {Boolean(clip.hasPlan) && (
+                        <button
+                          onClick={() => setCutFor({ id: clip.id, title: clip.title })}
+                          className="px-3 py-2 rounded-lg bg-cyber-dark border border-neon-purple/40 text-xs text-neon-purple hover:bg-neon-purple/10 transition-colors flex items-center gap-1.5"
+                        >
+                          <Scissors className="w-3.5 h-3.5" /> {t("cut.open")}
+                        </button>
+                      )}
                       <button
                         onClick={() => dub(clip)}
                         disabled={dubBusy === clip.id || !dubSel[clip.id]}
@@ -1387,6 +1405,14 @@ export default function ClipsTab({
         </div>
       )}
 
+      {cutFor && (
+        <CuttingRoom
+          clipId={cutFor.id}
+          title={cutFor.title}
+          onClose={() => setCutFor(null)}
+          onEdited={load}
+        />
+      )}
       {editorFor && (
         <SceneEditor
           clipId={editorFor}
