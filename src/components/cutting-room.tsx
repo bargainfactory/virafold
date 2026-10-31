@@ -84,6 +84,7 @@ export default function CuttingRoom({
   const [mix, setMix] = useState({ voice: 1, music: 0.32, amb: 0.14, duck: 6 });
   const [note, setNote] = useState("");
   const [instruction, setInstruction] = useState("");
+  const [shot, setShot] = useState<Record<string, string | undefined>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const load = useCallback(() => {
@@ -356,6 +357,47 @@ export default function CuttingRoom({
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
               </div>
+
+              {/* Director's Chair: re-shoot with a manual shot card */}
+              {beat.image && (
+                <div className="rounded-lg border border-neon-purple/30 bg-neon-purple/5 p-2 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wide text-neon-purple flex items-center gap-1">
+                    <Clapperboard className="w-3 h-3" /> {t("cut.chair")}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {(
+                      [
+                        ["size", ["", "ecu", "cu", "ms", "ws", "ews"]],
+                        ["angle", ["", "eye", "low", "high", "overhead", "pov"]],
+                        ["light", ["", "golden", "noon", "night", "dawn", "firelight", "storm"]],
+                        ["move", ["", "static", "push", "pull", "panlr", "panrl", "rise"]],
+                      ] as const
+                    ).map(([field, opts]) => (
+                      <select
+                        key={field}
+                        value={shot[field] ?? ""}
+                        onChange={(e) => setShot((s) => ({ ...s, [field]: e.target.value || undefined }))}
+                        className="px-1.5 py-1 bg-cyber-dark border border-cyber-border rounded text-[10px] text-foreground focus:outline-none"
+                      >
+                        <option value="">{t(`cut.shot.${field}`)}</option>
+                        {opts.filter(Boolean).map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => void post("shot", { index: beat.i, shot })}
+                    disabled={busy !== null || !Object.values(shot).some(Boolean)}
+                    className="w-full px-2 py-1.5 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-[11px] font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {busy === "shot" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Clapperboard className="w-3 h-3" />}
+                    {t("cut.reshoot")}
+                  </button>
+                </div>
+              )}
 
               {/* Grade */}
               <div>

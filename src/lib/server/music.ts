@@ -791,7 +791,7 @@ const SCORE_INTERACT_RE =
 // The film's biggest lines get two seconds of silence first, then a bloom —
 // nothing makes a miracle land like the music holding its breath.
 const CLIMAX_RE =
-  /\bpeace\.?,? be still\b|let there be light|your faith has made you|today,? salvation|and he answered me|it is very good|rise,? and go your way|the battle is the lord'?s/i;
+  /\bpeace\.?,? be still\b|let there be light|your faith has made you|today,? salvation|and he answered me|it is very good|rise,? and go your way|the battle is the lord'?s|god himself will provide|the lord has made room|i am with you wherever you go/i;
 
 /** The series' signature jingle, composed ONCE via ElevenLabs Music and reused
  *  by every film — repetition is what turns a jingle into a ritual. */

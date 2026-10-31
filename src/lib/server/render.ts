@@ -689,6 +689,13 @@ export interface FilmBeat {
   fadeOut?: boolean;
   /** Cutting Room — the editor's margin note on this beat. */
   note?: string;
+  /** Director's Chair — the manual shot card this beat was re-shot with. */
+  shot?: {
+    size?: string;
+    angle?: string;
+    light?: string;
+    move?: string;
+  };
 }
 
 export interface FilmPlan {
@@ -1217,6 +1224,58 @@ export async function extractBeatPreview(planDir: string, b: FilmBeat): Promise<
 // Camera v3 framing injection for story stills: the narration's own words
 // pick the award framing. Priority: the divine overhead beats everything,
 // then triumph/vulnerability angles; unmatched beats keep the rotation.
+/** Director's Chair: a manual shot card. Every field compiles to fixed
+ *  cinematography words — reproducible direction, not prompt vibes. The
+ *  narration-trigger system proposes; a card on the beat overrules. */
+export interface ShotCard {
+  size?: "ecu" | "cu" | "ms" | "ws" | "ews";
+  angle?: "eye" | "low" | "high" | "overhead" | "pov";
+  light?: "golden" | "noon" | "night" | "dawn" | "firelight" | "storm";
+  move?: "static" | "push" | "pull" | "panlr" | "panrl" | "rise";
+}
+
+export function shotDirective(s: ShotCard): string {
+  const size = {
+    ecu: "an extreme close-up",
+    cu: "a close-up",
+    ms: "a medium shot",
+    ws: "a wide shot",
+    ews: "an extreme wide establishing shot",
+  }[s.size ?? ("" as never)];
+  const angle = {
+    eye: "at eye level",
+    low: "from a dramatic low angle looking up",
+    high: "from a high angle looking down",
+    overhead: "seen from directly overhead in a bird's-eye view",
+    pov: "as a first-person point-of-view shot through the character's own eyes",
+  }[s.angle ?? ("" as never)];
+  const light = {
+    golden: "in warm golden-hour light",
+    noon: "in bright clear midday light",
+    night: "in deep blue night lit by moonlight",
+    dawn: "in pale rose first-dawn light",
+    firelight: "lit by flickering warm firelight",
+    storm: "under heavy dark storm light",
+  }[s.light ?? ("" as never)];
+  const parts = [size, angle, light].filter(Boolean);
+  return parts.length ? `Composed as ${parts.join(", ")}: ` : "";
+}
+
+/** The card's camera move as a guaranteed manual Ken Burns path for stills. */
+export function shotMoveToKb(move: ShotCard["move"]):
+  | { z0: number; x0: number; y0: number; z1: number; x1: number; y1: number }
+  | null {
+  switch (move) {
+    case "static": return { z0: 1.06, x0: 0.5, y0: 0.5, z1: 1.06, x1: 0.5, y1: 0.5 };
+    case "push": return { z0: 1.0, x0: 0.5, y0: 0.5, z1: 1.25, x1: 0.5, y1: 0.5 };
+    case "pull": return { z0: 1.25, x0: 0.5, y0: 0.5, z1: 1.0, x1: 0.5, y1: 0.5 };
+    case "panlr": return { z0: 1.15, x0: 0.1, y0: 0.5, z1: 1.15, x1: 0.9, y1: 0.5 };
+    case "panrl": return { z0: 1.15, x0: 0.9, y0: 0.5, z1: 1.15, x1: 0.1, y1: 0.5 };
+    case "rise": return { z0: 1.15, x0: 0.5, y0: 0.85, z1: 1.15, x1: 0.5, y1: 0.15 };
+    default: return null;
+  }
+}
+
 function framePrefixFor(text: string): string {
   if (GOD_SEES_RE.test(text))
     return "seen from directly overhead in a God's-eye bird's-eye view, the figures small below: ";

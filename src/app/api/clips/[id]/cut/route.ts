@@ -38,6 +38,7 @@ function versionsOf(dir: string, i: number): string[] {
       f === `beat${i}.png` ||
       f === `beat${i}_fx.png` ||
       f.startsWith(`edit${i}_`) ||
+      f.startsWith(`shot${i}_`) ||
       f === `anim${i}.mp4` ||
       f === `anim${i}_fx.mp4` ||
       f.startsWith(`animup${i}_`)
@@ -155,6 +156,35 @@ export async function POST(
       else b.fx = fx;
       b.fadeIn = body.fadeIn === true;
       b.fadeOut = body.fadeOut === true;
+      save();
+      await renderBeatSegment(dir, plan, b);
+      await spliceFilm(dir, plan, outAbs);
+      return NextResponse.json({ ok: true });
+    }
+    if (op === "shot") {
+      // Director's Chair: re-shoot the scene with a manual shot card — the
+      // directive compiles to fixed cinematography words prepended to the
+      // beat's stored prompt, and the card's move becomes a guaranteed
+      // Ken Burns path. Reproducible direction, not prompt vibes.
+      const b = beatOf();
+      if (!b) return NextResponse.json({ error: "Unknown scene" }, { status: 400 });
+      const { shotDirective, shotMoveToKb } = await import("@/lib/server/render");
+      const card = (body.shot ?? {}) as import("@/lib/server/render").ShotCard;
+      const directive = shotDirective(card);
+      const base =
+        b.prompt ||
+        `Illustration for this narration moment: ${b.text.slice(0, 160)}. No text, no watermark.`;
+      const { generateBackground } = await import("@/lib/server/images");
+      const img = await generateBackground(`${directive}${base}`);
+      if (!img) return NextResponse.json({ error: "No image provider available" }, { status: 503 });
+      const name = `shot${b.i}_${Date.now() % 100000}.png`;
+      fs.writeFileSync(path.join(dir, name), img);
+      b.file = name;
+      b.kind = "image";
+      b.prompt = `${directive}${base}`;
+      b.shot = card as FilmBeat["shot"];
+      const kb = shotMoveToKb(card.move);
+      if (kb) b.fx = { ...(b.fx ?? {}), kb };
       save();
       await renderBeatSegment(dir, plan, b);
       await spliceFilm(dir, plan, outAbs);
