@@ -7,6 +7,7 @@ import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  Clapperboard,
   LayoutDashboard,
   Film,
   BarChart3,
@@ -62,6 +63,7 @@ import InterviewModal from "@/components/interview-modal";
 import type { Project, Asset } from "@/lib/data";
 import IntegrationsPanel from "@/components/integrations-panel";
 import BrandVoicePanel from "@/components/brand-voice-panel";
+import EditingTab from "@/components/editing-tab";
 import ClipsTab from "@/components/clips-tab";
 import SetupChecklist from "@/components/setup-checklist";
 import WatchlistCard from "@/components/watchlist-card";
@@ -87,6 +89,7 @@ type Tab =
   | "Projects"
   | "Clips"
   | "Studio"
+  | "Editing"
   | "Upload"
   | "Schedule"
   | "Analytics"
@@ -105,6 +108,7 @@ const sidebarItems: { icon: typeof LayoutDashboard; label: Tab; tKey: string }[]
   { icon: Film, label: "Projects", tKey: "dash.projects" },
   { icon: Scissors, label: "Clips", tKey: "dash.clips" },
   { icon: Sparkles, label: "Studio", tKey: "studio.title" },
+  { icon: Clapperboard, label: "Editing", tKey: "dash.editing" },
   { icon: Calendar, label: "Schedule", tKey: "dash.schedule" },
   { icon: BarChart3, label: "Analytics", tKey: "dash.analytics" },
   { icon: Gauge, label: "Audit", tKey: "dash.audit" },
@@ -118,7 +122,7 @@ const sidebarItems: { icon: typeof LayoutDashboard; label: Tab; tKey: string }[]
 // and brand voice live, the levers everything else depends on.
 const sidebarGroups: { labelKey: string | null; tabs: Tab[] }[] = [
   { labelKey: null, tabs: ["Settings", "Overview", "Inbox"] },
-  { labelKey: "dash.gCreate", tabs: ["Ideas", "Upload", "Projects", "Clips", "Studio"] },
+  { labelKey: "dash.gCreate", tabs: ["Ideas", "Upload", "Projects", "Clips", "Studio", "Editing"] },
   { labelKey: "dash.gPublish", tabs: ["Schedule"] },
   { labelKey: "dash.gGrow", tabs: ["Analytics", "Audit", "Audience"] },
   { labelKey: "dash.gManage", tabs: ["Business", "Notifications"] },
@@ -596,6 +600,7 @@ export default function Dashboard() {
               onUpload={() => setShowUploadModal(true)}
             />
           )}
+          {activeTab === "Editing" && <EditingTab />}
           {activeTab === "Studio" && (
             <StudioTab onNavigate={(tb) => setActiveTab(tb as Tab)} />
           )}
