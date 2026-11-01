@@ -105,6 +105,16 @@ export const INTEGRATIONS: IntegrationDef[] = [
     ],
   },
   {
+    name: "video",
+    label: "Premium motion (Google Omni Flash)",
+    description:
+      "Routes hero animated beats (climax shots, blooms, character close-ups) through Google's Gemini Omni Flash: stronger physics, turnaround-sheet character consistency, ~$0.10/s at 720p. Ordinary beats and lip-synced speak clips stay on xAI; without a key everything renders on xAI as before.",
+    docsHint: "Create a Gemini API key at aistudio.google.com (billing enabled).",
+    fields: [
+      { key: "googleApiKey", label: "Gemini API key", envVar: "GEMINI_API_KEY", secret: true, placeholder: "AIza...", required: true },
+    ],
+  },
+  {
     name: "email",
     label: "Email (Resend)",
     description:

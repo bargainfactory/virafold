@@ -231,6 +231,15 @@ export async function animateStill(opts: {
     }
   };
 
+  // Premium beats try Google Omni Flash first when a Gemini key is connected
+  // (video integration): better physics and reference-sheet consistency. Any
+  // failure there — block, quota, drift — falls through to the xAI chain.
+  if (opts.model === ANIM_MODELS.premium) {
+    const { omniAnimateStill } = await import("./omni-video");
+    const g = await omniAnimateStill(opts).catch(() => null);
+    if (g) return g;
+  }
+
   let res = await runOnce(opts.motion);
   if (res === "blocked") {
     // The overflag log: the retry trigger now, evidence for xAI support later.
