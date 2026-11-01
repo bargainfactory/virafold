@@ -32,6 +32,7 @@ interface CutBeat {
   dur: number;
   kind: string;
   file: string;
+  preview: string | null;
   image: boolean;
   frame: boolean;
   song: boolean;
@@ -299,12 +300,18 @@ export default function CuttingRoom({
                   }`}
                   style={{ width: Math.max(34, b.dur * pxPerSec) }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/clips/${clipId}/plan?asset=${encodeURIComponent(b.file)}&v=${bust}`}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+                  {b.preview ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={`/api/clips/${clipId}/plan?asset=${encodeURIComponent(b.preview)}&v=${bust}`}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex items-center justify-center w-full h-full bg-cyber-dark text-cyber-muted">
+                      <Film className="w-4 h-4" />
+                    </span>
+                  )}
                   <span
                     className={`absolute inset-x-0 bottom-0 h-1.5 ${
                       b.song ? "bg-amber-400" : b.kind === "speak" ? "bg-fuchsia-400" : b.frame ? "bg-electric-blue" : "bg-success/70"

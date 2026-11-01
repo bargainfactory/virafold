@@ -7,7 +7,7 @@ import { planDirFor, type FilmPlan } from "@/lib/server/render";
 
 export const dynamic = "force-dynamic";
 
-const ASSET_RE = /^(beat|anim|broll|edit|prev|speakvid|speaksrc)[0-9_]+\.(png|jpg|mp4)$/;
+const ASSET_RE = /^(beat|anim|animup|broll|edit|shot|prev|speakvid|speaksrc)\d+(_[0-9a-z]+)*\.(png|jpg|mp4)$/;
 
 /**
  * Scene-editor bootstrap: the persisted build plan's beats (text, timing,

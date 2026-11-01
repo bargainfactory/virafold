@@ -63,6 +63,22 @@ export async function GET(
   const loaded = loadPlan(id);
   if (!loaded) return NextResponse.json({ error: "Plan unreadable" }, { status: 500 });
   const { dir, plan } = loaded;
+  // Animated beats are mp4s the filmstrip's <img> can't show — give every
+  // beat a still preview (the source frame when it exists, else one extracted
+  // from the video and cached), same contract as the scene-editor bootstrap.
+  const { extractBeatPreview } = await import("@/lib/server/render");
+  const beats = await Promise.all(
+    plan.beats.map(async (b) => {
+      const isImg = b.file.endsWith(".png") || b.file.endsWith(".jpg");
+      let preview: string | null = isImg ? b.file : null;
+      if (!preview) {
+        const still = `beat${b.i}.png`;
+        if (fs.existsSync(path.join(dir, still))) preview = still;
+        else preview = await extractBeatPreview(dir, b).catch(() => null);
+      }
+      return { b, preview };
+    })
+  );
   return NextResponse.json({
     wide: plan.wide === true,
     duration: plan.duration,
@@ -70,7 +86,8 @@ export async function GET(
     mix: { voice: 1, music: 0.32, amb: 0.14, duck: 6, ...(plan.mix ?? {}) },
     hasMusic: Boolean(plan.music),
     hasAmbience: Boolean(plan.ambience),
-    beats: plan.beats.map((b) => ({
+    beats: beats.map(({ b, preview }) => ({
+      preview,
       i: b.i,
       text: b.text,
       start: b.start,
