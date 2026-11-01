@@ -38,7 +38,12 @@ export async function synthesizeSpeech(
         // line — the EL stock voice is only the no-config-at-all fallback.
         // (Without this, connecting an EL key silently flipped the whole
         // narration from the chosen male narrator to EL's female default.)
-        elVoice = map.default || (resolveField("voiceover", "xaiVoiceId") ? null : ELEVENLABS_VOICE);
+        // Exception: non-English narration always goes to ElevenLabs — the
+        // multilingual model is the one engine proven across every dub
+        // language, so the English xAI narrator never hijacks a dubbed film.
+        elVoice =
+          map.default ||
+          (language !== "en" || !resolveField("voiceover", "xaiVoiceId") ? ELEVENLABS_VOICE : null);
       }
     } catch {
       elVoice = customVoiceId ? null : ELEVENLABS_VOICE;

@@ -38,10 +38,59 @@ const LANGS: Record<string, string> = {
 
 const DUB_SCHEMA = {
   type: "object",
-  properties: { script: { type: "string" } },
-  required: ["script"],
+  properties: { lines: { type: "array", items: { type: "string" } } },
+  required: ["lines"],
   additionalProperties: false,
 };
+
+/**
+ * Line-by-line screenplay translation. Only the spoken half of each line is
+ * translated: speaker labels and voice tags (`NAOMI:`, `VOICE(atlas):`) stay
+ * verbatim so casting and voice assignment survive, and `#` production notes
+ * stay in English because they are never spoken — they feed the art prompts.
+ * Chunked so feature-length scripts never hit a token ceiling.
+ */
+const SPEAKER_RE = /^([A-Z][A-Z0-9 _'’-]{0,40}(?:\([a-z0-9_-]{1,24}\))?:\s*)(.*)$/;
+
+async function translateScript(script: string, language: string): Promise<string | null> {
+  type Seg = { keep: string } | { prefix: string; text: string };
+  const segs: Seg[] = script.split(/\r?\n/).map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return { keep: line };
+    const m = trimmed.match(SPEAKER_RE);
+    if (m && m[2]) return { prefix: m[1], text: m[2] };
+    return { prefix: "", text: trimmed };
+  });
+  const jobs = segs
+    .map((s, i) => ({ s, i }))
+    .filter((x): x is { s: { prefix: string; text: string }; i: number } => "text" in x.s);
+
+  const CHUNK = 25;
+  const out = new Map<number, string>();
+  for (let at = 0; at < jobs.length; at += CHUNK) {
+    const batch = jobs.slice(at, at + CHUNK);
+    const res = await llmComplete(
+      `Translate each line of spoken video dialogue into natural, conversational ${language} — written for the EAR, not the page. Keep every personal name, place name, number, and Bible reference. Never merge, split, add, or drop lines. Return JSON {"lines": [...]} with exactly ${batch.length} strings in the same order.`,
+      JSON.stringify(batch.map((b) => b.s.text)),
+      DUB_SCHEMA as unknown as Record<string, unknown>,
+      { tier: "standard", maxTokens: 4000, context: "dub" }
+    );
+    if (!res) return null;
+    let lines: unknown;
+    try {
+      lines = (JSON.parse(res.text) as { lines?: unknown }).lines;
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(lines) || lines.length !== batch.length) return null;
+    batch.forEach((b, j) => out.set(b.i, String(lines[j as number] ?? "").trim()));
+  }
+
+  const rebuilt = segs
+    .map((s, i) => ("keep" in s ? s.keep : `${s.prefix}${out.get(i) || s.text}`))
+    .join("\n");
+  return rebuilt.trim().length >= 40 ? rebuilt : null;
+}
 
 export async function POST(
   req: NextRequest,
@@ -83,22 +132,8 @@ export async function POST(
     return NextResponse.json({ error: "The video is already in that language" }, { status: 400 });
   }
 
-  const res = await llmComplete(
-    `Translate this spoken video script into natural, conversational ${LANGS[lang]} — written for the EAR, not the page. Keep every name, number, and claim exactly as given; never add or soften anything. Return JSON {"script": "<translation>"}.`,
-    clip.script,
-    DUB_SCHEMA as unknown as Record<string, unknown>,
-    { tier: "standard", maxTokens: 3000, context: "dub" }
-  );
-  if (!res) {
-    return NextResponse.json({ error: "Translation unavailable — retry shortly" }, { status: 503 });
-  }
-  let translated = "";
-  try {
-    translated = String((JSON.parse(res.text) as { script?: string }).script ?? "").trim();
-  } catch {
-    /* handled below */
-  }
-  if (translated.length < 40) {
+  const translated = await translateScript(clip.script, LANGS[lang]);
+  if (!translated) {
     return NextResponse.json({ error: "Translation failed — please retry" }, { status: 502 });
   }
 
@@ -111,14 +146,15 @@ export async function POST(
   const dub = insertScriptVideo(user.email, {
     id: `sv-${crypto.randomUUID()}`,
     title: `${clip.title} [${lang.toUpperCase()}]`,
-    script: translated.slice(0, 4800),
+    script: translated,
     style: clip.style,
     position: clip.position,
-    animate: Boolean(clip.animate),
+    animate: clip.animate, // the exact animation level — a dub is the same film
     vstyle: clip.vstyle ?? undefined,
     personaId: clip.personaId ?? undefined,
     props,
     lang,
+    orient: clip.orient ?? undefined,
   });
   kickRenderWorker();
   return NextResponse.json({ clip: dub }, { status: 201 });
