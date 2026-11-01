@@ -58,6 +58,42 @@ const DEADLINE_MS = 4 * 60 * 1000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Moderation-aware result: "blocked" means the fixed content filter refused
+ *  the prompt or withheld the output — callers rewrite once and retry; null
+ *  is any other failure (callers keep the still). */
+type AnimResult = { file: string; billedSeconds: number } | "blocked" | null;
+
+const MOD_RE = /moderat|content[_ ]?policy|invalid_argument|flagged|unsafe|prohibit/i;
+
+/**
+ * One LLM pass that strips filter-trigger wording from a motion prompt while
+ * preserving the shot. Biblical action ("strikes the giant's forehead", "fire
+ * falls on the altar") overflags xAI's fixed video moderation even when the
+ * visual is G-rated; a neutral cinematic rewrite usually passes. Quoted
+ * dialogue is kept verbatim — speak clips speak the prompt's quotes.
+ */
+async function sanitizeMotion(motion: string): Promise<string | null> {
+  try {
+    const { llmComplete } = await import("./generate");
+    const res = await llmComplete(
+      "A video model's automatic content filter overflagged this motion description from a gentle children's cartoon. Rewrite it into neutral, non-graphic cinematic language: keep the same visual outcome, camera work and emotional beat; remove or soften words implying violence, impact on a person, weapons, injury, fire on people, or danger. If the text contains quoted dialogue, keep every quoted word EXACTLY unchanged. Return JSON {\"motion\":\"<rewrite>\"}.",
+      motion,
+      {
+        type: "object",
+        properties: { motion: { type: "string" } },
+        required: ["motion"],
+        additionalProperties: false,
+      },
+      { tier: "standard", maxTokens: 600, context: "anim-sanitize" }
+    );
+    if (!res) return null;
+    const out = String((JSON.parse(res.text) as { motion?: string }).motion ?? "").trim();
+    return out.length >= 10 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Animate one still. Returns the cached mp4 path and the seconds that were
  * actually billed (0 on a cache hit), or null on any failure — callers keep
@@ -93,97 +129,123 @@ export async function animateStill(opts: {
     }
   }
 
-  // Content-addressed cache: same still + same motion + same model + same
-  // duration + same references = same clip; regens re-bill nothing.
-  const h = crypto
-    .createHash("sha256")
-    .update(png)
-    .update(opts.motion)
-    .update(opts.model)
-    .update(String(dur));
-  for (const r of refs) h.update(r);
-  const hash = h.digest("hex").slice(0, 16);
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
-  const cachedPath = path.join(CACHE_DIR, `${hash}.mp4`);
-  if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 10_000) {
-    return { file: cachedPath, billedSeconds: 0 };
-  }
-
-  // Publish the frame (and any reference portraits) at one-time token URLs.
-  fs.mkdirSync(FRAMES_DIR, { recursive: true });
-  const token = crypto.randomBytes(16).toString("hex");
-  const framePath = path.join(FRAMES_DIR, `${token}.png`);
-  fs.writeFileSync(framePath, png);
-  const refTokens: string[] = [];
-  for (const r of refs) {
-    const t = crypto.randomBytes(16).toString("hex");
-    fs.writeFileSync(path.join(FRAMES_DIR, `${t}.png`), r);
-    refTokens.push(t);
-  }
-  const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
-
-  try {
-    const start = await fetch("https://api.x.ai/v1/videos/generations", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: opts.model,
-        prompt: opts.motion,
-        image: { url: `${publicOriginStatic()}/api/frames/${token}` },
-        ...(refTokens.length
-          ? { reference_images: refTokens.map((t) => ({ url: `${publicOriginStatic()}/api/frames/${t}` })) }
-          : {}),
-        duration: dur,
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!start.ok) return null;
-    const started = (await start.json()) as Record<string, unknown>;
-    const requestId = String(started.request_id ?? started.id ?? "");
-    if (!requestId) return null;
-
-    const deadline = Date.now() + DEADLINE_MS;
-    let videoUrl: string | null = null;
-    while (Date.now() < deadline) {
-      await sleep(POLL_MS);
-      try {
-        const p = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
-          headers,
-          signal: AbortSignal.timeout(20_000),
-        });
-        if (!p.ok) continue;
-        const j = (await p.json()) as {
-          status?: string;
-          video?: { url?: string };
-          url?: string;
-        };
-        if (j.status === "done") {
-          videoUrl = j.video?.url ?? j.url ?? null;
-          break;
-        }
-        if (j.status === "failed" || j.status === "expired") return null;
-      } catch {
-        /* transient poll error — keep polling until the deadline */
-      }
+  const runOnce = async (motion: string): Promise<AnimResult> => {
+    // Content-addressed cache: same still + same motion + same model + same
+    // duration + same references = same clip; regens re-bill nothing.
+    const h = crypto
+      .createHash("sha256")
+      .update(png)
+      .update(motion)
+      .update(opts.model)
+      .update(String(dur));
+    for (const r of refs) h.update(r);
+    const hash = h.digest("hex").slice(0, 16);
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const cachedPath = path.join(CACHE_DIR, `${hash}.mp4`);
+    if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 10_000) {
+      return { file: cachedPath, billedSeconds: 0 };
     }
-    if (!videoUrl) return null;
 
-    const dl = await fetch(videoUrl, { signal: AbortSignal.timeout(60_000) });
-    if (!dl.ok) return null;
-    const buf = Buffer.from(await dl.arrayBuffer());
-    if (buf.length < 10_000) return null;
-    fs.writeFileSync(cachedPath, buf);
+    // Publish the frame (and any reference portraits) at one-time token URLs.
+    fs.mkdirSync(FRAMES_DIR, { recursive: true });
+    const token = crypto.randomBytes(16).toString("hex");
+    const framePath = path.join(FRAMES_DIR, `${token}.png`);
+    fs.writeFileSync(framePath, png);
+    const refTokens: string[] = [];
+    for (const r of refs) {
+      const t = crypto.randomBytes(16).toString("hex");
+      fs.writeFileSync(path.join(FRAMES_DIR, `${t}.png`), r);
+      refTokens.push(t);
+    }
+    const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 
-    // Usage telemetry → monthly allowance accounting. Billed = requested
-    // duration (per-second pricing), recorded only on success.
-    insertEvent("anim_seconds", opts.email.toLowerCase(), JSON.stringify({ s: dur, m: opts.model }));
-    return { file: cachedPath, billedSeconds: dur };
-  } catch {
-    return null;
-  } finally {
-    fs.rmSync(framePath, { force: true });
-    for (const t of refTokens) fs.rmSync(path.join(FRAMES_DIR, `${t}.png`), { force: true });
+    try {
+      const start = await fetch("https://api.x.ai/v1/videos/generations", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: opts.model,
+          prompt: motion,
+          image: { url: `${publicOriginStatic()}/api/frames/${token}` },
+          ...(refTokens.length
+            ? { reference_images: refTokens.map((t) => ({ url: `${publicOriginStatic()}/api/frames/${t}` })) }
+            : {}),
+          duration: dur,
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!start.ok) {
+        // Input-side moderation surfaces as an invalid_argument error body.
+        const errBody = await start.text().catch(() => "");
+        return MOD_RE.test(errBody) ? "blocked" : null;
+      }
+      const started = (await start.json()) as Record<string, unknown>;
+      const requestId = String(started.request_id ?? started.id ?? "");
+      if (!requestId) return null;
+
+      const deadline = Date.now() + DEADLINE_MS;
+      let videoUrl: string | null = null;
+      while (Date.now() < deadline) {
+        await sleep(POLL_MS);
+        try {
+          const p = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
+            headers,
+            signal: AbortSignal.timeout(20_000),
+          });
+          if (!p.ok) continue;
+          const j = (await p.json()) as {
+            status?: string;
+            video?: { url?: string };
+            url?: string;
+            respect_moderation?: boolean;
+          };
+          if (j.status === "done") {
+            videoUrl = j.video?.url ?? j.url ?? null;
+            // Output-side moderation: generation "done" but the clip was
+            // withheld (respect_moderation:false / no usable url).
+            if (!videoUrl || j.respect_moderation === false) return "blocked";
+            break;
+          }
+          if (j.status === "failed" || j.status === "expired") return null;
+        } catch {
+          /* transient poll error — keep polling until the deadline */
+        }
+      }
+      if (!videoUrl) return null;
+
+      const dl = await fetch(videoUrl, { signal: AbortSignal.timeout(60_000) });
+      if (!dl.ok) return null;
+      const buf = Buffer.from(await dl.arrayBuffer());
+      if (buf.length < 10_000) return null;
+      fs.writeFileSync(cachedPath, buf);
+
+      // Usage telemetry → monthly allowance accounting. Billed = requested
+      // duration (per-second pricing), recorded only on success.
+      insertEvent("anim_seconds", opts.email.toLowerCase(), JSON.stringify({ s: dur, m: opts.model }));
+      return { file: cachedPath, billedSeconds: dur };
+    } catch {
+      return null;
+    } finally {
+      fs.rmSync(framePath, { force: true });
+      for (const t of refTokens) fs.rmSync(path.join(FRAMES_DIR, `${t}.png`), { force: true });
+    }
+  };
+
+  let res = await runOnce(opts.motion);
+  if (res === "blocked") {
+    // The overflag log: the retry trigger now, evidence for xAI support later.
+    insertEvent("anim_blocked", opts.email.toLowerCase(), JSON.stringify({ m: opts.model, p: opts.motion.slice(0, 300) }));
+    const safe = await sanitizeMotion(opts.motion);
+    if (safe && safe.trim() !== opts.motion.trim()) {
+      console.error("[anim] moderation blocked a motion prompt — retrying once with a sanitized rewrite");
+      res = await runOnce(safe);
+    }
   }
+  if (res === "blocked") {
+    insertEvent("anim_blocked", opts.email.toLowerCase(), JSON.stringify({ m: opts.model, p: "RETRY_ALSO_BLOCKED" }));
+    return null;
+  }
+  return res;
 }
 
 /**
@@ -211,73 +273,102 @@ export async function generateSpeakClip(opts: {
     return null;
   }
   const model = ANIM_MODELS.premium;
-  const hash = crypto
-    .createHash("sha256")
-    .update(png)
-    .update(opts.prompt)
-    .update(opts.voiceId)
-    .update(model)
-    .update(String(dur))
-    .digest("hex")
-    .slice(0, 16);
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
-  const cachedPath = path.join(CACHE_DIR, `spk-${hash}.mp4`);
-  if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 10_000) {
-    return { file: cachedPath, billedSeconds: 0 };
-  }
-  fs.mkdirSync(FRAMES_DIR, { recursive: true });
-  const token = crypto.randomBytes(16).toString("hex");
-  const framePath = path.join(FRAMES_DIR, `${token}.png`);
-  fs.writeFileSync(framePath, png);
-  const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
-  try {
-    const start = await fetch("https://api.x.ai/v1/videos/generations", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        prompt: opts.prompt,
-        image: { url: `${publicOriginStatic()}/api/frames/${token}` },
-        reference_audios: [{ voice_id: opts.voiceId }],
-        duration: dur,
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!start.ok) return null;
-    const started = (await start.json()) as Record<string, unknown>;
-    const requestId = String(started.request_id ?? started.id ?? "");
-    if (!requestId) return null;
-    const deadline = Date.now() + DEADLINE_MS;
-    let videoUrl: string | null = null;
-    while (Date.now() < deadline) {
-      await sleep(POLL_MS);
-      try {
-        const p = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
-          headers,
-          signal: AbortSignal.timeout(20_000),
-        });
-        if (!p.ok) continue;
-        const j = (await p.json()) as { status?: string; video?: { url?: string }; url?: string };
-        if (j.status === "done") {
-          videoUrl = j.video?.url ?? j.url ?? null;
-          break;
-        }
-        if (j.status === "failed" || j.status === "expired") return null;
-      } catch {
-        /* keep polling */
-      }
+
+  const runOnce = async (prompt: string): Promise<AnimResult> => {
+    const hash = crypto
+      .createHash("sha256")
+      .update(png)
+      .update(prompt)
+      .update(opts.voiceId)
+      .update(model)
+      .update(String(dur))
+      .digest("hex")
+      .slice(0, 16);
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const cachedPath = path.join(CACHE_DIR, `spk-${hash}.mp4`);
+    if (fs.existsSync(cachedPath) && fs.statSync(cachedPath).size > 10_000) {
+      return { file: cachedPath, billedSeconds: 0 };
     }
-    if (!videoUrl) return null;
-    const dl = await fetch(videoUrl, { signal: AbortSignal.timeout(60_000) });
-    if (!dl.ok) return null;
-    const buf = Buffer.from(await dl.arrayBuffer());
-    if (buf.length < 10_000) return null;
-    fs.writeFileSync(cachedPath, buf);
-    insertEvent("anim_seconds", opts.email.toLowerCase(), JSON.stringify({ s: dur, m: model, speak: 1 }));
-    return { file: cachedPath, billedSeconds: dur };
-  } catch {
-    return null;
-  } finally {
-    fs.rmSync(framePath, { force: true });
+    fs.mkdirSync(FRAMES_DIR, { recursive: true });
+    const token = crypto.randomBytes(16).toString("hex");
+    const framePath = path.join(FRAMES_DIR, `${token}.png`);
+    fs.writeFileSync(framePath, png);
+    const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+    try {
+      const start = await fetch("https://api.x.ai/v1/videos/generations", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model,
+          prompt,
+          image: { url: `${publicOriginStatic()}/api/frames/${token}` },
+          reference_audios: [{ voice_id: opts.voiceId }],
+          duration: dur,
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!start.ok) {
+        const errBody = await start.text().catch(() => "");
+        return MOD_RE.test(errBody) ? "blocked" : null;
+      }
+      const started = (await start.json()) as Record<string, unknown>;
+      const requestId = String(started.request_id ?? started.id ?? "");
+      if (!requestId) return null;
+      const deadline = Date.now() + DEADLINE_MS;
+      let videoUrl: string | null = null;
+      while (Date.now() < deadline) {
+        await sleep(POLL_MS);
+        try {
+          const p = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
+            headers,
+            signal: AbortSignal.timeout(20_000),
+          });
+          if (!p.ok) continue;
+          const j = (await p.json()) as {
+            status?: string;
+            video?: { url?: string };
+            url?: string;
+            respect_moderation?: boolean;
+          };
+          if (j.status === "done") {
+            videoUrl = j.video?.url ?? j.url ?? null;
+            if (!videoUrl || j.respect_moderation === false) return "blocked";
+            break;
+          }
+          if (j.status === "failed" || j.status === "expired") return null;
+        } catch {
+          /* keep polling */
+        }
+      }
+      if (!videoUrl) return null;
+      const dl = await fetch(videoUrl, { signal: AbortSignal.timeout(60_000) });
+      if (!dl.ok) return null;
+      const buf = Buffer.from(await dl.arrayBuffer());
+      if (buf.length < 10_000) return null;
+      fs.writeFileSync(cachedPath, buf);
+      insertEvent("anim_seconds", opts.email.toLowerCase(), JSON.stringify({ s: dur, m: model, speak: 1 }));
+      return { file: cachedPath, billedSeconds: dur };
+    } catch {
+      return null;
+    } finally {
+      fs.rmSync(framePath, { force: true });
+    }
+  };
+
+  let res = await runOnce(opts.prompt);
+  if (res === "blocked") {
+    insertEvent("anim_blocked", opts.email.toLowerCase(), JSON.stringify({ m: model, speak: 1, p: opts.prompt.slice(0, 300) }));
+    // sanitizeMotion keeps quoted dialogue verbatim, so the spoken line and
+    // its lipsync are unchanged — only the scene description gets neutralized.
+    const safe = await sanitizeMotion(opts.prompt);
+    if (safe && safe.trim() !== opts.prompt.trim()) {
+      console.error("[anim] moderation blocked a speak clip — retrying once with a sanitized rewrite");
+      res = await runOnce(safe);
+    }
   }
+  if (res === "blocked") {
+    insertEvent("anim_blocked", opts.email.toLowerCase(), JSON.stringify({ m: model, speak: 1, p: "RETRY_ALSO_BLOCKED" }));
+    return null;
+  }
+  return res;
 }
