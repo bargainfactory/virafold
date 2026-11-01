@@ -43,6 +43,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Staged deploys: a production build on the server sets NEXT_DIST_DIR to a
+  // staging directory so the live server's .next is never rewritten mid-build
+  // (that mid-build manifest swap once 500'd the dashboard). The service runs
+  // without the env var, so `next start` reads the real .next after the swap.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
     return [
       {
