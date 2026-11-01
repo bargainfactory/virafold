@@ -86,7 +86,13 @@ export default function CuttingRoom({
   const [note, setNote] = useState("");
   const [instruction, setInstruction] = useState("");
   const [shot, setShot] = useState<Record<string, string | undefined>>({});
+  const [rate, setRate] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Preview-only fast forward: changes playbackRate on the player, never the
+  // rendered film (per-beat SPEED re-encodes; this just reviews faster).
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = rate;
+  }, [rate, bust]);
 
   const load = useCallback(() => {
     fetch(`/api/clips/${clipId}/cut`, { cache: "no-store" })
@@ -284,8 +290,28 @@ export default function CuttingRoom({
               key={bust}
               src={`/api/clips/${clipId}/file?v=${bust}`}
               controls
+              onLoadedMetadata={(e) => {
+                e.currentTarget.playbackRate = rate;
+              }}
               className="max-h-full max-w-full rounded-lg"
             />
+          </div>
+          {/* Preview speed: review fast-forward, never re-encodes */}
+          <div className="shrink-0 flex items-center justify-center gap-1.5 py-1.5 border-t border-cyber-border">
+            <span className="text-[10px] uppercase tracking-wide text-cyber-muted mr-1">{t("cut.playback")}</span>
+            {[0.5, 1, 1.5, 2, 4].map((r) => (
+              <button
+                key={r}
+                onClick={() => setRate(r)}
+                className={`px-2 py-0.5 rounded-full text-[11px] border ${
+                  rate === r
+                    ? "border-fuchsia-400 text-fuchsia-300 bg-fuchsia-400/10"
+                    : "border-cyber-border text-cyber-muted hover:text-foreground"
+                }`}
+              >
+                {r}×
+              </button>
+            ))}
           </div>
           {/* Filmstrip: width ∝ duration, color-coded; click = seek + select */}
           <div className="h-36 shrink-0 border-t border-cyber-border overflow-x-auto overflow-y-hidden">

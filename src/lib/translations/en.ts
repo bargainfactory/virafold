@@ -894,6 +894,7 @@ export const en: Record<string, string> = {
   "cut.mix.amb": "Ambience",
   "cut.mix.duck": "Duck strength",
   "cut.applyMix": "Apply mix",
+  "cut.playback": "Preview speed",
   "cut.mixHint": "Faders re-mix the whole film in one pass — scenes, captions and lipsync never move.",
   "cut.pick": "Click a scene in the filmstrip to inspect and edit it.",
   "cut.grade": "Color grade",
