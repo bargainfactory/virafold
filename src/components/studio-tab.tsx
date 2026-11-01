@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/context";
 import { useTranslation } from "@/lib/i18n";
-import { Check, Film, Loader2, Paperclip, Rocket, Sparkles, Trash2, UserRound } from "lucide-react";
+import { BookOpen, Check, Clapperboard, Film, Gem, Loader2, Paperclip, Rocket, Sparkles, Trash2, UserRound } from "lucide-react";
 import CharacterBuilder from "@/components/character-builder";
 import SeriesTracker from "@/components/series-tracker";
 import ProductionDesk from "@/components/production-desk";
@@ -46,7 +46,10 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
   const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [style, setStyle] = useState("cartoon");
-  const [animate, setAnimate] = useState(true);
+  // Stills vs motion pictures, the creator's explicit choice: the engine's
+  // animate ladder (0 illustrated / 1 highlights / 2 full / 3 premium) finally
+  // surfaced instead of a single on/off toggle.
+  const [motion, setMotion] = useState<"stills" | "highlights" | "full" | "premium">("highlights");
   const [busy, setBusy] = useState(false);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [personaId, setPersonaId] = useState("");
@@ -219,7 +222,9 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
         body: JSON.stringify({
           input: input.trim(),
           style,
-          animate: style === "ambient" ? false : animate,
+          animate: style === "ambient" ? false : motion !== "stills",
+          fullMotion: style !== "ambient" && motion === "full",
+          premiumMotion: style !== "ambient" && motion === "premium",
           personaId: style === "ugc" ? personaId : undefined,
           propIds: style === "ambient" ? [] : propSel,
           locale: localStorage.getItem("ef_locale") || "en",
@@ -236,7 +241,7 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
     } finally {
       setBusy(false);
     }
-  }, [busy, input, style, animate, personaId, propSel, addToast, t, onNavigate]);
+  }, [busy, input, style, motion, personaId, propSel, addToast, t, onNavigate]);
 
   return (
     <div className="space-y-5">
@@ -546,19 +551,36 @@ export default function StudioTab({ onNavigate }: { onNavigate?: (tab: string) =
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           {style !== "ambient" ? (
-            <button
-              onClick={() => setAnimate((v) => !v)}
-              aria-pressed={animate}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
-                animate
-                  ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.25)]"
-                  : "bg-cyber-dark border-cyber-border text-cyber-muted hover:text-foreground hover:border-fuchsia-500/40"
-              }`}
-            >
-              <Film className="w-3.5 h-3.5" />
-              {t("studio.motion")}
-              {animate && <Check className="w-3.5 h-3.5" />}
-            </button>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-cyber-muted mb-1.5">{t("studio.motionMode")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { key: "stills", icon: BookOpen },
+                    { key: "highlights", icon: Film },
+                    { key: "full", icon: Clapperboard },
+                    { key: "premium", icon: Gem },
+                  ] as const
+                ).map(({ key, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setMotion(key)}
+                    aria-pressed={motion === key}
+                    title={t(`studio.motion.${key}.hint`)}
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+                      motion === key
+                        ? "bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.25)]"
+                        : "bg-cyber-dark border-cyber-border text-cyber-muted hover:text-foreground hover:border-fuchsia-500/40"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {t(`studio.motion.${key}`)}
+                    {motion === key && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-cyber-muted mt-1.5">{t(`studio.motion.${motion}.hint`)}</p>
+            </div>
           ) : (
             <span className="text-xs text-cyber-muted">{t("studio.ambientNote")}</span>
           )}
