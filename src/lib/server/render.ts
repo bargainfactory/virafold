@@ -31,6 +31,21 @@ export type CaptionStyle = (typeof CAPTION_STYLES)[number];
 
 const RENDERS_DIR = path.join(process.cwd(), "data", "renders");
 
+/**
+ * [[...]] inside a script line is a silent stage direction: the painter and
+ * the animator read it, the voice never speaks it, and because captions come
+ * from the spoken audio's alignment they never show it either.
+ */
+export function spokenOf(s: string): string {
+  return s.replace(/\[\[[^\]]*\]\]/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+/** The directions themselves, joined for appending to an art/motion prompt. */
+export function directionOf(s: string): string {
+  return (s.match(/\[\[([^\]]*)\]\]/g) ?? []).map((m) => m.slice(2, -2).trim()).filter(Boolean).join(". ");
+}
+/** Prompt-side text: directions inlined as plain words, brackets dropped. */
+const promptTextOf = (s: string) => s.replace(/\[\[|\]\]/g, " ").replace(/\s{2,}/g, " ").trim();
+
 /** Brand watermark as an ASS style + full-length event — libass is proven on
  *  every box we run on, unlike drawtext's fontconfig dependence. Free-plan
  *  renders carry it; any paid plan removes it (the pricing page's promise). */
@@ -1039,8 +1054,12 @@ export async function makeFilmCards(
          : ["-f", "lavfi", "-t", String(lead), "-i", `color=c=0x15112a:s=${R.w}x${R.h}:r=30`]),
        "-vf",
        (sheet
-         ? `scale=${R.w}:${R.h}:force_original_aspect_ratio=increase,crop=${R.w}:${R.h},boxblur=8,` +
-           `zoompan=z='min(1.10,1+0.0011*on)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${R.w}x${R.h}:fps=30,` +
+         ? // Supersampled with lanczos: the cast sheet is smaller than the
+           // frame, and zoompan on a bilinear upscale pixelates the opening —
+           // work at 2x and lanczos back down so the first shot is sharp.
+           `scale=${R.w * 2}:${R.h * 2}:force_original_aspect_ratio=increase:flags=lanczos,crop=${R.w * 2}:${R.h * 2},boxblur=8,` +
+           `zoompan=z='min(1.10,1+0.0011*on)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${R.w * 2}x${R.h * 2}:fps=30,` +
+           `scale=${R.w}:${R.h}:flags=lanczos,` +
            `eq=brightness='-0.42+0.04*sin(2*PI*t/2.2)':saturation=0.8,`
          : "") +
        `drawtext=fontfile=${FONT}:textfile=card_brand.txt:fontsize=${small}:fontcolor=0xf2b63c:borderw=3:bordercolor=black@0.7:x=(w-text_w)/2:y=h*0.30:alpha='min(1,t*2.5)',` +
@@ -1440,9 +1459,9 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             const res = await generateSpeakClip({
               email: clip.userEmail,
               startImagePath: srcAbs,
-              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${line.text}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions, hands relaxed and OUT OF FRAME below the composition (no hand gestures — the model mangles fingers). Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
+              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${spokenOf(line.text)}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions, hands relaxed and OUT OF FRAME below the composition (no hand gestures — the model mangles fingers). Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
               voiceId: v,
-              durationSec: Math.min(15, line.text.length / 15 + 2.5),
+              durationSec: Math.min(15, spokenOf(line.text).length / 15 + 2.5),
             });
             if (res) {
               const vd = `speakvid${i}.mp4`;
@@ -1460,7 +1479,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           }
         }
         if (!speakVid) {
-          const tts = await synthesizeSpeech(line.text, clip.lang || "en", v ?? defaultVoice);
+          const tts = await synthesizeSpeech(spokenOf(line.text), clip.lang || "en", v ?? defaultVoice);
           if (!tts) {
             throw new Error(
               "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
@@ -1468,7 +1487,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           }
           fs.writeFileSync(path.join(jobDir, f), tts.bytes);
         }
-        const d = (await probeDuration(path.join(jobDir, f))) ?? Math.max(1, line.text.length / 15);
+        const d = (await probeDuration(path.join(jobDir, f))) ?? Math.max(1, spokenOf(line.text).length / 15);
         let sp: number | undefined;
         if (v !== null && v !== undefined) {
           if (!spIndex.has(line.speaker)) spIndex.set(line.speaker, spIndex.size);
@@ -1629,7 +1648,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         });
       }
     } else {
-      const tts = await synthesizeSpeech(clip.script, clip.lang || "en", defaultVoice);
+      const tts = await synthesizeSpeech(spokenOf(clip.script), clip.lang || "en", defaultVoice);
       if (!tts) {
         throw new Error(
           "no voiceover provider — connect an ElevenLabs, xAI, or OpenAI key in the Operator Console"
@@ -1929,12 +1948,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const beatSubject = signOff
             ? "A single glowing clay oil lamp with a small warm flame resting on a stone windowsill, under a deep indigo starry night sky, warm amber light spilling onto the stone, no people, no animals"
             : beatFrame === true
-              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${scene.text.slice(0, 110)}${lessonBeat ? " — and floating softly in the warm air above the lamp, a small golden dream-vignette glows, showing the very scene of tonight's story that these words recall" : ""}`
+              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${promptTextOf(scene.text).slice(0, 110)}${lessonBeat ? " — and floating softly in the warm air above the lamp, a small golden dream-vignette glows, showing the very scene of tonight's story that these words recall" : ""}`
               : scene.imageSubject
                 ? // Anchor the picture to the words being spoken over it, not
                   // just the planner's abstraction — illustration follows text.
-                  `${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${scene.text.slice(0, 130)}"`
-                : `${framePrefixFor(scene.text)}${scene.text.slice(0, 120)}`;
+                  // [[stage directions]] lead the shot: the writer's explicit
+                  // cinematography outranks the planner's framing guess.
+                  `${directionOf(scene.text) ? `${directionOf(scene.text)}: ` : ""}${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${spokenOf(scene.text).slice(0, 130)}"`
+                : `${directionOf(scene.text) ? `${directionOf(scene.text)}: ` : ""}${framePrefixFor(scene.text)}${spokenOf(scene.text).slice(0, 120)}`;
           // Deterministic character casting (the Ep1 lesson): a design block in
           // the prompt means the model PAINTS that character, whatever any
           // "only if named" clause says — so the decision of who belongs in a
@@ -2074,7 +2095,12 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             if (want > left) continue;
             left -= want;
             const idx = i;
-            const subject = scenes[idx].imageSubject ?? scenes[idx].text.slice(0, 120);
+            // Stage directions ride into the motion prompt too — the writer's
+            // camera move becomes the animator's camera move.
+            const beatDir = directionOf(scenes[idx].text);
+            const subject =
+              (scenes[idx].imageSubject ?? promptTextOf(scenes[idx].text).slice(0, 120)) +
+              (beatDir ? ` — ${beatDir}` : "");
             const premiumRef =
               clip.animate === 3 &&
               castRefs.length > 0 &&

@@ -53,17 +53,22 @@ const DUB_SCHEMA = {
 const SPEAKER_RE = /^([A-Z][A-Z0-9 _'’-]{0,40}(?:\([a-z0-9_-]{1,24}\))?:\s*)(.*)$/;
 
 async function translateScript(script: string, language: string): Promise<string | null> {
-  type Seg = { keep: string } | { prefix: string; text: string };
+  type Seg = { keep: string } | { prefix: string; text: string; dirs: string };
   const segs: Seg[] = script.split(/\r?\n/).map((line) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) return { keep: line };
-    const m = trimmed.match(SPEAKER_RE);
-    if (m && m[2]) return { prefix: m[1], text: m[2] };
-    return { prefix: "", text: trimmed };
+    // [[stage directions]] stay in English — they feed the art prompts and
+    // are never spoken, so they must not be translated.
+    const dirs = (trimmed.match(/\[\[[^\]]*\]\]/g) ?? []).join(" ");
+    const spoken = trimmed.replace(/\[\[[^\]]*\]\]/g, " ").replace(/\s{2,}/g, " ").trim();
+    if (!spoken) return { keep: line };
+    const m = spoken.match(SPEAKER_RE);
+    if (m && m[2]) return { prefix: m[1], text: m[2], dirs };
+    return { prefix: "", text: spoken, dirs };
   });
   const jobs = segs
     .map((s, i) => ({ s, i }))
-    .filter((x): x is { s: { prefix: string; text: string }; i: number } => "text" in x.s);
+    .filter((x): x is { s: { prefix: string; text: string; dirs: string }; i: number } => "text" in x.s);
 
   const CHUNK = 25;
   const out = new Map<number, string>();
@@ -87,7 +92,9 @@ async function translateScript(script: string, language: string): Promise<string
   }
 
   const rebuilt = segs
-    .map((s, i) => ("keep" in s ? s.keep : `${s.prefix}${out.get(i) || s.text}`))
+    .map((s, i) =>
+      "keep" in s ? s.keep : `${s.prefix}${out.get(i) || s.text}${s.dirs ? ` ${s.dirs}` : ""}`
+    )
     .join("\n");
   return rebuilt.trim().length >= 40 ? rebuilt : null;
 }
