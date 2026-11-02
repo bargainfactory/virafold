@@ -1487,6 +1487,20 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           }
           fs.writeFileSync(path.join(jobDir, f), tts.bytes);
         }
+        // The divine voice: God's lines (VOICE/GOD speakers) get gently
+        // deepened with a soft heavenly echo — authority wrapped in warmth.
+        // Pitch down ~7% with tempo compensated so timing never drifts.
+        if (/^(voice|god|the voice)$/i.test(line.speaker.trim()) && !speakVid) {
+          const fx = `line${i}_god.mp3`;
+          const r = await run(
+            "ffmpeg",
+            ["-y", "-i", f, "-af",
+             "asetrate=44100*0.93,aresample=44100,atempo=1.0753,bass=g=5:f=120,aecho=0.8:0.55:70|140:0.24|0.12,alimiter=limit=0.95",
+             "-c:a", "libmp3lame", "-q:a", "3", fx],
+            jobDir
+          );
+          if (r.code === 0) fs.copyFileSync(path.join(jobDir, fx), path.join(jobDir, f));
+        }
         const d = (await probeDuration(path.join(jobDir, f))) ?? Math.max(1, spokenOf(line.text).length / 15);
         let sp: number | undefined;
         if (v !== null && v !== undefined) {
