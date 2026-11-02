@@ -86,9 +86,11 @@ export async function omniAnimateStill(opts: {
         model: MODEL,
         input,
         generation_config: { video_config: { task: "image_to_video" } },
+        // store:true is REQUIRED with uri delivery (the API 400s otherwise —
+        // learned from the v4 render's block log).
         response_format: { type: "video", delivery: "uri" },
         background: false,
-        store: false,
+        store: true,
         stream: false,
       }),
       signal: AbortSignal.timeout(300_000),
