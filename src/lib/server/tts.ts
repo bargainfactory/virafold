@@ -54,7 +54,7 @@ export async function synthesizeSpeech(
       // used to flip a boy's line into a woman's voice with no trace. Retry
       // transient failures with backoff, and log loudly if we still fall back.
       let lastErr = "";
-      for (let attempt = 0; attempt < 4; attempt++) {
+      for (let attempt = 0; attempt < 6; attempt++) {
         try {
           const resp = await fetch(
             `https://api.elevenlabs.io/v1/text-to-speech/${elVoice}?output_format=mp3_44100_128`,
@@ -89,6 +89,12 @@ export async function synthesizeSpeech(
       console.error(
         `[tts] ElevenLabs failed for voice "${customVoiceId ?? "default"}" after retries (${lastErr}) — falling back to xAI. Character voices may sound wrong in this render.`
       );
+      // Gender-safe landing: the engine's legacy tag names (luna/helix) are
+      // FEMALE xAI voices, but they're mapped to boy voices on ElevenLabs —
+      // a raw fallback once flipped Eli's line into a woman's voice mid-film.
+      // One rare fallback line may sound different, but never the wrong sex.
+      const GENDER_SAFE: Record<string, string> = { luna: "kepler", helix: "cosmo", eve: "aurora" };
+      if (customVoiceId && GENDER_SAFE[customVoiceId]) customVoiceId = GENDER_SAFE[customVoiceId];
     }
   }
 

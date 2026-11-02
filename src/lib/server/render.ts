@@ -1492,10 +1492,12 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         // Pitch down ~7% with tempo compensated so timing never drifts.
         if (/^(voice|god|the voice)$/i.test(line.speaker.trim()) && !speakVid) {
           const fx = `line${i}_god.mp3`;
+          // Deep masculine and echoing: pitch down 12% (tempo compensated so
+          // timing never drifts), heavy low-end, long cathedral echo.
           const r = await run(
             "ffmpeg",
             ["-y", "-i", f, "-af",
-             "asetrate=44100*0.93,aresample=44100,atempo=1.0753,bass=g=5:f=120,aecho=0.8:0.55:70|140:0.24|0.12,alimiter=limit=0.95",
+             "asetrate=44100*0.88,aresample=44100,atempo=1.1364,bass=g=8:f=110,aecho=0.8:0.7:90|180|320:0.30|0.18|0.10,alimiter=limit=0.95",
              "-c:a", "libmp3lame", "-q:a", "3", fx],
             jobDir
           );
@@ -1962,7 +1964,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           const beatSubject = signOff
             ? "A single glowing clay oil lamp with a small warm flame resting on a stone windowsill, under a deep indigo starry night sky, warm amber light spilling onto the stone, no people, no animals"
             : beatFrame === true
-              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${promptTextOf(scene.text).slice(0, 110)}${lessonBeat ? " — and floating softly in the warm air above the lamp, a small golden dream-vignette glows, showing the very scene of tonight's story that these words recall" : ""}`
+              ? `the storytelling frame between story scenes: the recurring cast gathered close around a glowing clay oil lamp in a cozy night-time home, the elderly storyteller mid-tale with warm gestures and a gentle, kind, tender face — never stern — the young listeners' lamplit faces reacting to this moment: ${spokenOf(scene.text).slice(0, 110)}${lessonBeat ? " — and floating softly in the warm air above the lamp, a small golden dream-vignette glows, showing the very scene of tonight's story that these words recall" : ""}${directionOf(scene.text) ? `. ${directionOf(scene.text)}` : ""}`
               : scene.imageSubject
                 ? // Anchor the picture to the words being spoken over it, not
                   // just the planner's abstraction — illustration follows text.
