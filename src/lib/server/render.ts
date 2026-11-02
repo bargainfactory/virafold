@@ -1953,9 +1953,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                 ? // Anchor the picture to the words being spoken over it, not
                   // just the planner's abstraction — illustration follows text.
                   // [[stage directions]] lead the shot: the writer's explicit
-                  // cinematography outranks the planner's framing guess.
-                  `${directionOf(scene.text) ? `${directionOf(scene.text)}: ` : ""}${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${spokenOf(scene.text).slice(0, 130)}"`
-                : `${directionOf(scene.text) ? `${directionOf(scene.text)}: ` : ""}${framePrefixFor(scene.text)}${spokenOf(scene.text).slice(0, 120)}`;
+                  // cinematography outranks the planner's framing guess. The
+                  // guard matters: "aerial shot"/"the camera" wording once made
+                  // the painter DRAW a camera lens and drift photoreal.
+                  `${directionOf(scene.text) ? `Shot direction (never draw a camera, lens, frame or any filming equipment — these words only describe the view; keep this film's one consistent illustration style): ${directionOf(scene.text)}. The shot: ` : ""}${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${spokenOf(scene.text).slice(0, 130)}"`
+                : `${directionOf(scene.text) ? `Shot direction (never draw a camera, lens, frame or any filming equipment — these words only describe the view; keep this film's one consistent illustration style): ${directionOf(scene.text)}. The shot: ` : ""}${framePrefixFor(scene.text)}${spokenOf(scene.text).slice(0, 120)}`;
           // Deterministic character casting (the Ep1 lesson): a design block in
           // the prompt means the model PAINTS that character, whatever any
           // "only if named" clause says — so the decision of who belongs in a
