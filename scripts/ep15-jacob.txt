@@ -2,6 +2,7 @@
 # CAST — JACOB: Physical — a lean, smooth-skinned man (Gen 27:11) in his prime years, sharp intelligent eyes, dark hair and short beard, simple traveler's tunic and cloak with a long walking staff he is never without (Gen 32:10 — "with only my staff I crossed this Jordan"); after the river night he walks with a limp (Gen 32:31). Personality — a quiet tent-dweller (Gen 25:27) whose cleverness starts as scheming and is slowly refined into persistence; loves so deeply that seven years seem like days (Gen 29:20); will not let go until blessed (Gen 32:26); learns to bow low and go first toward the brother he wronged (Gen 33:3). Aliases — "the younger twin", "the heel-grabber", "her son", "the trickster".
 # CAST — ESAU: Physical — a big powerful man, ruddy-red coloring with thick hair like a garment on his arms (Gen 25:25), full wild beard, a skillful hunter's leathers and bow, a man of the open field (Gen 25:27). Personality — impulsive and appetite-driven in youth (Gen 25:32-34), hot in anger — but with a huge forgiving heart at the last: he RUNS to his brother, embraces him, and weeps (Gen 33:4). Aliases — "the older twin", "the hunter", "his brother".
 # CAST — RACHEL: Physical — a young shepherdess, beautiful in form and appearance (Gen 29:17), dark braided hair under a simple head-scarf, practical robes of a working shepherd girl, often with a lamb at her feet (Gen 29:9 — she kept her father's sheep). Personality — capable and steady, at home among flocks and wells. Aliases — "the shepherdess", "his beloved".
+# CAST — LEAH: Physical — Rachel's older sister, a gentle-faced young woman with soft delicate eyes (Gen 29:17), long dark hair in a simple braid, modest robes in muted blues and cream. Personality — overlooked but deeply faithful; her heart grows from striving for love to simply praising God (Gen 29:35 — "This time I will praise the Lord"); mother of six of the twelve tribes, among them Levi and Judah. Aliases — "the older sister", "the unloved one".
 # GROUP — ESAU'S FOUR HUNDRED MEN: a long column of rugged armed men of the field stretched across the hills (Gen 33:1), loyal and weathered, not an army in armor.
 # PROP — THE STONE PILLOW: one smooth field stone the size of a lamb, set upright afterward as a pillar and anointed with oil (Gen 28:18).
 # PROP — THE LADDER OF LIGHT: a blazing golden stairway reaching from the ground beside the sleeper into the highest stars, messengers of light ascending and descending (Gen 28:12); the Lord above it seen ONLY as glory-light (Gen 28:13).
@@ -53,10 +54,28 @@ PIP: but because He came down nigh!
 NARRATOR: [[A busy northern well; Rachel the shepherdess arriving with her flock, a lamb at her feet; Jacob rolling the great stone from the well's mouth.]] Then Jacob walked on, many days, to his uncle Laban's country — and at the well he met Rachel, a shepherdess with her father's flock, and his whole heart decided at once.
 NARRATOR: Jacob offered to work seven long years to marry Rachel. See the seasons spin past — planting and shearing, frost and harvest, seven whole years — and the Bible says they seemed to him but a few days, because of his love.
 PIP: Seven YEARS? I can't even wait seven minutes for supper.
-NAOMI: Love makes long roads short, little lamb. But at the wedding — oh, little ones — Laban tricked Jacob. He gave him the wrong bride, and made him work seven MORE years for Rachel.
+NAOMI: Love makes long roads short, little lamb. But at the wedding — oh, little ones — Laban tricked Jacob. In the dark, under the veils, he gave him the WRONG bride: Rachel's older sister, Leah. And then he made Jacob work seven MORE years for Rachel.
 ELI: So the trickster got... TRICKED.
 NAOMI: Exactly so, Eli. Fourteen years of his own medicine, measured out by a man twice the trickster he ever was. God was not punishing Jacob — He was teaching him, the slow deep way, exactly what his own trick had cost his brother. Remember it the next time a trick tempts you: tricks come home.
-NARRATOR: Twenty years passed in that far country. Jacob grew rich in flocks and children — eleven sons and a daughter — and homesick. And God said: return to the land of your fathers, and I will be with you.
+NARRATOR: So Jacob's family grew in a tangled way — two sisters, and in the custom of that land, their two helpers too, all mothers in one striving household. The Bible tells it honestly: there was jealousy, and there were tears. And God, in His patience, wove even the tangles into His promise.
+NAOMI: And now, little ones, open your treasure box WIDE — because here come the children. Twelve sons were born in that house, and every single name is a little sentence from a mother's heart. And those twelve boys became the TWELVE TRIBES OF ISRAEL — the whole nation of the Bible, folded up inside one family's baby names. Shall we count them?
+PIP: Count them! Count them! I'll help!
+NARRATOR: [[Warm tent at lamplight; Leah cradling a newborn, her face full of hope.]] Leah, the unloved sister, bore the first — and listen to her heart in his name. Reuben: "Look — a son!" Because, she said, the Lord has SEEN my misery.
+NAOMI: God sees the overlooked ones first, little lamb. Never forget that.
+NARRATOR: Then came Simeon — "the Lord has HEARD." Then Levi — "joined", for she hoped: now my husband will be joined to me. And then a fourth boy, and this time Leah looked up instead of sideways, and simply said: "This time I will PRAISE the Lord." So she named him Judah — "praise."
+NAOMI: Mark Judah well, little ones. Levi's family would one day become the priests of Israel... and from Judah's family would come king David — and many lifetimes later, in the town of Bethlehem, Jesus Himself: the Lion of the tribe of Judah. The baby named "praise" became the doorway of the world's salvation.
+ELI: So when Leah stopped trying to win and just praised... THAT'S the son Jesus came from?
+NAOMI: That is exactly the kind of thing our God loves to do, Eli.
+NARRATOR: Then came the sons of the two helpers: Dan — "He judged my cause"; Naphtali — "my wrestling"; Gad — "good fortune!"; and Asher — "happy", for Leah's helper said: the women will call me happy. Then Leah's own two more: Issachar — "reward", and Zebulun — "honor", and a daughter besides, Dinah.
+NARRATOR: [[Rachel at last cradling her own newborn, tears of joy; Jacob beside her.]] And then, at long last, God remembered Rachel's years of empty-armed waiting — and she bore a son and named him Joseph, which means "may He ADD" — a thank-you and a prayer in one name: thank You for this one; add to me another.
+NAOMI: Eleven sons so far, lamplighters — count on your fingers with me! Reuben, Simeon, Levi, Judah... Dan, Naphtali, Gad, Asher... Issachar, Zebulun... and Joseph. The twelfth, little Benjamin — "son of my right hand" — would be born later, on the road home, Rachel's second and last gift. Twelve sons. Twelve tribes. One promise, still climbing.
+PIP: Joseph! Is he the coat one? The sunrise-coat one?
+NAOMI: Patience, little lamb — that is a whole story of its own, and it's coming. Back to Jacob — because his uncle was not finished with him.
+NARRATOR: Jacob asked Laban for wages: the speckled and spotted sheep and goats would be his. And crafty old Laban said yes — then quietly changed Jacob's wages ten times over, always keeping the best for himself.
+NARRATOR: [[Rolling pastures: Jacob among great flocks, the herds around him strikingly speckled and spotted, Laban scowling on a far hill.]] But God had seen every trick. However Laban moved the line, the flocks grew speckled and spotted — and Jacob's herds multiplied until the hills around him looked salt-and-peppered with his wages. As Jacob himself said later: God did not allow Laban to harm me.
+ELI: TEN times he changed the deal? And it STILL didn't work?
+NAOMI: Treasure-box truth, Eli: no one can out-trick God's blessing. Laban moved the fences; God moved the flocks. When someone deals unfairly with you, you do not need to out-scheme them — you need only stay honest and let God keep the books.
+NARRATOR: Twenty years passed in that far country — fourteen for his brides, six for his flocks. Jacob was now rich in children and herds — and homesick. And God said: return to the land of your fathers, and I will be with you.
 NARRATOR: But between Jacob and home stood one unfinished thing, bigger than any mountain: his brother. And the messengers came running with fearful news — Esau is coming to meet you... and four hundred men with him, stretched across the hills.
 NARRATOR: Jacob's old cleverness went to work — he divided his camp, he sent waves of gifts ahead — but under all the planning, he finally prayed the honestest prayer of his life.
 JACOB(orion): O God of my father Abraham, God of my father Isaac... I am not worthy of the least of all Your kindness. Save me, I pray, from the hand of my brother — for I am afraid.
@@ -86,6 +105,8 @@ PIP: And you, little one, by your lamp! Is there a sorry you've been running fro
 ELI: Wait — that was YOU?
 NAOMI: Lamplighters — quiz time! What did Esau trade his whole birthright for? Shout it out!
 PIP: SOUP! One bowl of red soup!
+NAOMI: Which son's name means "praise" — the tribe of king David and of Jesus? Shout it out!
+ELI: JUDAH! Leah praised the Lord, and Jesus came from Judah!
 NAOMI: What did Jacob use for a pillow on the night he saw the stairway of light? Shout it out!
 ELI: A STONE! And he stood it up and named the place Bethel!
 NAOMI: And when Jacob finally met Esau after twenty years — what did Esau do? Shout it out!
