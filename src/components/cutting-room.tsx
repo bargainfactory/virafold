@@ -15,8 +15,10 @@ import { useTranslation } from "@/lib/i18n";
 import {
   Clapperboard,
   Film,
+  Flag,
   History,
   Loader2,
+  MessageSquareText,
   Music,
   RefreshCw,
   Scissors,
@@ -24,6 +26,21 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+
+/** One planned Director's Notes step, as the /direct endpoint returns it. */
+interface DirStep {
+  action: "mix" | "fx" | "shot" | "edit" | "note";
+  index: number | null;
+  label: string;
+  [k: string]: unknown;
+}
+const STEP_COST: Record<DirStep["action"], "free" | "re-encode" | "regenerate"> = {
+  note: "free",
+  mix: "re-encode",
+  fx: "re-encode",
+  shot: "regenerate",
+  edit: "regenerate",
+};
 
 interface CutBeat {
   i: number;
@@ -87,7 +104,13 @@ export default function CuttingRoom({
   const [instruction, setInstruction] = useState("");
   const [shot, setShot] = useState<Record<string, string | undefined>>({});
   const [rate, setRate] = useState(1);
+  // Director's Notes: plain-language wishes → reviewed checklist → apply.
+  const [dirText, setDirText] = useState("");
+  const [dirSteps, setDirSteps] = useState<DirStep[] | null>(null);
+  const [dirOn, setDirOn] = useState<boolean[]>([]);
+  const [dirBusy, setDirBusy] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
   // Preview-only fast forward: changes playbackRate on the player, never the
   // rendered film (per-beat SPEED re-encodes; this just reviews faster).
   useEffect(() => {
@@ -149,6 +172,122 @@ export default function CuttingRoom({
     },
     [film]
   );
+
+  // Tap-to-flag: mark the moment you're watching — the player timestamp maps
+  // to its beat, the inspector opens on it, and the note starts with the time.
+  const flagMoment = useCallback(() => {
+    const v = videoRef.current;
+    if (!v || !film) return;
+    v.pause();
+    const t = Math.max(0, v.currentTime - film.lead);
+    const b =
+      film.beats.find((x) => t >= x.start && t < x.start + x.dur) ??
+      film.beats[film.beats.length - 1];
+    if (!b) return;
+    setSel(b.i);
+    const mm = Math.floor(v.currentTime / 60);
+    const ss = String(Math.floor(v.currentTime % 60)).padStart(2, "0");
+    setNote((cur) => (cur ? cur : `[${mm}:${ss}] `));
+    setTimeout(() => noteRef.current?.focus(), 50);
+  }, [film]);
+
+  const planNotes = useCallback(async () => {
+    if (dirBusy || dirText.trim().length < 5) return;
+    setDirBusy("plan");
+    setDirSteps(null);
+    try {
+      const res = await fetch(`/api/clips/${clipId}/direct`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction: dirText.trim() }),
+      });
+      const d = await res.json().catch(() => null);
+      if (!res.ok) {
+        addToast(d?.error ?? t("clips.renderFailed"), "error");
+        return;
+      }
+      const steps = (d?.steps ?? []) as DirStep[];
+      setDirSteps(steps);
+      setDirOn(steps.map(() => true));
+    } finally {
+      setDirBusy(null);
+    }
+  }, [dirBusy, dirText, clipId, addToast, t]);
+
+  const applyNotes = useCallback(async () => {
+    if (!film || !dirSteps || dirBusy) return;
+    const todo = dirSteps.filter((_, i) => dirOn[i]);
+    if (!todo.length) return;
+    let failed = 0;
+    for (let i = 0; i < todo.length; i++) {
+      const s = todo[i];
+      setDirBusy(`${i + 1}/${todo.length}`);
+      const num = (x: unknown): number | undefined => (typeof x === "number" ? x : undefined);
+      const str = (x: unknown): string | undefined => (typeof x === "string" ? x : undefined);
+      try {
+        let res: Response;
+        if (s.action === "edit") {
+          res = await fetch(`/api/clips/${clipId}/edit-beat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: s.index, mode: "prompt", instruction: str(s.instruction) ?? s.label }),
+          });
+        } else {
+          let payload: Record<string, unknown> = {};
+          if (s.action === "mix") {
+            payload = {
+              op: "mix",
+              voice: num(s.voice) ?? mix.voice,
+              music: num(s.music) ?? mix.music,
+              amb: num(s.amb) ?? mix.amb,
+              duck: num(s.duck) ?? mix.duck,
+            };
+          } else if (s.action === "fx") {
+            const b = film.beats.find((x) => x.i === s.index);
+            const fx: Record<string, unknown> = { ...(b?.fx ?? {}) };
+            const g = str(s.grade);
+            if (g !== undefined) {
+              if (g) fx.grade = g;
+              else delete fx.grade;
+            }
+            if (num(s.speed) !== undefined) fx.speed = num(s.speed);
+            if (typeof s.freeze === "boolean") fx.freeze = s.freeze;
+            payload = {
+              op: "fx",
+              index: s.index,
+              fx: Object.keys(fx).length ? fx : null,
+              fadeIn: typeof s.fadeIn === "boolean" ? s.fadeIn : b?.fadeIn === true,
+              fadeOut: typeof s.fadeOut === "boolean" ? s.fadeOut : b?.fadeOut === true,
+            };
+          } else if (s.action === "shot") {
+            const shotCard: Record<string, string> = {};
+            for (const k of ["size", "angle", "light", "move"] as const) {
+              const v = str(s[k]);
+              if (v) shotCard[k] = v;
+            }
+            payload = { op: "shot", index: s.index, shot: shotCard };
+          } else {
+            payload = { op: "note", index: s.index, note: str(s.note) ?? s.label };
+          }
+          res = await fetch(`/api/clips/${clipId}/cut`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
+        if (!res.ok) failed++;
+      } catch {
+        failed++;
+      }
+    }
+    setDirBusy(null);
+    setDirSteps(null);
+    setDirText("");
+    load();
+    setBust((v) => v + 1);
+    onEdited();
+    addToast(failed ? t("cut.dn.partial").replace("{n}", String(failed)) : t("cut.dn.done"), failed ? "warning" : undefined);
+  }, [film, dirSteps, dirOn, dirBusy, clipId, mix, load, onEdited, addToast, t]);
 
   const editBeat = useCallback(
     async (mode: "prompt" | "reroll") => {
@@ -280,6 +419,61 @@ export default function CuttingRoom({
             {t("cut.applyMix")}
           </button>
           <p className="text-[10px] text-cyber-muted leading-snug">{t("cut.mixHint")}</p>
+
+          {/* Director's Notes: say it, review the steps, apply */}
+          <div className="pt-3 border-t border-cyber-border space-y-2">
+            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <MessageSquareText className="w-3.5 h-3.5 text-neon-purple" /> {t("cut.dn.title")}
+            </p>
+            <textarea
+              value={dirText}
+              onChange={(e) => setDirText(e.target.value)}
+              placeholder={t("cut.dn.ph")}
+              rows={3}
+              className="w-full px-2.5 py-2 rounded-lg bg-cyber-dark border border-cyber-border text-xs text-foreground placeholder:text-cyber-muted resize-none"
+            />
+            <button
+              onClick={() => void planNotes()}
+              disabled={dirBusy !== null || dirText.trim().length < 5}
+              className="w-full px-3 py-2 rounded-lg bg-cyber-dark border border-neon-purple/50 text-neon-purple text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-neon-purple/10"
+            >
+              {dirBusy === "plan" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+              {t("cut.dn.plan")}
+            </button>
+            {dirSteps && (
+              <div className="space-y-1.5">
+                {dirSteps.map((s, i) => (
+                  <label key={i} className="flex items-start gap-2 text-[11px] text-foreground/90 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={dirOn[i] ?? true}
+                      onChange={(e) => setDirOn((v) => v.map((x, j) => (j === i ? e.target.checked : x)))}
+                      className="mt-0.5 accent-fuchsia-500"
+                    />
+                    <span>
+                      {s.label}
+                      <span className={`ml-1.5 text-[9px] uppercase tracking-wide ${STEP_COST[s.action] === "regenerate" ? "text-warning" : "text-cyber-muted"}`}>
+                        {t(`cut.dn.cost.${STEP_COST[s.action]}`)}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+                <button
+                  onClick={() => void applyNotes()}
+                  disabled={dirBusy !== null || !dirOn.some(Boolean)}
+                  className="w-full px-3 py-2 rounded-lg bg-gradient-to-r from-neon-purple to-electric-blue text-white text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {dirBusy && dirBusy !== "plan" ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> {dirBusy}
+                    </>
+                  ) : (
+                    t("cut.dn.apply").replace("{n}", String(dirOn.filter(Boolean).length))
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Center: player + filmstrip */}
@@ -296,8 +490,15 @@ export default function CuttingRoom({
               className="max-h-full max-w-full rounded-lg"
             />
           </div>
-          {/* Preview speed: review fast-forward, never re-encodes */}
+          {/* Preview speed + tap-to-flag: review fast-forward, never re-encodes */}
           <div className="shrink-0 flex items-center justify-center gap-1.5 py-1.5 border-t border-cyber-border">
+            <button
+              onClick={flagMoment}
+              title={t("cut.flagHint")}
+              className="px-2.5 py-0.5 rounded-full text-[11px] border border-warning/60 text-warning hover:bg-warning/10 flex items-center gap-1 mr-2"
+            >
+              <Flag className="w-3 h-3" /> {t("cut.flag")}
+            </button>
             <span className="text-[10px] uppercase tracking-wide text-cyber-muted mr-1">{t("cut.playback")}</span>
             {[0.5, 1, 1.5, 2, 4].map((r) => (
               <button
@@ -573,6 +774,7 @@ export default function CuttingRoom({
                 </p>
                 <div className="flex gap-1">
                   <input
+                    ref={noteRef}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder={t("cut.notePh")}
