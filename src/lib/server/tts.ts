@@ -11,6 +11,20 @@ import { resolveField } from "./integrations";
 const ELEVENLABS_VOICE = "21m00Tcm4TlvDq8ikWAM";
 const MAX_TTS_CHARS = 4800;
 
+/**
+ * Emotional delivery tags: a script line may carry [whispers], [awe],
+ * [excited]… — ElevenLabs' v3-family models interpret them as acting
+ * direction. Tagged lines route to the expressive model (operator-overridable
+ * via the voiceover integration's elevenTagsModel field); untagged lines stay
+ * on the standard model so the cast's everyday timbre never shifts. Fallback
+ * engines get the tags stripped so they are never read aloud.
+ */
+const EMOTION_TAG_RE =
+  /\[(whisper(?:s|ing)?|softly|gentl[ey]|excited(?:ly)?|awe|amazed|laughs?|laughing|giggles?|sighs?|sadly?|solemn(?:ly)?|serious(?:ly)?|urgent(?:ly)?|cheerful(?:ly)?|tender(?:ly)?|playful(?:ly)?|curious(?:ly)?|warm(?:ly)?|slowly|brightly)\]/gi;
+export const stripEmotionTags = (s: string) => s.replace(EMOTION_TAG_RE, " ").replace(/\s{2,}/g, " ").trim();
+// A global regex is stateful under .test(); detection uses a fresh non-global copy.
+const EMOTION_TEST_RE = new RegExp(EMOTION_TAG_RE.source, "i");
+
 export async function synthesizeSpeech(
   text: string,
   language = "en",
@@ -68,7 +82,9 @@ export async function synthesizeSpeech(
               // silent mid-season voice shift.
               body: JSON.stringify({
                 text: input,
-                model_id: resolveField("voiceover", "elevenModel") || "eleven_multilingual_v2",
+                model_id: EMOTION_TEST_RE.test(input)
+                  ? resolveField("voiceover", "elevenTagsModel") || "eleven_v3"
+                  : resolveField("voiceover", "elevenModel") || "eleven_multilingual_v2",
               }),
             }
           );
@@ -113,7 +129,7 @@ export async function synthesizeSpeech(
             Authorization: `Bearer ${xaiKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ text: input, voice_id: voice, language }),
+          body: JSON.stringify({ text: stripEmotionTags(input), voice_id: voice, language }),
         });
         if (resp.ok) {
           return {
@@ -136,7 +152,7 @@ export async function synthesizeSpeech(
           Authorization: `Bearer ${openaiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ model: "tts-1", voice: "onyx", input }),
+        body: JSON.stringify({ model: "tts-1", voice: "onyx", input: stripEmotionTags(input) }),
       });
       if (resp.ok) {
         return { bytes: Buffer.from(await resp.arrayBuffer()), provider: "openai:tts-1" };

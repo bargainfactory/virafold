@@ -895,6 +895,7 @@ export const en: Record<string, string> = {
   "cut.mix.duck": "Duck strength",
   "cut.applyMix": "Apply mix",
   "cut.playback": "Preview speed",
+  "clips.stage.inspecting": "Inspecting frames",
   "cut.flag": "Flag this moment",
   "cut.flagHint": "Pause and mark the scene you're watching — the inspector opens on it with the timestamp ready.",
   "cut.dn.title": "Director's Notes",

@@ -1028,6 +1028,24 @@ export async function makeFilmCards(
     fs.writeFileSync(path.join(planDir, "card_main.txt"), main, "utf8");
     fs.writeFileSync(path.join(planDir, "card_brand.txt"), brand || " ", "utf8");
     fs.writeFileSync(path.join(planDir, "card_end.txt"), brand || main, "utf8");
+    // The Register: features told so far, persisted across renders. A wide
+    // feature adds its star when its cards are built.
+    let stars = 0;
+    const registerPath = path.join(RENDERS_DIR, "register.json");
+    try {
+      stars = (JSON.parse(fs.readFileSync(registerPath, "utf8")) as { stars?: number }).stars ?? 0;
+    } catch {
+      /* first episode */
+    }
+    if (plan.wide === true && plan.beats.length > 30) {
+      stars += 1;
+      try {
+        fs.writeFileSync(registerPath, JSON.stringify({ stars }), "utf8");
+      } catch {
+        /* the register is a bonus */
+      }
+    }
+    fs.writeFileSync(path.join(planDir, "card_stars.txt"), stars > 0 ? "★ ".repeat(Math.min(stars, 24)).trim() : " ", "utf8");
     // drawtext has no wrapping: the size adapts so the longest line stays
     // inside ~88% of the frame width (DejaVu Bold averages ~0.58em per char).
     const big = Math.min(
@@ -1074,6 +1092,9 @@ export async function makeFilmCards(
        "-vf",
        `drawtext=fontfile=${FONT}:text='Follow the light.':fontsize=${big}:fontcolor=0xf2b63c:x=(w-text_w)/2:y=(h-text_h)/2,` +
        `drawtext=fontfile=${FONT}:textfile=card_end.txt:fontsize=${small}:fontcolor=0xf3ebdc:x=(w-text_w)/2:y=h*0.62,` +
+       // The Register (series bible): one star per feature told so far — a
+       // quiet constellation kids watch grow across the season.
+       `drawtext=fontfile=${FONT}:textfile=card_stars.txt:fontsize=${Math.round(small * 0.8)}:fontcolor=0xf2b63c@0.85:x=(w-text_w)/2:y=h*0.74,` +
        `fade=t=in:d=0.5,fade=t=out:st=${(tail - 1).toFixed(1)}:d=1,setsar=1`,
        ...common, "card_end.mp4"],
       planDir
@@ -1137,11 +1158,21 @@ export async function spliceFilm(planDir: string, plan: FilmPlan, outAbs: string
       ambPart = `[4:a]volume=${mix.amb},apad[amA];[amA][voC]sidechaincompress=threshold=0.02:ratio=4:attack=120:release=1000[am];`;
       mixIns.push("[am]");
     }
+    // The foley/motif effects track (sfx.ts): one pre-mixed input, sitting
+    // between the ambience and the score in level — heard, never loud.
+    let sfxPart = "";
+    const sfxTrack = fs.existsSync(path.join(planDir, "sfxtrack.mp3")) ? "sfxtrack.mp3" : null;
+    if (sfxTrack) {
+      args.push("-i", sfxTrack);
+      sfxPart = `[${ambience ? 5 : 4}:a]volume=0.35,apad[fx];`;
+      mixIns.push("[fx]");
+    }
     fc =
       `[1:a]volume=${mix.voice},adelay=${Math.round(lead * 1000)}:all=1,apad[vo];[vo]asplit=${voSplit}[voA][voB]${voC};` +
       `[3:a]volume=${mix.music},apad[mu];[mu][voA]sidechaincompress=threshold=0.02:ratio=${mix.duck}:attack=80:release=900[md];` +
       `[2:a]volume=0.03[bed];` +
       ambPart +
+      sfxPart +
       `${mixIns.join("")}amix=inputs=${mixIns.length}:duration=longest:normalize=0,atrim=0:${total.toFixed(3)},` +
       `loudnorm=I=-14:TP=-1.5:LRA=11[a]`;
   } else if (lead > 0 || tail > 0) {
@@ -1313,7 +1344,7 @@ const LINE_GAP = 0.3;
 async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<void> {
   if (!clip.script?.trim()) throw new Error("script text is missing");
 
-  const { synthesizeSpeech } = await import("./tts");
+  const { synthesizeSpeech, stripEmotionTags } = await import("./tts");
   const { getCustomVoiceId, getPersona } = await import("./db");
   const { parseScreenplay, castVoices, isFrameLine } = await import("./dialogue");
 
@@ -1459,7 +1490,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             const res = await generateSpeakClip({
               email: clip.userEmail,
               startImagePath: srcAbs,
-              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${spokenOf(line.text)}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions, hands relaxed and OUT OF FRAME below the composition (no hand gestures — the model mangles fingers). Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
+              prompt: `Hand-painted 2D storybook cartoon, intimate close-up by warm lamplight: ${spk.meta || "the character"} looks toward the camera and says, exactly, word for word: "${stripEmotionTags(spokenOf(line.text))}". A well-composed close-up framed from the chest up — head naturally on the shoulders, correct proportions, hands relaxed and OUT OF FRAME below the composition (no hand gestures — the model mangles fingers). Natural mouth movement matching the words, gentle living expression, small head motion. Keep the character design exactly as in the start image; no text on screen.`,
               voiceId: v,
               durationSec: Math.min(15, spokenOf(line.text).length / 15 + 2.5),
             });
@@ -1718,6 +1749,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     // Whether any beat carries AI-generated motion — disclosed in the publish
     // description, same honesty rule as stock credits.
     let animUsed = false;
+    // The QA gate's one-line verdict, persisted to the clip for the operator.
+    let qaSummary = "";
     // UGC spokesperson mode: every beat is the SAME presenter frame (persona
     // image), animated with speaking-style motion. No scene planning, no
     // cards, no b-roll — one person talking to camera, captions on top.
@@ -2157,6 +2190,39 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           beatPrompts.push(beatPrompt);
         }
 
+        // The QA gate (best-effort): every painted still inspected by a
+        // vision model against the production contract BEFORE animation —
+        // bad frames get one regeneration with the failure reason folded in.
+        // Runs before motion so a flawed still never wastes animation spend.
+        try {
+          const { inspectStills } = await import("./qa-gate");
+          const entries = images
+            .map((f, i) => ({ i, file: f, kind: kinds[i] }))
+            .filter((e) => e.kind === "image" && e.file)
+            .map((e) => ({ i: e.i, file: e.file }));
+          if (entries.length >= 6) {
+            prog("inspecting", 0, entries.length);
+            const flags = await inspectStills(jobDir, entries);
+            let fixed = 0;
+            for (const fl of flags) {
+              prog("inspecting", ++fixed, flags.length);
+              const retry = await generateBackground(
+                `${beatPrompts[fl.i] ?? ""} IMPORTANT: a previous attempt failed review for this exact reason: "${fl.reason}". Fix precisely that while keeping everything else.`
+              ).catch(() => null);
+              if (retry) fs.writeFileSync(path.join(jobDir, images[fl.i]), retry);
+            }
+            qaSummary = flags.length
+              ? `QA: ${entries.length} frames inspected, ${flags.length} flagged and regenerated (${flags
+                  .slice(0, 4)
+                  .map((f) => `#${f.i} ${f.reason}`)
+                  .join("; ")}).`
+              : `QA: ${entries.length} frames inspected, all passed.`;
+            console.log(`[qa] ${qaSummary}`);
+          }
+        } catch (e) {
+          console.error("[qa] gate skipped:", String(e instanceof Error ? e.message : e).slice(0, 120));
+        }
+
         // AI motion: animate the AI-imagery beats into moving shots when the
         // creator asked for it and their monthly allowance covers it.
         // Strictly additive — any failure keeps the zoompan still, and the
@@ -2318,6 +2384,39 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // the frame, wind on journeys, waves at sea) windowed over the film.
       const amb = await buildAmbience(jobDir, planBeats, t0, plan.lead ?? 0, plan.tail ?? 0).catch(() => null);
       if (amb) plan.ambience = amb;
+      // The foley/motif effects track (sfx.ts): per-beat sound effects + the
+      // series' 4-note shadow motif, pre-mixed into one input for the splicer.
+      try {
+        const { ensureFilmSfx } = await import("./sfx");
+        await ensureFilmSfx(jobDir, planBeats, plan.lead ?? 0, (plan.lead ?? 0) + t0 + (plan.tail ?? 0));
+      } catch (e) {
+        console.error("[sfx] skipped:", String(e instanceof Error ? e.message : e).slice(0, 120));
+      }
+      // Act-level color unification: [[Palette: ...]] markers grade their act.
+      // A palette direction sets the grade for its beat AND every following
+      // beat until the next marker, unless a beat already chose its own —
+      // models drift warm/cool shot to shot; the act grade snaps them to one
+      // look so the film feels graded, not assembled.
+      {
+        const PALETTE_GRADE: [RegExp, NonNullable<FilmBeat["fx"]>["grade"]][] = [
+          [/indigo|silver|moonlit|midnight/i, "night"],
+          [/honey|sunset|golden|amber/i, "golden"],
+          [/grey-blue|pale|bleached|cold|drained/i, "cool"],
+          [/spring|pastel|warm|torch/i, "warm"],
+        ];
+        let act: NonNullable<FilmBeat["fx"]>["grade"] | null = null;
+        for (const b of planBeats) {
+          const dir = directionOf(b.text);
+          const m = dir.match(/palette:\s*([^.\]]{3,60})/i);
+          if (m) {
+            act = null;
+            for (const [re, g] of PALETTE_GRADE) if (re.test(m[1])) { act = g; break; }
+          }
+          if (act && !b.fx?.grade && (b as { frame?: boolean }).frame !== true) {
+            b.fx = { ...(b.fx ?? {}), grade: act };
+          }
+        }
+      }
       for (const b of planBeats) {
         prog("splicing", b.i + 1, planBeats.length);
         await renderBeatSegment(jobDir, plan, b);
@@ -2485,11 +2584,23 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     ]
       .filter(Boolean)
       .join(" ");
+    // Publish kit: a ready-to-paste YouTube title + description (study notes,
+    // chapters, disclosures) saved beside the film — upload-day copy done.
+    try {
+      fs.writeFileSync(
+        path.join(jobDir, "youtube.txt"),
+        [clip.title, "", [`${clip.reason ?? ""}`.trim(), studyNotes, disclosures].filter(Boolean).join("\n\n")].join("\n"),
+        "utf8"
+      );
+    } catch {
+      /* the kit is a bonus */
+    }
     updateClip(clip.userEmail, clip.id, {
       status: "ready",
       outputPath: path.relative(process.cwd(), outAbs),
       error: null,
       progress: null,
+      ...(qaSummary ? { qaNote: qaSummary } : {}),
       // Study notes + source credit + AI-motion disclosure ride the reason
       // field into the publish description — Pixabay's API terms ask that the
       // footage source be shown, and generated motion is disclosed as a

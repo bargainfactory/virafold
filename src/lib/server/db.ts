@@ -2651,13 +2651,14 @@ export function updateClip(
     outputPath?: string | null;
     error?: string | null;
     progress?: string | null;
+    qaNote?: string | null;
   }
 ): void {
   const cur = getClip(email, id);
   if (!cur) return;
   getDb()
     .prepare(
-      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, reason = ?, title = ?, output_path = ?, error = ?, progress = ? WHERE id = ? AND user_email = ?"
+      "UPDATE clips SET status = ?, style = ?, position = ?, focus = ?, tight = ?, reason = ?, title = ?, output_path = ?, error = ?, progress = ?, qa_note = ? WHERE id = ? AND user_email = ?"
     )
     .run(
       patch.status ?? cur.status,
@@ -2670,6 +2671,7 @@ export function updateClip(
       patch.outputPath !== undefined ? patch.outputPath : cur.outputPath,
       patch.error !== undefined ? patch.error : cur.error,
       patch.progress !== undefined ? patch.progress : cur.progress,
+      patch.qaNote !== undefined ? patch.qaNote : cur.qaNote,
       id,
       email.toLowerCase()
     );
