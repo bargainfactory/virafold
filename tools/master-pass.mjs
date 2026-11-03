@@ -81,7 +81,17 @@ console.log("4/5 pushing upscaled sources…");
 const ups = fs.readdirSync(OUTD).filter((f) => f.startsWith("up_"));
 sh("bash", ["-c", `tar -C "${posix(OUTD)}" -czf - ${ups.map((f) => `'${f}'`).join(" ")} | ssh -i "${posix(KEY)}" ${HOST} "tar -xzf - -C ${RDIR} && chown echoforge:echoforge ${RDIR}/up_*"`]);
 
-// 5. Server re-encodes the touched segments and resplices.
+// 5. Server re-encodes the touched segments and resplices — detached, so a
+// dropped home-connection can't kill a half-respliced film; then poll.
 console.log("5/5 server re-encode + resplice…");
-console.log(ssh(`cd /home/echoforge/app && sudo -u echoforge node /home/echoforge/master-encode.mjs ${ID}`).trim());
+ssh(`cd /home/echoforge/app && sudo -u echoforge bash -c 'nohup node /home/echoforge/master-encode.mjs ${ID} > /tmp/master-${ID}.log 2>&1 & disown'`);
+for (;;) {
+  await new Promise((r) => setTimeout(r, 60_000));
+  try {
+    const live = spawnSync("ssh", ["-i", KEY, HOST, `pgrep -f '[m]aster-encode.mjs ${ID}' > /dev/null && echo RUN || echo DONE`], { encoding: "utf8" });
+    if (live.stdout.includes("DONE")) break;
+    process.stdout.write(".");
+  } catch { /* transient — poll again */ }
+}
+console.log("\n" + ssh(`tail -3 /tmp/master-${ID}.log`).trim());
 console.log("MASTER PASS COMPLETE");
