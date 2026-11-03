@@ -1492,16 +1492,23 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         // Pitch down ~7% with tempo compensated so timing never drifts.
         if (/^(voice|god|the voice)$/i.test(line.speaker.trim()) && !speakVid) {
           const fx = `line${i}_god.mp3`;
-          // Deep masculine and echoing: pitch down 12% (tempo compensated so
-          // timing never drifts), heavy low-end, long cathedral echo.
+          // Deep masculine and echoing: Brian (deep EL base via the atlas
+          // mapping) pitched down a further 15% (tempo compensated so timing
+          // never drifts), heavy low-end, long three-tap cathedral echo.
           const r = await run(
             "ffmpeg",
             ["-y", "-i", f, "-af",
-             "asetrate=44100*0.88,aresample=44100,atempo=1.1364,bass=g=8:f=110,aecho=0.8:0.7:90|180|320:0.30|0.18|0.10,alimiter=limit=0.95",
+             "asetrate=44100*0.85,aresample=44100,atempo=1.1765,bass=g=9:f=100,aecho=0.8:0.75:100|210|360:0.32|0.20|0.12,alimiter=limit=0.95",
              "-c:a", "libmp3lame", "-q:a", "3", fx],
             jobDir
           );
-          if (r.code === 0) fs.copyFileSync(path.join(jobDir, fx), path.join(jobDir, f));
+          if (r.code === 0) {
+            fs.copyFileSync(path.join(jobDir, fx), path.join(jobDir, f));
+            console.log(`[voice] divine effect applied to line ${i}`);
+          } else {
+            // A silent failure here once shipped a plain God voice — never again.
+            console.error(`[voice] DIVINE EFFECT FAILED on line ${i} — God's line ships unprocessed. Investigate ffmpeg filter.`);
+          }
         }
         const d = (await probeDuration(path.join(jobDir, f))) ?? Math.max(1, spokenOf(line.text).length / 15);
         let sp: number | undefined;
