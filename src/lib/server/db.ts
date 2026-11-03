@@ -383,6 +383,20 @@ export function getDb(): DatabaseSync {
     // Live render progress (JSON: {stage, done, total, note, at}) — the
     // production desk's heartbeat; null outside an active render.
     "ALTER TABLE clips ADD COLUMN progress TEXT",
+    // The series bible: story characters registered ONCE (design + 360°
+    // turnaround sheet path) and reused as the identity anchor in every later
+    // episode. `era` buckets life stages (boy Isaac vs. grown Isaac) so a
+    // character can age across episodes without faces colliding.
+    `CREATE TABLE IF NOT EXISTS story_cast (
+      user_email TEXT NOT NULL,
+      charname   TEXT NOT NULL,
+      era        INTEGER NOT NULL DEFAULT -1,
+      design     TEXT NOT NULL,
+      aliases    TEXT NOT NULL DEFAULT '[]',
+      sheet_path TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_email, charname, era)
+    )`,
   ]) {
     try {
       conn.exec(stmt);
@@ -3638,6 +3652,45 @@ export function personaImagePath(id: string): string {
  *  after the portrait; absent for old personas until regenerated. */
 export function persona360Path(id: string): string {
   return path.join(PERSONAS_DIR, `${id}-360.png`);
+}
+
+/** The series bible: one registered look per story character per life stage. */
+export interface StoryCastRegRow {
+  charname: string;
+  era: number;
+  design: string;
+  aliases: string[];
+  sheetPath: string | null;
+}
+
+export function getStoryCastRegistry(email: string): StoryCastRegRow[] {
+  const rows = getDb()
+    .prepare("SELECT charname, era, design, aliases, sheet_path AS sheetPath FROM story_cast WHERE user_email = ?")
+    .all(email.toLowerCase()) as { charname: string; era: number; design: string; aliases: string; sheetPath: string | null }[];
+  return rows.map((r) => {
+    let aliases: string[] = [];
+    try {
+      aliases = JSON.parse(r.aliases) as string[];
+    } catch {
+      /* legacy/blank */
+    }
+    return { ...r, aliases };
+  });
+}
+
+export function upsertStoryCharacter(
+  email: string,
+  c: { charname: string; era: number; design: string; aliases: string[]; sheetPath: string | null }
+): void {
+  getDb()
+    .prepare(
+      `INSERT INTO story_cast (user_email, charname, era, design, aliases, sheet_path, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_email, charname, era) DO UPDATE SET
+         design = excluded.design, aliases = excluded.aliases,
+         sheet_path = excluded.sheet_path, updated_at = excluded.updated_at`
+    )
+    .run(email.toLowerCase(), c.charname, c.era, c.design, JSON.stringify(c.aliases), c.sheetPath, new Date().toISOString());
 }
 
 export function insertPersona(

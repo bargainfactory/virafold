@@ -1884,12 +1884,72 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
         // the technique AI films use to hold a face across hundreds of shots.
         const story360: (Buffer | null)[] = [];
         if (storyCast?.length) {
+          // The series bible: a character's FIRST appearance registers their
+          // design and 360° sheet; every later episode reuses that exact
+          // sheet, so Abraham in episode 15 is pixel-for-pixel the Abraham of
+          // episode 13. Life stages get separate era entries (age/15 bucket),
+          // so boy Isaac and grown Isaac never collide.
+          const { getStoryCastRegistry, upsertStoryCharacter } = await import("./db");
+          const regDir = path.join(RENDERS_DIR, "storycast");
+          fs.mkdirSync(regDir, { recursive: true });
+          const ageOf = (d: string) => {
+            const m =
+              d.match(/(?:about|of about|aged?)\s+(\d{1,3})/i) ?? d.match(/\b(\d{1,3})[\s-]*years?[\s-]*old/i);
+            return m ? Number(m[1]) : null;
+          };
+          const eraOf = (a: number | null) => (a === null ? -1 : Math.round(a / 15));
+          const registry = getStoryCastRegistry(clip.userEmail);
+          const inFilm = new Set<string>();
           for (let c = 0; c < storyCast.length; c++) {
+            const key = storyCast[c].name.trim().toUpperCase();
+            inFilm.add(key);
+            const age = ageOf(storyCast[c].design);
+            const hit = registry.find((r) => {
+              if (r.charname !== key || !r.sheetPath || !fs.existsSync(r.sheetPath)) return false;
+              const prevAge = ageOf(r.design);
+              return age === null || prevAge === null || Math.abs(age - prevAge) <= 10;
+            });
+            if (hit) {
+              // The registered look is authoritative — design and pixels both.
+              storyCast[c].design = hit.design;
+              const buf = fs.readFileSync(hit.sheetPath!);
+              story360.push(buf);
+              fs.writeFileSync(path.join(jobDir, `story360_${c}.png`), buf);
+              continue;
+            }
             const sheet = await generateBackground(
               `Character turnaround reference sheet: ${storyCast[c].design} — the exact same character shown in four full-body views side by side on one plain light background: front view, three-quarter view, side profile, and back view, all in the same neutral standing pose, plus one close-up head-and-shoulders detail panel. Hand-painted 2D storybook cartoon style, clean studio reference sheet, consistent flat lighting, absolutely no text, letters or labels.`
             ).catch(() => null);
             story360.push(sheet ?? null);
-            if (sheet) fs.writeFileSync(path.join(jobDir, `story360_${c}.png`), sheet);
+            if (sheet) {
+              fs.writeFileSync(path.join(jobDir, `story360_${c}.png`), sheet);
+              const slug = key.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+              const regPath = path.join(regDir, `${slug}-${eraOf(age)}-${Math.random().toString(36).slice(2, 8)}.png`);
+              try {
+                fs.writeFileSync(regPath, sheet);
+                upsertStoryCharacter(clip.userEmail, {
+                  charname: key,
+                  era: eraOf(age),
+                  design: storyCast[c].design,
+                  aliases: storyCast[c].aliases,
+                  sheetPath: regPath,
+                });
+              } catch {
+                /* registry is a bonus — the render carries on regardless */
+              }
+            }
+          }
+          // The recall bench: every OTHER registered character rides along,
+          // matched by NAME only (never alias — "the boy" must not summon
+          // Isaac into an unrelated tale). A flashback or thought-bubble beat
+          // that says "Abraham" paints THE registered Abraham.
+          for (const r of registry) {
+            if (inFilm.has(r.charname) || !r.sheetPath || !fs.existsSync(r.sheetPath)) continue;
+            inFilm.add(r.charname);
+            const buf = fs.readFileSync(r.sheetPath);
+            storyCast.push({ name: r.charname, design: r.design, aliases: [] });
+            story360.push(buf);
+            fs.writeFileSync(path.join(jobDir, `story360_${storyCast.length - 1}.png`), buf);
           }
         }
         // Object-continuity lock: the story's recurring objects (a ship, an
