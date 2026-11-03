@@ -286,7 +286,7 @@ export default function CuttingRoom({
     load();
     setBust((v) => v + 1);
     onEdited();
-    addToast(failed ? t("cut.dn.partial").replace("{n}", String(failed)) : t("cut.dn.done"), failed ? "warning" : undefined);
+    addToast(failed ? t("cut.dn.partial").replace("{n}", String(failed)) : t("cut.dn.done"), failed ? "error" : undefined);
   }, [film, dirSteps, dirOn, dirBusy, clipId, mix, load, onEdited, addToast, t]);
 
   const editBeat = useCallback(
