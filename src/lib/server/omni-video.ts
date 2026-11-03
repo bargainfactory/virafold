@@ -42,8 +42,11 @@ export async function omniAnimateStill(opts: {
   } catch {
     return null;
   }
+  // Image-to-video accepts AT MOST 2 images total (API 400s otherwise —
+  // learned from the Isaac render's block log): the start frame plus ONE
+  // reference, so the first cast sheet rides along and the rest stay home.
   const refs: Buffer[] = [];
-  for (const p of (opts.refPaths ?? []).slice(0, 6)) {
+  for (const p of (opts.refPaths ?? []).slice(0, 1)) {
     try {
       refs.push(fs.readFileSync(p));
     } catch {
