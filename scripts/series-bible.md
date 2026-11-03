@@ -17,7 +17,7 @@ This is the canonical list of Christ-shadows used across the series. Every Prima
 | 7b | Ex 25–40 | The Tabernacle — God dwelling among His people | Primary | The tent of meeting / the glory descending | John 1:14 ("tabernacled among us"); Heb 8:5 | God moves into the camp. |
 | 7c | Lev 16 | Day of Atonement — the high priest and the two goats | Primary | The mercy seat / the scapegoat led away | Hebrews 9:11–12, 24–26 | Handle gently for kids: the carrying-away of sin. |
 | 8 | Ex 17:1–7 | Struck rock | Primary | Water from the rock | 1 Cor 10:4 | Clear NT identification. |
-| 9 | Num 21:4–9 | Bronze serpent | Primary | Lifted serpent | John 3:14–15 | Explicit “as Moses lifted up…” |
+| 9 | Num 21:4–9 | Bronze serpent | Primary | Lifted serpent | John 3:14–15 | Explicit “as Moses lifted up…” — the ONE scripture-backed exception to the no-cross-imagery rule: the vignette mirrors the LIFTING and the looking-up-to-live (Jesus raised in golden light, arms open), never the suffering. |
 | 9b | Josh 2 | Rahab's scarlet cord | Secondary | The scarlet cord in the window | (Traditional typology; Heb 11:31, Jas 2:25 commend Rahab) | The series' namesake thread. Traditional, not explicit — strong spoken treatment, short vignette at most. |
 | 10 | Ruth | Boaz the kinsman-redeemer | Secondary | Sandal / redeemer’s cloak | (Typological; NT kinsman language) | Whisper or light treatment unless episode is focused. |
 | 11 | 2 Sam 7 | David’s everlasting throne | Primary | Throne / star over Bethlehem | Luke 1:32–33; Acts 2:30 | Covenant promise. |
@@ -57,12 +57,13 @@ A **Christophany** is a passage where the pre-incarnate Christ is arguably *pres
 - **Secondary**: Shorter visual treatment or strong spoken recognition with the NT reference.
 - **Whisper**: One or two lines of dialogue only. No visual vignette.
 
-### Explicit “Never” list
-- Never show crucifixion, cross, or resurrection imagery inside an Old Testament vignette.
+### Explicit “Never” list — except where the New Testament itself makes the link
+A "never" yields only when a New Testament scripture explicitly draws the picture; the exception is then named in the Scarlet Thread table, never improvised on set.
+- Never show crucifixion, cross, or resurrection imagery inside an Old Testament vignette — **except the bronze serpent** (Num 21 / John 3:14–15), where Jesus Himself draws the analogy: "as Moses lifted up the serpent in the wilderness, so must the Son of Man be lifted up, that everyone who looks to Him may have eternal life." Treatment for kids: the vignette may mirror the LIFTING — Jesus raised up in golden light, arms open, the lifted pole silhouetted beside Him — never nails, blood, or suffering; the visual rhyme is the lifting and the looking-up-to-live, not the agony.
 - Never have Jesus speak dialogue that belongs to the OT characters or advance the OT plot.
 - Never imply the OT saints already understood the full New Testament picture.
 - Never use the crown of thorns except on clear sacrifice shadows (primarily the ram in the thicket).
-- Never place Jesus walking inside the Old Testament scene. He appears only in the golden vignette above the lamp.
+- Never place Jesus walking inside the Old Testament scene. He appears only in the golden vignette above the lamp. (Christophanies are the separate category above — the text's own in-scene presence, light-wrapped, never the registered face.)
 - Never force a type that fails the three-part test above.
 
 ### Writer & director checklist (every shadow episode)
