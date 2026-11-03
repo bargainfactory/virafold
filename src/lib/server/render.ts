@@ -2105,8 +2105,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             );
           }
           // Frame beats with a cast sheet render as img2img edits of it — the
-          // cast's identity comes from pixels, not prose.
-          const anchored = beatFrame === true && castSheetPng !== null && !signOff;
+          // cast's identity comes from pixels, not prose. EXCEPT vignette and
+          // thought-bubble beats: the edit model is too conservative to ADD a
+          // floating vignette with another figure, so those paint fresh from
+          // the cast text + direction (proven to hold the trio AND the bubble).
+          const vignetteBeat =
+            beatFrame === true && /thought.?bubble|dream.?vignette|vignette/i.test(directionOf(scene.text));
+          const anchored = beatFrame === true && castSheetPng !== null && !signOff && !vignetteBeat;
           const storyAnchor = beatFrame === false && !signOff && soloCast >= 0 ? story360[soloCast] : null;
           const genOnce = async (): Promise<Buffer | null> => {
             if (anchored) {
