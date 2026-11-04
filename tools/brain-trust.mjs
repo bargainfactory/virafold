@@ -51,7 +51,9 @@ const CANON = `Series rules this script MUST obey:
 - Akedah safe framing: no weapon ever shown or described; children pre-assured God will provide.
 - Bronze serpent: mounted on a CROSS-SHAPED standard (the one sanctioned cross silhouette).
 - [[Thread]] at promise moments per era thickness. [[...]] directions silent; camera words never in spoken lines.
-- Child-safe always: no gore, no horror, sorrow handled with dignity.`;
+- Child-safe always: no gore, no horror, sorrow handled with dignity.
+- Text inside [[double brackets]] is SILENT stage direction for the painter — children never hear it; never critique its vocabulary as spoken language.
+- The quiz, memory verse, and lamp liturgy are LOCKED structure — never recommend cutting them.`;
 
 const critics = [
   ["STORY EDITOR", `You are a veteran story editor running a Pixar-style brain trust on a children's Bible episode script. Judge STORY: Does the hero have a clear WANT and a deeper NEED, and does the script's # ARC header match what the scenes actually deliver? Is the emotional turn earned? Is there a true tear-beat around 65-75%? Is the lesson FELT in the story before Naomi says it? Where does pacing die? Is the cold open a 3-second hook? Does the tease create pull? Be specific with line quotes. End with: SCORE: n/10 and your TOP 5 fixes, ranked.`],
