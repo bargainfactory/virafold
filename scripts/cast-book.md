@@ -65,3 +65,57 @@ The fireside trio (Naomi, Eli, Pip) are platform personas, not story cast.
 - charname = the ALL-CAPS name above; era is derived from the stated age, so DAVID the boy and DAVID the king register separately (as do Joseph's and Daniel's two eras).
 - Aliases are episode-local for casting; cross-episode recall matches charname only.
 - NAOMI OF BETHLEHEM is deliberately NOT named plain "Naomi" to avoid colliding with the fireside storyteller.
+
+## Season 2 — The New Testament (S2E01–S2E15)
+
+Already registered and REUSED: MOSES and ELIJAH (the Transfiguration, S2E10,
+uses their Old Testament season faces — the registry's finest hour). JESUS'
+design is the bible's locked template, registered at S2E01; engine-enforced:
+He is never auto-recalled by name-match.
+
+Each character carries a # PIXAR note — Want/Need arc, leitmotif, silhouette
+signature, home plate, and the Brain-Trust watch (the failure mode critics
+must guard against for this character).
+
+# CAST — JESUS: Physical — (the locked template, verbatim) a man with deep warm tan, sun-browned Middle-Eastern skin, dark wavy hair and beard, simple cream robes, a calm kind loving face; sturdy carpenter's hands (Mark 6:3). Personality — speaks ONLY what the Gospels record (red-letter discipline); welcomes children (Mark 10:14); weeps openly (John 11:35); fierce only against hardness of heart; sets His face toward Jerusalem (Luke 9:51). Aliases — NONE registered (engine rule: explicit appearances only, never name-match recall).
+# PIXAR — JESUS: Want — to gather and teach His people | Need — (He alone has none to learn; the NEED belongs to everyone around Him — write every episode so another character carries the arc) | Leitmotif — the 4-note shadow motif itself, resolved into a full warm phrase: the sound the series taught now belongs to Him | Silhouette — open arms, slightly bowed head; readable at any distance | Home plate — the Galilee shore | Trust-watch — invented dialogue; cuteness; ever being merely "nice" instead of good.
+
+# CAST — MARY (of Nazareth, the Annunciation): Physical — a young woman of about sixteen, warm tan skin, dark hair braided under a simple blue-grey veil, plain homespun robes of Nazareth poverty, steady wondering eyes. Personality — "let it be to me according to your word" (Luke 1:38); ponders and treasures in her heart (Luke 2:19); sings the Magnificat — a poet's soul in a peasant girl. Aliases — "the mother", "the girl of Nazareth".
+# CAST — MARY (the mother, ministry years): Physical — the same face aged to about forty-five, lines of long treasuring, the same blue-grey veil now faded, dignified and quiet. Personality — points others to Him ("do whatever He tells you" — John 2:5); stands at the cross when nearly all have fled (John 19:25). Aliases — "His mother".
+# PIXAR — MARY: Want — to protect her son | Need — to release Him to be who He is | Leitmotif — a single soft lyre line, rising (the Magnificat seed) | Silhouette — hands folded over heart, head inclined | Home plate — the Nazareth courtyard | Trust-watch — porcelain-saint stiffness; let her be a real mother who laughs and fears.
+
+# CAST — JOSEPH OF NAZARETH: Physical — a sturdy young carpenter, dark curly hair and short beard, sawdust-flecked work tunic, strong careful hands, kind tired eyes. Personality — a just man who protects quietly (Matt 1:19); obeys dreams at once, by night (Matt 2:14); teaches a trade. Aliases — "the carpenter".
+# PIXAR — JOSEPH OF NAZARETH: Want — a quiet righteous life | Need — the courage to shelter a scandal that is really a glory | Leitmotif — low wooden flute, few notes, steady | Silhouette — a guardian's stance, one hand on a shoulder | Home plate — the carpenter's shop | Trust-watch — he vanishes into the background; give him one strong beat per appearance.
+
+# CAST — GABRIEL: Physical — a tall messenger of light — humanlike form wrapped in soft white-gold radiance, features gentle and ageless, light trailing like slow wind. Personality — begins every message with "Do not be afraid" (Luke 1:30); stands in the presence of God (Luke 1:19); joy barely contained. Aliases — "the angel", "the messenger".
+# PIXAR — GABRIEL: Want — to deliver the news well | Need — none; he is the season's pure joy-carrier | Leitmotif — the highest three notes of the shadow motif, like bells far away | Silhouette — arrival-in-light, one raised open hand | Home plate — none (he arrives) | Trust-watch — horror-glow or greeting-card kitsch; keep him strange AND warm.
+
+# CAST — JOHN THE BAPTIST: Physical — a lean sun-scorched wilderness prophet, wild dark hair, camel-hair garment with a leather belt (Matt 3:4), river-wet to the knees, eyes like a desert hawk. Personality — all arrow, no self: "He must increase, I must decrease" (John 3:30); fearless before crowds and kings; tender the moment he sees the Lamb (John 1:29). Aliases — "the Baptizer", "the voice in the wilderness".
+# PIXAR — JOHN THE BAPTIST: Want — to wake the people | Need — to step back when the One he announced arrives | Leitmotif — a raw single horn note over river sounds | Silhouette — pointing away from himself | Home plate — the Jordan ford | Trust-watch — ranting caricature; his fire is love with its sleeves rolled up.
+
+# CAST — PETER: Physical — a barrel-chested Galilean fisherman in his thirties, curly dark hair and full beard, net-calloused hands, patched working tunic always half-wet. Personality — first to speak, first to leap, first to sink (Matt 14:29-30); boasts, then breaks, then is restored over breakfast coals (John 21); the rock who learns rock-ness slowly. Aliases — "Simon", "the fisherman", "the big fisherman".
+# PIXAR — PETER: Want — to be the bravest one | Need — to let grace hold him after he fails | Leitmotif — hearty low strings with a stumble-step rhythm | Silhouette — leaning forward, mid-stride, always first | Home plate — the fishing boat | Trust-watch — comic-relief creep; his humor must never cheapen his courage or his tears.
+
+# CAST — JOHN THE BELOVED: Physical — the youngest disciple, late teens, smooth-faced with dark curls, quick observant eyes, a listener's stillness beside Peter's storm. Personality — leans close at the supper (John 13:25); stays at the cross and receives a mother (John 19:26-27); runs faster but waits at the tomb door (John 20:4-5). Aliases — "the beloved disciple", "the young one".
+# PIXAR — JOHN THE BELOVED: Want — to stay near Him | Need — to become a witness who tells it | Leitmotif — a soft kalimba pattern, like small waves | Silhouette — close at the shoulder, looking up | Home plate — none (he is wherever Jesus is) | Trust-watch — passivity; staying near is his ACTION, shoot it as one.
+
+# CAST — JUDAS: Physical — a neat, capable man, trimmed beard, the money bag at his belt (John 12:6) worn like a responsibility, eyes that stop meeting others as the season darkens. Personality — competent, trusted, disappointed; chooses wrongly and is swallowed by sorrow (Matt 27:3); written as a friend who fell, never a monster. Aliases — "the treasurer".
+# PIXAR — JUDAS: Want — the kingdom on his own timetable | Need — (tragically refused) to bring his disappointment into the light | Leitmotif — Peter's string theme a half-step flat, trailing off unresolved | Silhouette — half-turned away from the group | Home plate — the edge of every gathering | Trust-watch — THE care rule: sorrow not villainy; no sinister lighting, no serpent cues; his end is grieved off-screen.
+
+# CAST — MARY MAGDALENE: Physical — a woman in her thirties, long dark hair under a deep-red scarf, a face that has known darkness and now cannot stop catching light, travel-worn robes. Personality — delivered and devoted (Luke 8:2); last at the cross, first at the tomb (John 20:1); the first witness — "I have seen the Lord" (John 20:18). Aliases — "the Magdalene".
+# PIXAR — MARY MAGDALENE: Want — to serve the One who freed her | Need — to become the first herald, not only a follower | Leitmotif — a bright harp arpeggio that begins minor and ends major | Silhouette — running with news | Home plate — the tomb garden (hers is the dawn there) | Trust-watch — reducing her to tears-only; her defining frame is the RUN.
+
+# CAST — MARTHA: Physical — a capable householder of Bethany, sleeves rolled, keys and cloths at her belt, strong warm face. Personality — serves until she bursts (Luke 10:40); then speaks one of the Gospels' greatest confessions: "You are the Christ" (John 11:27). Aliases — "the sister of Bethany".
+# CAST — LAZARUS: Physical — a gentle householder, short dark beard, plain good robes; in the sign scene, grave-wrapped in white linen, then unbound and blinking at the light. Personality — the quiet friend whose silence after the tomb says everything (John 12:2 — he simply sits at table with Him). Aliases — "the friend of Jesus", "the man from the tomb".
+# PIXAR — BETHANY HOUSE (Martha, Mary of Bethany, Lazarus): Want — to host Him well | Need — to receive what only He can give | Leitmotif — domestic strings warming to one swelling line at "come out" | Silhouette — Martha mid-task; Lazarus at the tomb mouth, light behind | Home plate — the Bethany courtyard and tomb | Trust-watch — the raising played as spectacle; the shot is faces, then the unbinding.
+
+# CAST — PILATE: Physical — a Roman governor in a white toga with a purple stripe, short military haircut, a basin never far from reach, tired political eyes. Personality — finds no fault yet yields (John 19:4-16); washes his hands of what his word could have stopped (Matt 27:24) — the image of avoidance, not a villain. Aliases — "the governor".
+# CAST — THE HIGH PRIEST: Physical — an imposing figure in the high-priestly vestments worn as armor, grey beard, guarded eyes. Personality — fear of losing nation and place (John 11:48) dressed as zeal; a specific leader acting from fear and pride — NEVER a people. Aliases — "Caiaphas".
+# PIXAR — THE AUTHORITIES (Pilate, the High Priest): Want — order kept, position kept | Need — the truth standing right in front of them | Leitmotif — none (their scenes get silence where music would be) | Silhouette — seated power confronted by a standing prisoner | Home plate — the judgment pavement | Trust-watch — the series' heaviest care rule: no caricature, no us/them framing; everyone's fear is recognizably human.
+
+# CAST — SATAN (the tempter): Physical — never fully seen: a voice, a long shadow at the frame's edge, sand lifting where no wind is. Personality — quotes scripture smoothly out of shape (Matt 4:6); offers shortcuts; departs "until an opportune time" (Luke 4:13). Aliases — "the tempter", "the enemy".
+# PIXAR — SATAN: Want — one bow | Need — none; he is pressure, not a person who grows | Leitmotif — the absence of the Thread's shimmer (the mix goes dry) | Silhouette — the shadow across the path, never a body | Home plate — the wilderness | Trust-watch — monster-creep; the scarier and truer choice is smoothness.
+
+# GROUP — THE TWELVE: twelve Galilean working men in earth-tone robes and sashes, distinct silhouettes (tall, short, broad, young), always framed as a traveling household around one center; Peter, John and Judas carry the featured faces.
+# GROUP — THE SHEPHERDS OF BETHLEHEM: night-watch shepherds, rough cloaks, staffs, faces lit from above in the announcement.
+# GROUP — THE MAGI: three travel-stained scholars of the east in layered deep-colored robes, star charts and gifts, arriving at a HOUSE (Matt 2:11), the child a toddler — never at the manger.
