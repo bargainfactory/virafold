@@ -250,6 +250,27 @@ All hand-offs use the locked [[Thread]] template at the correct thickness for th
 
 ---
 
+## Emotional Architecture (required on every episode)
+Every script begins with a production note the engine never speaks:
+
+```
+# ARC — WANT: <what the hero visibly pursues> | NEED: <the deeper truth they must learn> | TURN: <the moment want yields to need> | TEAR-BEAT: <the single emotional peak, placed ~65-75% in>
+```
+
+The Brain Trust's Story Editor verifies that the scenes actually deliver the
+header. The lesson must be FELT in the story before Naomi says it.
+
+## The Brain Trust (required before every render)
+Every episode script passes three critics before it may render:
+`node /home/echoforge/brain-trust.mjs <script.txt>` → Story Editor (arc,
+tear-beat, pacing), The Kids' Room (laughs, repeatable line, attention spans),
+The Canon Keeper (series bible + scripture compliance). Render only on a
+READY verdict, or after one revision addressing the top fixes.
+
+## Staging rule (locked, enforced by the engine)
+One readable action per shot; the subject's pose legible in silhouette. The
+renderer appends this to every directed shot automatically.
+
 ## Claude Instructions (paste with any script request)
 
 Write the full 8–12 minute chapter script for [EPISODE].  

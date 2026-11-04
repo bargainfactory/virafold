@@ -1751,6 +1751,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
     let animUsed = false;
     // The QA gate's one-line verdict, persisted to the clip for the operator.
     let qaSummary = "";
+    // Story-cast names, hoisted for the leitmotif layer at splice time.
+    let storyCastNames: string[] = [];
     // UGC spokesperson mode: every beat is the SAME presenter frame (persona
     // image), animated with speaking-style motion. No scene planning, no
     // cards, no b-roll — one person talking to camera, captions on top.
@@ -1977,6 +1979,7 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // Isaac into an unrelated tale). A flashback or thought-bubble beat
           // that says "Abraham" paints THE registered Abraham.
           for (const r of registry) {
+            if (r.charname.startsWith("PLACE:")) continue; // plates are not people
             if (inFilm.has(r.charname) || !r.sheetPath || !fs.existsSync(r.sheetPath)) continue;
             inFilm.add(r.charname);
             const buf = fs.readFileSync(r.sheetPath);
@@ -1984,7 +1987,59 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             story360.push(buf);
             fs.writeFileSync(path.join(jobDir, `story360_${storyCast.length - 1}.png`), buf);
           }
+          storyCastNames = storyCast.map((c) => c.name);
         }
+        // Location plates: `# PLACE — NAME: description` production notes
+        // register an establishing shot ONCE (per user, cross-episode, in the
+        // same registry under a PLACE: key); cast-less beats that name the
+        // place render as img2img edits of the plate — sets stay as
+        // consistent as faces.
+        const placeDefs: { name: string; desc: string }[] = [];
+        const placePlates: (Buffer | null)[] = [];
+        if (dialogueBeats && clip.script) {
+          for (const m of clip.script.matchAll(/^#\s*PLACE\s*[—-]\s*([^:]{2,40}):\s*(.{10,400})$/gim)) {
+            placeDefs.push({ name: m[1].trim(), desc: m[2].trim() });
+          }
+          if (placeDefs.length) {
+            try {
+              const { getStoryCastRegistry, upsertStoryCharacter } = await import("./db");
+              const regDir = path.join(RENDERS_DIR, "storycast");
+              fs.mkdirSync(regDir, { recursive: true });
+              const registry = getStoryCastRegistry(clip.userEmail);
+              for (const p of placeDefs.slice(0, 6)) {
+                const key = `PLACE:${p.name.toUpperCase()}`;
+                const hit = registry.find((r) => r.charname === key && r.sheetPath && fs.existsSync(r.sheetPath));
+                if (hit) {
+                  placePlates.push(fs.readFileSync(hit.sheetPath!));
+                  continue;
+                }
+                const plate = await generateBackground(
+                  `Hand-painted 2D storybook cartoon illustration, cinematic establishing wide shot: ${p.desc}. No people, no animals, full-bleed composition edge to edge, absolutely no text or letters anywhere.`
+                ).catch(() => null);
+                placePlates.push(plate ?? null);
+                if (plate) {
+                  const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+                  const regPath = path.join(regDir, `place-${slug}-${Math.random().toString(36).slice(2, 8)}.png`);
+                  try {
+                    fs.writeFileSync(regPath, plate);
+                    upsertStoryCharacter(clip.userEmail, {
+                      charname: key,
+                      era: -1,
+                      design: p.desc,
+                      aliases: [],
+                      sheetPath: regPath,
+                    });
+                  } catch {
+                    /* plate registry is a bonus */
+                  }
+                }
+              }
+            } catch {
+              /* plates best-effort */
+            }
+          }
+        }
+
         // Object-continuity lock: the story's recurring objects (a ship, an
         // ark, a den) designed once and pinned into every beat that mentions
         // them — one film drew four different vessels before this existed.
@@ -2072,8 +2127,8 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
                   // cinematography outranks the planner's framing guess. The
                   // guard matters: "aerial shot"/"the camera" wording once made
                   // the painter DRAW a camera lens and drift photoreal.
-                  `${directionOf(scene.text) ? `Shot direction (never draw a camera, lens, frame or any filming equipment — these words only describe the view; keep this film's one consistent illustration style): ${directionOf(scene.text)}. The shot: ` : ""}${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${spokenOf(scene.text).slice(0, 130)}"`
-                : `${directionOf(scene.text) ? `Shot direction (never draw a camera, lens, frame or any filming equipment — these words only describe the view; keep this film's one consistent illustration style): ${directionOf(scene.text)}. The shot: ` : ""}${framePrefixFor(scene.text)}${spokenOf(scene.text).slice(0, 120)}`;
+                  `${directionOf(scene.text) ? `Shot direction (never draw a camera, lens, frame or any filming equipment — these words only describe the view; keep this film's one consistent illustration style; stage ONE readable action, the subject's pose legible even in silhouette):${directionOf(scene.text)}. The shot: ` : ""}${framePrefixFor(scene.text)}${scene.imageSubject} — faithfully illustrating exactly this narration moment: "${spokenOf(scene.text).slice(0, 130)}"`
+                : `${directionOf(scene.text) ? `Shot direction (never draw a camera, lens, frame or any filming equipment — these words only describe the view; keep this film's one consistent illustration style; stage ONE readable action, the subject's pose legible even in silhouette):${directionOf(scene.text)}. The shot: ` : ""}${framePrefixFor(scene.text)}${spokenOf(scene.text).slice(0, 120)}`;
           // Deterministic character casting (the Ep1 lesson): a design block in
           // the prompt means the model PAINTS that character, whatever any
           // "only if named" clause says — so the decision of who belongs in a
@@ -2146,6 +2201,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
             beatFrame === true && /thought.?bubble|dream.?vignette|vignette/i.test(directionOf(scene.text));
           const anchored = beatFrame === true && castSheetPng !== null && !signOff && !vignetteBeat;
           const storyAnchor = beatFrame === false && !signOff && soloCast >= 0 ? story360[soloCast] : null;
+          // Cast-less story beats that name a registered place render from its
+          // plate — the same set every time.
+          let placeAnchor: Buffer | null = null;
+          if (beatFrame === false && !signOff && !beatCast && placeDefs.length) {
+            const lowText = scene.text.toLowerCase();
+            const pi = placeDefs.findIndex((p) => lowText.includes(p.name.toLowerCase()));
+            if (pi >= 0) placeAnchor = placePlates[pi] ?? null;
+          }
           const genOnce = async (): Promise<Buffer | null> => {
             if (anchored) {
               const { editImage } = await import("./images");
@@ -2160,6 +2223,14 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
               const out = await editImage(
                 storyAnchor,
                 `${beatPrompt} Compose this as a NEW scene using EXACTLY the character from the reference sheet — same face, same hair, same outfit, same proportions — in a natural composition for this moment, never the reference's side-by-side views. FULL-BLEED cinematic frame filling the entire image edge to edge, ABSOLUTELY NO text, letters, or words anywhere.`
+              );
+              if (out) return out;
+            } else if (placeAnchor) {
+              // Cast-less beat at a registered location: the plate is the set.
+              const { editImage } = await import("./images");
+              const out = await editImage(
+                placeAnchor,
+                `${beatPrompt} Keep EXACTLY this location — same architecture, same landscape shapes, same palette — recomposed for this moment. FULL-BLEED cinematic frame edge to edge, ABSOLUTELY NO text, letters, or words anywhere.`
               );
               if (out) return out;
             }
@@ -2388,7 +2459,13 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
       // series' 4-note shadow motif, pre-mixed into one input for the splicer.
       try {
         const { ensureFilmSfx } = await import("./sfx");
-        await ensureFilmSfx(jobDir, planBeats, plan.lead ?? 0, (plan.lead ?? 0) + t0 + (plan.tail ?? 0));
+        await ensureFilmSfx(
+          jobDir,
+          planBeats,
+          plan.lead ?? 0,
+          (plan.lead ?? 0) + t0 + (plan.tail ?? 0),
+          storyCastNames
+        );
       } catch (e) {
         console.error("[sfx] skipped:", String(e instanceof Error ? e.message : e).slice(0, 120));
       }

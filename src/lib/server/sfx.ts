@@ -90,11 +90,35 @@ const directionOfLocal = (s: string) =>
  * motif on Jesus-vignette beats, each delayed to its beat start, mixed into
  * one track of film length. Returns the track filename or null.
  */
+const LEITMOTIF_INSTRUMENTS = ["wooden flute", "folk harp", "soft warm strings", "gentle French horn", "kalimba", "lyre"];
+
+/** A character's 3-second signature phrase — composed once, reused in every
+ *  episode they enter (instrument chosen deterministically from the name). */
+async function ensureLeitmotif(key: string, name: string): Promise<string | null> {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 30);
+  const file = path.join(MUSIC_DIR, `leitmotif-${slug}.mp3`);
+  if (fs.existsSync(file) && fs.statSync(file).size > 2_000) return file;
+  const inst =
+    LEITMOTIF_INSTRUMENTS[
+      crypto.createHash("sha1").update(name.toLowerCase()).digest()[0] % LEITMOTIF_INSTRUMENTS.length
+    ];
+  const buf = await elSound(
+    key,
+    `A warm gentle 3-second ${inst} musical phrase — a storybook character's signature motif, one single melodic line, folk and tender, no percussion, no other instruments`,
+    3
+  );
+  if (!buf) return null;
+  fs.mkdirSync(MUSIC_DIR, { recursive: true });
+  fs.writeFileSync(file, buf);
+  return file;
+}
+
 export async function ensureFilmSfx(
   planDir: string,
   beats: FilmBeat[],
   lead: number,
-  total: number
+  total: number,
+  castNames: string[] = []
 ): Promise<string | null> {
   const key = resolveField("voiceover", "elevenlabsApiKey");
   if (!key) return null;
@@ -138,6 +162,17 @@ export async function ensureFilmSfx(
   if (motifBeats.length) {
     const motif = await ensureMotif(key);
     if (motif) for (const b of motifBeats) overlays.push({ file: motif, at: lead + b.start + 0.4, vol: 1.0 });
+  }
+  // Character leitmotifs: each major's signature phrase under their FIRST
+  // story entrance — the audience learns who's arriving before Naomi says it.
+  for (const name of castNames.slice(0, 4)) {
+    if (name.length < 3) continue;
+    const entrance = beats.find(
+      (b) => (b as { frame?: boolean }).frame !== true && b.text.toLowerCase().includes(name.toLowerCase())
+    );
+    if (!entrance) continue;
+    const f = await ensureLeitmotif(key, name);
+    if (f) overlays.push({ file: f, at: lead + entrance.start + 0.3, vol: 0.55 });
   }
   if (!overlays.length) return null;
 
