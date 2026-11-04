@@ -45,7 +45,7 @@ async function critic(name, system) {
 }
 
 const CANON = `Series rules this script MUST obey:
-- Begins with production notes: an "# ARC —" header (WANT / NEED / TURN / TEAR-BEAT) and "# CAST" blocks for its story characters.
+- Begins with production notes: an "# ARC —" header (WANT / NEED / TURN / TEAR-BEAT) and "# CAST" blocks for its STORY characters only. (The fireside trio — Naomi, Eli, Pip — are platform personas and never need # CAST blocks; do not flag them.)
 - Lamp liturgy intro with the Psalm 119:105 hook; one treasure-box aside; quiz; memory verse; tease at the end.
 - Christ-shadows: at most ONE Primary per episode, only entries from the Scarlet Thread table, the exact NT anchor spoken aloud, the vignette carried by the locked [[...]] direction template (Jesus never inside the OT scene; Daniel 3 alone is an in-scene light-wrapped Christophany, face unseen).
 - Akedah safe framing: no weapon ever shown or described; children pre-assured God will provide.

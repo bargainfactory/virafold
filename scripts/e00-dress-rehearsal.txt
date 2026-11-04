@@ -3,7 +3,7 @@
 # PLACE — THE LAMP ROOM: a cozy ancient night-time home interior, warm stone walls, a woven rug, a single glowing clay oil lamp on a low stone table at center, soft hearth-glow at one side, deep indigo night through one small window.
 # NOTE — GOD: never depicted; warm light and the Voice alone.
 
-NARRATOR: [[Palette: indigo and silver. Slow push-in through the small window into the lamp room; the lamp the only warmth in the blue night.]] Night has settled over the lamp room, and one small flame holds the dark at the door.
+NARRATOR: [[Palette: indigo and silver. Three-second cold open: extreme close-up of the lamp flame shrinking to a tiny blue bead in the dark — then a child's small hand reaches in with a fresh wick, and the flame climbs back golden.]] The flame nearly slept tonight... but someone fed it.
 NAOMI: Little ones! The stars are out, the night is soft... so tell me — who lights the lamp?
 ELI: WE light the lamp!
 PIP: Ooooh... watch it glow!
@@ -12,10 +12,13 @@ ELI: Your word is a lamp for my feet!
 PIP: A light for my path so sweet!
 ELI: When the road is dark and long —
 PIP: Light the lamp and sing along!
-NAOMI: [softly] Do you remember our friend Abraham, little ones — the old man who counted stars?
+ELI: [excited] Naomi — tell the one about the dark night! When the promise had no proof yet!
+NAOMI: [softly] Ah — then do you remember our friend Abraham, little ones — the old man who counted stars?
 ELI: [awe] I remember! More stars than numbers!
 NARRATOR: [[The registered Abraham under the deep star field, tiny beneath the immense sky, the same low-angle starlit face as the covenant night.]] Far away and long ago, Abraham stood beneath those very stars, and heard the Voice that never breaks a promise.
 VOICE(atlas): I am your shield, Abraham. Count the stars — so shall your children be. And through your family, every family on earth will be blessed.
+PIP: [softly] So many stars...
+ABRAHAM(orion): [awe] Then I will trust You, Lord... even if I never live to see it.
 NARRATOR: [[The Promise Thread: a thin glowing golden filament with a faint crimson edge drifts gently from the lamp toward the horizon — thin but steady, faintly brighter at this covenant moment — never touching the characters, always softer than the lamp's own light.]] And from that promise a golden thread began to run through every story that followed — thin as a hair, bright as hope.
 NAOMI: [tender] And where was that thread running TO, little ones? Lean close. [[Floating golden dream-vignette glowing in the warm air above the clay lamp: Jesus — deep warm tan, sun-browned Middle-Eastern skin, dark wavy hair and beard, simple cream robes, a calm kind loving face — holding/with a small white lamb cradled gently in His arms, soft golden radiance all around Him; the fireside cast gaze up at it in wonder.]]
 NAOMI: To Him. Every star, every promise, every story — the light was always coming.
