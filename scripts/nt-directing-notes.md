@@ -29,7 +29,7 @@ above the lamp. The New Testament season is the payoff of that discipline:
   light they have seen above the lamp for 38 episodes step into the world.
   This is the single most important shot of the entire series. Lock it.
 - From that moment on, **Jesus walks in-scene** as the registered design
-  (deep warm tan, sun-browned Middle-Eastern skin, dark wavy hair and beard,
+  (deep warm tan, sun-browned Middle-Eastern skin, long dark wavy hair and beard,
   simple robes, calm kind loving face). The old "never in the OT scene" rule
   retires honorably — He is incarnate now; that was always the point.
 

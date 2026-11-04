@@ -16,7 +16,7 @@ let text = fs.readFileSync(FILE, "utf8");
 
 // ---- Locked templates (series-bible.md is the source of truth) ----
 const JESUS_DESIGN =
-  "Jesus — deep warm tan, sun-browned Middle-Eastern skin, dark wavy hair and beard, simple cream robes, a calm kind loving face";
+  "Jesus — deep warm tan, sun-browned Middle-Eastern skin, long dark wavy hair and beard, simple cream robes, a calm kind loving face";
 const VIGNETTE = (object, thorns) =>
   `[[Floating golden dream-vignette glowing in the warm air above the clay lamp: ${JESUS_DESIGN}${thorns ? " — wearing a simple woven crown of thorns" : ""} — holding/with ${object}, soft golden radiance all around Him; the fireside cast gaze up at it in wonder.]]`;
 const THREAD_STATES = {

@@ -109,7 +109,7 @@ Era thickness (identical rendering across all 38 episodes):
 Every Primary vignette uses THIS direction text, verbatim except the [OBJECT] slot — identical wording is what keeps the vignette face identical, because fireside vignettes are painted from direction text:
 
 ```
-[[Floating golden dream-vignette glowing in the warm air above the clay lamp: Jesus — deep warm tan, sun-browned Middle-Eastern skin, dark wavy hair and beard, simple cream robes, a calm kind loving face — holding/with [OBJECT], soft golden radiance all around Him; the fireside cast gaze up at it in wonder.]]
+[[Floating golden dream-vignette glowing in the warm air above the clay lamp: Jesus — deep warm tan, sun-browned Middle-Eastern skin, long dark wavy hair and beard, simple cream robes, a calm kind loving face — holding/with [OBJECT], soft golden radiance all around Him; the fireside cast gaze up at it in wonder.]]
 ```
 - Crown of thorns: add "wearing a simple woven crown of thorns" ONLY on sacrifice shadows (rows 4, 8, 12).
 - Duration enforced as narration length: Primary = 18–30 spoken words on the carrying line (≈ 7–12 s); Secondary = 10–18 words (≈ 4–7 s).
