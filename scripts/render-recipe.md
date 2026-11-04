@@ -4,14 +4,19 @@ The one way every canonical episode renders. Deviations are deliberate and noted
 
 ## Chapter defaults
 - **Format**: landscape (16:9), 8–12 minutes (script 1,400–2,100 words).
-- **Animation**: level 2 (full motion, lite model) with **Omni Flash reserved
-  for the premium hero beats** the engine already selects (dolly, blooms,
-  cast-referenced close-ups) — in chapters that means roughly 2–4 Omni shots.
+- **Look**: **ILLUSTRATED (animate 0) — locked by the showrunner 2026-11-04.**
+  Painted storybook stills with the cinematic auto-camera (Ken Burns grammar);
+  no generated motion, no motion billing, no animation artifacts. Directed
+  writing stays two-clause (state + motion) — motion clauses drive the camera
+  paths and remain live if a beat is ever upgraded.
+- **Motion upgrades are surgical, never default**: an individual hero beat may
+  be animated after review via the Cutting Room / animate-film (premium flag →
+  Omni), by explicit decision per beat.
 - **Style**: `bold` captions, `cartoon` vstyle, fireside trio as persona cast.
-- **Budget target**: ~$10–15 per chapter all-in (voice + paint + motion).
-  Season 1 (6 chapters) ≈ $60–90. The full 53-chapter arc ≈ $550–800.
-  Extended tellings (the Abraham/Isaac/Jacob features) are the deluxe format
-  at $40–60 and are produced only by explicit decision.
+- **Budget target**: ~$3–6 per chapter all-in (voice + paint + QA + foley).
+  Season 1 (6 chapters) ≈ $20–35. The full 53-chapter arc ≈ $180–300.
+  Extended tellings (the Abraham/Isaac/Jacob features) remain the deluxe
+  animated format at $40–60, produced only by explicit decision.
 
 ## Pipeline per episode (locked order)
 1. Write from the outline + bible + cast book, using template tokens
