@@ -119,3 +119,76 @@ must guard against for this character).
 # GROUP — THE TWELVE: twelve Galilean working men in earth-tone robes and sashes, distinct silhouettes (tall, short, broad, young), always framed as a traveling household around one center; Peter, John and Judas carry the featured faces.
 # GROUP — THE SHEPHERDS OF BETHLEHEM: night-watch shepherds, rough cloaks, staffs, faces lit from above in the announcement.
 # GROUP — THE MAGI: three travel-stained scholars of the east in layered deep-colored robes, star charts and gifts, arriving at a HOUSE (Matt 2:11), the child a toddler — never at the manger.
+
+### The Twelve — individual profiles (Peter, John the beloved, and Judas above)
+
+# CAST — ANDREW: Physical — Peter's younger brother, leaner build, shorter beard, the same fisherman's weathering, a satchel always ready. Personality — the introducer: brings Peter (John 1:42), the boy with loaves (John 6:8-9), the Greeks (John 12:22); content to connect and step aside. Aliases — "Peter's brother", "the introducer".
+# PIXAR — ANDREW: Want — to bring people to Him | Silhouette — a guiding hand on someone else's shoulder, presenting | Trust-watch — invisibility; every episode he appears, he MUST bring someone.
+
+# CAST — JAMES (son of Zebedee): Physical — John's older brother, broad-shouldered, storm-dark brows, a boat-hand's rope burns. Personality — a "son of thunder" (Mark 3:17) who wants fire from heaven (Luke 9:54) and learns the cup he'll drink (Mark 10:39). Aliases — "the elder brother", "son of thunder".
+# PIXAR — JAMES: Want — the kingdom NOW, by force if needed | Silhouette — squared stance, half a step ahead of John | Trust-watch — merging into John; thunder differentiates them.
+
+# CAST — PHILIP: Physical — a practical Galilean with a counter's squint, neat beard, fingers that tally. Personality — the calculator: "two hundred denarii would not be enough" (John 6:7); "show us the Father" (John 14:8); finds Nathanael with "come and see" (John 1:46). Aliases — "the calculator".
+# PIXAR — PHILIP: Want — things to add up | Silhouette — counting on fingers before wonder stops him | Trust-watch — doubt-caricature; his math makes the miracles land harder.
+
+# CAST — NATHANAEL (Bartholomew): Physical — a thoughtful young man often found under a fig tree, scholar's sash over a worker's tunic, honest unguarded face. Personality — "can anything good come from Nazareth?" then the season's fastest confession (John 1:46-49); an Israelite with no deceit. Aliases — "Bartholomew", "the man under the fig tree".
+# PIXAR — NATHANAEL: Want — the real thing, no pretending | Silhouette — rising from under the fig tree | Trust-watch — he carries the ladder echo (John 1:51) — never give that beat to anyone else.
+
+# CAST — MATTHEW: Physical — softer hands than the fishermen, a once-fine robe gone plain, ink-stained fingers, eyes that expect contempt and keep finding welcome. Personality — left the tax booth mid-count (Matt 9:9); threw the feast that scandalized the righteous (Matt 9:10); the recorder who remembers. Aliases — "Levi", "the tax collector".
+# PIXAR — MATTHEW: Want — to belong at the table he never deserved | Silhouette — pen stilled over a ledger, looking up | Trust-watch — redeemed means WELCOMED, not scrubbed; keep his old-life awkwardness at gatherings.
+
+# CAST — THOMAS: Physical — a wiry realist with a furrowed brow, travel cloak always half-packed, hands that need to touch to trust. Personality — braver than his reputation ("let us also go, that we may die with him" — John 11:16); asks the question everyone has (John 14:5); his honest doubt becomes the Gospels' highest cry: "My Lord and my God" (John 20:28). Aliases — "the twin", "the honest doubter".
+# PIXAR — THOMAS: Want — proof he can hold | Silhouette — reaching hand, hesitating one beat | Trust-watch — "doubting Thomas" mockery is banned; his doubt is the audience's doorway.
+
+# CAST — JAMES (son of Alphaeus): Physical — small-framed and quick, young, a listener at the circle's edge. Personality — the quiet faithful; scripture keeps his deeds private and his presence constant. Aliases — "James the younger".
+# CAST — THADDAEUS (Jude): Physical — round warm face, patched cloak, a brother's ease. Personality — asks the supper-table question "why show yourself to us and not the world?" (John 14:22). Aliases — "Jude".
+# CAST — SIMON THE ZEALOT: Physical — lean and coiled, an old fighter's scar, the zealot's sash now worn under a disciple's plain robe. Personality — the revolutionary who sits at one fire with a tax collector — the kingdom's living proof. Aliases — "the zealot".
+# PIXAR — THE QUIET THREE (James the younger, Thaddaeus, Simon the Zealot): Want — to stay faithfully in the story | Silhouette — the steady middle of every group frame | Trust-watch — Simon-and-Matthew seated TOGETHER is a recurring deliberate image; never waste it.
+
+### The Saved and the Healed
+(Cluster rule — the affliction is never the spectacle; the meeting is the
+shot. Every healed face returns later in a crowd, visibly whole: the registry
+makes gratitude continuity free.)
+
+# CAST — NICODEMUS: Physical — an elderly ruling teacher, rich dark robes with scholar's tassels, a lantern in hand by night (John 3:2), careful eyes learning wonder. Personality — comes by night with questions, defends by day with law (John 7:50), carries myrrh at the end in open daylight (John 19:39). Aliases — "the teacher who came by night".
+# PIXAR — NICODEMUS: Want — understanding without cost | Need — to step into daylight | Silhouette — lantern raised at a doorway | Trust-watch — his arc spans the whole season (night → dusk → daylight); plant each stage.
+
+# CAST — ZACCHAEUS: Physical — a small, quick, richly dressed chief tax collector, rings on soft fingers, surprisingly nimble in a sycamore tree. Personality — wants to SEE more than to be seen (Luke 19:3-4); joy makes him generous on the spot — half to the poor, fourfold restored (Luke 19:8). Aliases — "the little tax collector", "the man in the tree".
+# PIXAR — ZACCHAEUS: Want — one glimpse | Need — to be seen and named | Silhouette — small figure out on a branch | Trust-watch — the comedy is WITH him, never at him; the laugh turns to a lump in the throat at "Zacchaeus, come down."
+
+# CAST — THE SAMARITAN WOMAN: Physical — a strong-faced woman at a noon well, water jar on her hip, layered Samaritan robes, eyes braced for judgment that doesn't come. Personality — quick-witted at the well (John 4:11); leaves the jar and becomes her town's first evangelist (John 4:28-29). Aliases — "the woman at the well".
+# PIXAR — THE SAMARITAN WOMAN: Want — water without whispers | Need — to be fully known and still wanted | Silhouette — the LEFT-BEHIND JAR; her run mirrors Magdalene's | Trust-watch — her past is handled in one gentle line ("He told me everything I ever did"), never dramatized.
+
+# CAST — BARTIMAEUS: Physical — a roadside blind beggar outside Jericho, patched cloak (his one possession), upturned weathered face, staff across his knees. Personality — out-shouts the crowd ("Son of David!" — Mark 10:47); throws OFF the cloak when called (Mark 10:50); follows on the road, seeing. Aliases — "the blind beggar of Jericho".
+# PIXAR — BARTIMAEUS: Want — to be heard | Need — (receives both) to see and to follow | Silhouette — the thrown-off cloak mid-air | Trust-watch — his shout is faith, not noise; the crowd shushing him is the obstacle beat.
+
+# CAST — THE PARALYZED FRIEND: Physical — a thin young man on a woven mat, later standing unsteady-then-sure, mat rolled under his arm like a trophy. Personality — carried by four friends through a roof (Mark 2:3-4); forgiven before healed. Aliases — "the man on the mat".
+# GROUP — THE FOUR FRIENDS: four determined working men, dust and roof-tiles on their shoulders, grins of holy mischief (Mark 2:4 — "when Jesus saw THEIR faith").
+# PIXAR — THE ROOF PARTY: Want — their friend whole, whatever it takes | Silhouette — a mat descending on ropes through broken light | Trust-watch — the roof is joy, not slapstick; the owner's face gets one comic beat, then awe.
+
+# CAST — THE THANKFUL LEPER: Physical — a Samaritan man, skin first shown mottled at a lawful distance (kid-gentle, never grotesque), then clean and shining; a returning runner. Personality — one of ten healed, the only one who came back loud with thanks (Luke 17:15-16). Aliases — "the one who came back".
+# CAST — THE HEALED WOMAN: Physical — a careworn woman wrapped in veils who has been sick twelve long years, reaching for a hem through forest-of-legs crowd (Luke 8:43-44); afterward upright, unveiled face full of morning. Personality — faith that plans one touch; courage to confess before the crowd. Aliases — "the woman who touched the hem".
+# CAST — JAIRUS: Physical — a synagogue ruler in good robes, dignity abandoned at a run, falling at feet (Mark 5:22). Personality — a father first; waits through the worst news a father can hear and is told only "do not fear, only believe" (Mark 5:36). Aliases — "the synagogue ruler".
+# CAST — TALITHA (Jairus' daughter): Physical — a girl of twelve, grey-pale on her bed, then warm with returning color, eyes opening as to a morning nap. Personality — wakes hungry (Mark 5:43 — He tells them to feed her; the season's tenderest domestic beat). Aliases — "the little girl", "Talitha".
+# CAST — THE CENTURION OF CAPERNAUM: Physical — a Roman officer, armor softened by a plain cloak, bearing both command and humility. Personality — "I am not worthy… only say the word" (Matt 8:8); the faith that amazed Jesus. Aliases — "the centurion of great faith".
+# CAST — THE WIDOW OF NAIN: Physical — a grey-veiled mother beside a bier at the town gate, then clutching her living son. Personality — asks nothing; is seen ("He had compassion on her" — Luke 7:13). Aliases — "the widow at the gate".
+# CAST — THE MAN BORN BLIND: Physical — a young beggar with clay-smeared then washed-bright eyes (John 9:6-7), growing bolder scene by scene. Personality — the season's best deadpan witness: "one thing I know — I was blind, now I see" (John 9:25). Aliases — "the man from Siloam".
+# CAST — THE BOY WITH THE LOAVES: Physical — a small boy with a basket — five barley loaves, two dried fish (John 6:9) — gap-toothed and willing. Personality — gives everything he brought; watches it become enough. Aliases — "the boy with the basket".
+# CAST — THE MAN AT THE NEXT CROSS: Physical — seen only from the shoulders up against the darkened sky (full dignity grammar), a worn face finding its first peace. Personality — defends Jesus with his last strength and asks only to be remembered (Luke 23:40-42); answered with "today… with me… paradise." Aliases — "the man beside Him".
+# PIXAR — THE HEALED (cluster): Want — one specific mercy each | Need — what He gives beyond the asking | Silhouette — each gets ONE emblem object (mat, cloak, jar, hem, basket) | Trust-watch — afflictions staged fear-free and never lingered on; and every healed face reappears in later crowds, whole — the registry's quiet testimony.
+
+### Named witnesses and figures of the Passion
+
+# CAST — JOSEPH OF ARIMATHEA: Physical — a wealthy, grave council member in fine dark robes, silver-bearded, a rich man's bearing carrying a poor man's grief. Personality — a secret disciple who goes PUBLIC at the costliest hour, asking Pilate boldly for the body (Mark 15:43); gives his own new tomb (Matt 27:60). Aliases — "the rich councilman", "the man who gave his tomb".
+# PIXAR — JOSEPH OF ARIMATHEA: Want — faith without exposure | Need — one brave public act | Silhouette — standing alone before Pilate's seat | Trust-watch — his courage lands BECAUSE Friday looks final; do not soften the risk.
+
+# CAST — ANNAS: Physical — the old power behind the vestments — plainer robes than Caiaphas, sharper eyes, a questioner by lamplight (John 18:13). Personality — the first interrogation; influence without office. Aliases — "the elder priest". (Care rules of THE AUTHORITIES apply.)
+# CAST — SIMEON: Physical — a very old man in the temple courts, trembling hands that have waited a lifetime, face like a lamp at oil's end. Personality — promised he would see; sings over the baby — "now let your servant depart in peace" (Luke 2:29-32). Aliases — "the old man in the temple".
+# CAST — ANNA: Physical — a tiny ancient prophetess, eighty-four, bent but bird-bright, never leaving the temple (Luke 2:36-37). Personality — fasting, praying, and then telling EVERYONE (Luke 2:38). Aliases — "the prophetess in the temple".
+# PIXAR — THE TEMPLE ELDERS (Simeon, Anna): Want — to see the promise before sleeping | Silhouette — ancient hands holding the infant | Trust-watch — this is the OT season's audience on screen — the ones who waited; let the Thread visibly touch them.
+
+# CAST — ELIZABETH: Physical — a grey-haired mother long past hoping, aglow with impossible late joy, hands on a blessed belly (Luke 1:41). Personality — the first to bless Mary out loud; her baby leaps. Aliases — "the cousin".
+# CAST — ZECHARIAH: Physical — an old priest struck silent, communicating in wide eyes and wax tablets (Luke 1:63), voice returning in a flood of prophecy. Personality — doubt, silence, then the Benedictus. Aliases — "the silent priest".
+# CAST — HEROD THE GREAT: Physical — a heavy, aging king in too much gold, fear wearing a crown. Personality — "troubled, and all Jerusalem with him" (Matt 2:3); lies to the Magi. The flight to Egypt is shown; his cruelty is NEVER depicted — one hushed narrator line and the family already safe on the road. Aliases — "the fearful king".
+# CAST — CLEOPAS: Physical — a road-weary disciple on the Emmaus way, sandals and sorrow, walking-stick conversation. Personality — "we had hoped…" (Luke 24:21); heart burning at opened scriptures; knows Him in broken bread. Aliases — "the Emmaus walker".
+# GROUP — THE WOMEN OF THE DAWN: Mary Magdalene with Joanna, Salome and the other Mary — spice jars and dawn cloaks, the first congregation of the resurrection (Luke 24:1,10).

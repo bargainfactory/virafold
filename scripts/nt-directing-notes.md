@@ -1,5 +1,22 @@
 # New Testament Directing Notes — Season 2: "The Lamp Meets Its Light"
-# (Canon draft — companion to series-bible.md and series-outline.md)
+# (Canon — companion to series-bible.md and series-outline.md)
+
+## The Directing Spine (locked — 15 notes; everything below serves these)
+1. The vignette OPENS, it does not vanish — it descends/parts, and what was elevated gold becomes the room the characters inhabit. The first opening is the signature shot of the entire series.
+2. Same face, new light: the registered Jesus, now in natural light, ordinary rooms, among people.
+3. The lamp stays — every episode's liturgy unchanged; the lamp is now understood as the light that was pointing to the Light in the room.
+4. The Thread FULFILLS, never disappears: continuous, luminous, and at rest at the key stations — wrapped around the manger, lying across the supper table, rising and holding at the Ascension.
+5. Echo, don't re-explain: the default echo is IN-SCENE — the old symbolic object briefly glows, then RESOLVES INTO the real thing (bread glows → it is His bread). One clear line, no lecture.
+6. Cold opens remember fulfillment: the three-beat remembering may now pair a shadow with its completion.
+7. Default is PRESENCE: after the opening inversion, elevated vignettes are rare memory-echoes only, never the main device.
+8. Child-safe restraint carries forward — the Akedah standard governs the cross and resurrection.
+9. One repeatable line per episode ("The light came down." "This is the Lamb." "He is with us.").
+10. The end card never changes: lamp + Thread — only the Thread's meaning has inverted (luminous, settled).
+11. Tone continuous: the awe shifts from "one day" to "He is here."
+12. Payoff over new symbols: complete existing Scarlet Thread entries before introducing anything new.
+13. The game inverts: Season 1 asked "Did you spot the shadow?" — Season 2 asks "DID YOU SEE THE PROMISE KEPT?"
+14. Hand-off 4 is the door: S2E01 opens the very frame "Every Shadow Was Waiting" closed on.
+15. Lean 8–12 minute chapters; the inversion must feel inevitable, never rushed.
 
 ## The Great Inversion (the series' structural payoff)
 
@@ -18,8 +35,17 @@ above the lamp. The New Testament season is the payoff of that discipline:
 
 ## [[Echo]] — the NT's counterpart of the vignette (locked template)
 
-Shadows pointed forward; echoes look back. At fulfillment moments the vignette
-above the lamp returns — but now it shows the OLD TESTAMENT shadow, as memory:
+Two forms, per the Spine's note 5 and 7:
+
+**A. The resolve-echo (DEFAULT, in-scene):** at the fulfillment moment the old
+symbolic object briefly GLOWS with the vignette's gold, then resolves into the
+real thing in Jesus' hands — the bread glows and it IS His bread; the water
+gleams and it IS the living water. One clear spoken line, no lecture. The
+4-note motif sounds at the glow.
+
+**B. The memory-echo (RARE, elevated):** for cold-open rememberings and
+explicit memories only, the vignette above the lamp returns showing the OLD
+TESTAMENT shadow:
 
 - Jesus breaks bread and lifts the cup → echo: Melchizedek's bread and cup.
 - "Behold the Lamb of God" at the Jordan → echo: the ram in the thicket.
