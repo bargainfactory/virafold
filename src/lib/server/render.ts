@@ -1980,6 +1980,11 @@ async function renderScriptVideo(clip: Clip & { userEmail: string }): Promise<vo
           // that says "Abraham" paints THE registered Abraham.
           for (const r of registry) {
             if (r.charname.startsWith("PLACE:")) continue; // plates are not people
+            // JESUS is never auto-recalled by name-match: His appearances are
+            // always explicit, via the locked [[Vignette]]/[[Echo]]/[[Memory]]
+            // templates — a narration mention must not place Him in-scene
+            // (the series-bible Never rule for OT settings).
+            if (r.charname === "JESUS") continue;
             if (inFilm.has(r.charname) || !r.sheetPath || !fs.existsSync(r.sheetPath)) continue;
             inFilm.add(r.charname);
             const buf = fs.readFileSync(r.sheetPath);

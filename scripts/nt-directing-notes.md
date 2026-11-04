@@ -30,6 +30,28 @@ above the lamp returns — but now it shows the OLD TESTAMENT shadow, as memory:
 - The Last Supper's "new covenant" → echo: the star field of the covenant.
 - Resurrection morning → echo: "Let there be light" (E01's first light).
 
+## [[Memory]] — feedbacks run BOTH directions (locked)
+
+The recall system is bidirectional. Once Season 2 renders, its people and
+moments register like everyone else — and become available as flashbacks and
+thought bubbles in ANY episode, exactly as OT characters are today:
+
+- Within the NT season: Peter remembers the boat; Mary treasures Bethlehem in
+  her heart (Luke 2:19 — a thought bubble the text itself invites); Emmaus
+  remembers the supper.
+- In retrospective or special episodes after Season 2: any NT moment may be
+  recalled in the bubble grammar, anchored to the registered imagery so the
+  memory matches what viewers saw.
+- NT characters (MARY, PETER, JOHN, MARY MAGDALENE…) join the registry and
+  the recall bench normally.
+- **The one exception (engine-enforced): JESUS is never auto-recalled by a
+  name-match.** His appearances are always explicit — [[Vignette]] in OT-set
+  episodes, in-scene in NT-set episodes, [[Memory]]/[[Echo]] elsewhere — so a
+  stray mention of His name can never place Him in an Old Testament scene.
+- A [[Memory]] bubble showing Jesus (post-S2, e.g. the disciples remembering
+  Him) uses His registered in-scene design inside the bubble — permitted
+  because the rememberer lives after the Incarnation.
+
 Rules (mirror the vignette's):
 - One Primary echo per episode, drawn ONLY from the Scarlet Thread table.
 - Spoken recognition is a child's line where possible: "The ram!" "The bread!"
