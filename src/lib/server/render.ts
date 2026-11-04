@@ -903,8 +903,11 @@ export async function renderBeatSegment(planDir: string, plan: FilmPlan, b: Film
   const GRADES: Record<string, string> = {
     warm: "eq=gamma_r=1.05:gamma_b=0.94:saturation=1.12",
     cool: "eq=gamma_b=1.06:gamma_r=0.95:saturation=0.95",
-    night: "eq=brightness=-0.07:saturation=0.72,colorbalance=bs=0.12:ms=0.06",
-    golden: "colorbalance=rs=0.10:ms=0.05:bs=-0.08,eq=saturation=1.1",
+    // NB colorbalance options are rs/gs/bs (shadows), rm/gm/bm (midtones),
+    // rh/gh/bh (highlights) — an invalid name fails the whole filtergraph
+    // ("Option not found"), which is how E00 caught the old 'ms=' typo here.
+    night: "eq=brightness=-0.07:saturation=0.72,colorbalance=bs=0.12:bm=0.06",
+    golden: "colorbalance=rs=0.10:rm=0.05:bs=-0.08,eq=saturation=1.1",
     dream: "gblur=sigma=1.2,eq=brightness=0.04:saturation=1.08",
   };
   const grade = b.fx?.grade && GRADES[b.fx.grade] ? `${GRADES[b.fx.grade]},` : "";
