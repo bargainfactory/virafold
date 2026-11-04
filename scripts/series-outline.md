@@ -138,8 +138,8 @@ High priest. Covering explained simply. Scapegoat sent away.
 Tease: serpents.
 
 ### S3E23 — The Lifted Serpent
-Complaint. Serpents. Bronze serpent lifted. Looking brings life.  
-**Primary vignette**: lifted serpent.  
+Complaint. Serpents. The bronze serpent mounted and lifted on a CROSS-SHAPED wooden standard (locked — the series' one sanctioned cross silhouette, per the bible's John 3:14 exception). Looking brings life.  
+**Primary vignette**: the lifting mirrored — Jesus raised in golden light, arms open, the cross-shaped standard silhouetted; never suffering.  
 **Hand-off 2**: The Promise Crosses the River.
 
 ---

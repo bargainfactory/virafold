@@ -24,7 +24,7 @@ Whisper entries are spoken only. Do not add entries without updating this table.
 | 10 | Ex 17 | Struck rock | Primary | Water from the rock | 1 Cor 10:4 | |
 | 11 | Ex 25–40 | Tabernacle | Primary | Lampstand / veil | John 1:14 ("tabernacled among us"); Heb 8–10 | Strength raised — among the strongest anchors. |
 | 12 | Lev 16 | Day of Atonement | Primary | Mercy seat / scapegoat | Hebrews 9–10 | Strength raised. Handle gently: the carrying-away of sin. |
-| 13 | Num 21 | Bronze serpent | Primary | Lifted serpent | John 3:14–15 | The ONE scripture-backed exception to the no-cross-imagery rule — see Never list. |
+| 13 | Num 21 | Bronze serpent | Primary | Serpent lifted on a CROSS-SHAPED standard | John 3:14–15 | The ONE scripture-backed exception to the no-cross-imagery rule — see Never list. The pole is explicitly a cross-shaped wooden standard (a T-cross), in the historical scene AND the vignette: the series' one sanctioned cross silhouette. |
 | 14 | Josh 2 | Rahab's scarlet cord | Secondary | Scarlet cord | Heb 11:31; Jas 2:25 (commendation; cord typology traditional) | The series' namesake thread — honest about its traditional status. |
 | 15 | Ruth | Boaz the kinsman-redeemer | Secondary | Sandal / redeemer's cloak | Kinsman language (typological) | |
 | 16 | 2 Sam 7 | David's everlasting throne | Primary | Throne / star | Luke 1:32–33; Acts 2:30 | |
@@ -66,7 +66,7 @@ A Christophany is a passage where the pre-incarnate Christ is arguably *present 
 
 ### Explicit "Never" list — except where the New Testament itself makes the link
 A "never" yields only when a New Testament scripture explicitly draws the picture; the exception is then named in the Scarlet Thread table, never improvised on set.
-- Never show crucifixion, cross, or resurrection imagery inside an Old Testament vignette — **except the bronze serpent** (Num 21 / John 3:14–15), where Jesus Himself draws the analogy. Treatment for kids: the vignette may mirror the LIFTING — Jesus raised up in golden light, arms open, the lifted pole silhouetted beside Him — never nails, blood, or suffering; the visual rhyme is the lifting and the looking-up-to-live, not the agony.
+- Never show crucifixion, cross, or resurrection imagery inside an Old Testament vignette — **except the bronze serpent** (Num 21 / John 3:14–15), where Jesus Himself draws the analogy. Locked treatment: the bronze serpent is mounted on a **cross-shaped wooden standard** (a T-cross pole) in the historical scene; the vignette mirrors the LIFTING — Jesus raised up in golden light, arms open, the cross-shaped standard silhouetted beside Him — never nails, blood, or suffering; the visual rhyme is the lifting and the looking-up-to-live, not the agony. This is the series' one sanctioned cross silhouette.
 - Never have Jesus speak dialogue that belongs to the OT characters or advance the OT plot.
 - Never imply the OT saints already understood the full New Testament picture.
 - Never use the crown of thorns except on clear sacrifice shadows (the ram; the Passover lamb; the Day of Atonement).
