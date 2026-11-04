@@ -106,7 +106,7 @@ Rules (mirror the vignette's):
   He gets no made-up jokes, no modern idioms, no invented teachings.
 - **Voice:** a NEW locked ElevenLabs voice, warm, young-adult male, unhurried
   — distinct from the narrator and from the Father (audition before E01;
-  registered in the voice map as "yeshua"). The FATHER keeps the deep echoing
+  registered in the voice map as "yeshua" — LOCKED 2026-11-04: Chris, ElevenLabs iP95p4xoKVk53GoZ742B, user-approved). The FATHER keeps the deep echoing
   VOICE treatment (Baptism, Transfiguration: "This is My beloved Son").
 - **The Spirit** is shown only in scriptural symbols: the dove at the Jordan,
   wind and tongues of flame at Pentecost. Never a figure.
